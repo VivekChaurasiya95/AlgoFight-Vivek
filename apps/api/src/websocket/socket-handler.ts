@@ -1543,7 +1543,7 @@ export class SocketHandler {
 
     private send(socket: WebSocket, event: string, payload: any): void {
         if (socket.readyState === WebSocket.OPEN) {
-            socket.send(JSON.stringify({ event, ...payload }));
+            socket.send(JSON.stringify({ event, payload }));
         }
     }
 }

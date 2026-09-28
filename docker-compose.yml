@@ -157,6 +157,8 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       WS_PORT: 4001
+      PISTON_URL: http://piston-1:2000
+      PISTON_BACKUP_URLS: http://piston-2:2000
     command: ["pnpm", "--filter", "@algofight/websocket", "exec", "tsx", "src/index.ts"]
     networks:
       - algofight-network

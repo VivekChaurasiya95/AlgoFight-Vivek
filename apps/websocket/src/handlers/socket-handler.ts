@@ -82,6 +82,36 @@ export class SocketHandler {
         return this.cachedCerts;
     }
 
+    private async verifySessionToken(sessionId: string): Promise<{ uid: string; email?: string; name?: string; role?: string } | null> {
+        if (!sessionId.startsWith("af_sess_")) return null;
+
+        try {
+            const raw = await this.redis.get(`af_sess:${sessionId}`);
+            if (!raw) return null;
+
+            const session = JSON.parse(raw);
+
+            if (
+                session.sessionId !== sessionId ||
+                session.status !== "ACTIVE" ||
+                !Number.isFinite(session.expiresAt) ||
+                session.expiresAt <= Date.now() ||
+                !session.userId
+            ) {
+                return null;
+            }
+
+            return {
+                uid: String(session.userId),
+                email: session.email,
+                name: session.username,
+                role: session.role,
+            };
+        } catch {
+            return null;
+        }
+    }
+
     private verifyToken(token: string, certs: Record<string, string>): { uid: string; email?: string; name?: string; role?: string } | null {
         try {
             const parts = token.split(".");
@@ -250,12 +280,21 @@ export class SocketHandler {
 
                     const rawToken = data.token || data.rawToken || (typeof data.auth === "object" ? data.auth.token : undefined);
                     if (rawToken) {
-                        const certs = await this.refreshPublicKeys();
-                        const verified = this.verifyToken(rawToken, certs);
-                        if (verified) {
-                            verifiedUid = verified.uid;
-                            verifiedEmail = verified.email;
-                            verifiedUsername = verified.name;
+                        if (rawToken.startsWith("af_sess_")) {
+                            const verified = await this.verifySessionToken(rawToken);
+                            if (verified) {
+                                verifiedUid = verified.uid;
+                                verifiedEmail = verified.email;
+                                verifiedUsername = verified.name;
+                            }
+                        } else {
+                            const certs = await this.refreshPublicKeys();
+                            const verified = this.verifyToken(rawToken, certs);
+                            if (verified) {
+                                verifiedUid = verified.uid;
+                                verifiedEmail = verified.email;
+                                verifiedUsername = verified.name;
+                            }
                         }
                     }
 
@@ -1393,7 +1432,7 @@ export class SocketHandler {
 
     private send(socket: WebSocket, event: string, payload: any): void {
         if (socket.readyState === WebSocket.OPEN) {
-            socket.send(JSON.stringify({ event, ...payload }));
+            socket.send(JSON.stringify({ event, payload }));
         }
     }
 }
