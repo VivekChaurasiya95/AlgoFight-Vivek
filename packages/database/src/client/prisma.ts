@@ -12,8 +12,7 @@ const isRemote =
 	DATABASE_URL.includes("render.com") ||
 	DATABASE_URL.includes("sslmode=require") ||
 	DATABASE_URL.includes("supabase.co") ||
-	DATABASE_URL.includes("neon.tech") ||
-	process.env.NODE_ENV === "production";
+	DATABASE_URL.includes("neon.tech")
 
 const postgresPool = new Pool({
 	connectionString: DATABASE_URL,
