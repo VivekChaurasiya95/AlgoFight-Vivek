@@ -40,7 +40,24 @@ export async function battleRoutes(app: FastifyInstance) {
         },
         async (req) => {
             const { idOrCode } = req.params as { idOrCode: string };
-            return battleController.getRoom(idOrCode);
+            const query = (req.query as any) || {};
+            const userId = (req as any).user?.id || query.userId;
+            return battleController.getRoom(idOrCode, userId);
+        },
+    );
+
+    // 2b. Persist combatant time remaining when user gets out / navigates
+    app.post(
+        "/battle/rooms/:idOrCode/persist-time",
+        async (req) => {
+            const { idOrCode } = req.params as { idOrCode: string };
+            let body: any = req.body;
+            if (typeof body === "string") {
+                try { body = JSON.parse(body); } catch {}
+            }
+            const userId = body?.userId || (req as any).user?.id;
+            const timeRemaining = typeof body?.timeRemaining === "number" ? body.timeRemaining : parseInt(body?.timeRemaining, 10);
+            return battleController.persistPlayerTime(idOrCode, userId, timeRemaining);
         },
     );
 

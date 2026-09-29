@@ -7,7 +7,6 @@ import {
   faCheckCircle,
   faExclamationCircle,
   faBolt,
-  faChartLine,
   faTerminal,
   faClock,
   faMicrochip,
@@ -15,12 +14,15 @@ import {
   faCode,
   faCircleDot,
   faGaugeHigh,
-  faShieldHalved
+  faCopy,
+  faCheck
 } from "@fortawesome/free-solid-svg-icons";
 import "./DetailedAnalysisModal.css";
 
 export default function DetailedAnalysisModal({ isOpen, onClose, result, problem }) {
   if (!isOpen) return null;
+
+  const [copied, setCopied] = useState(false);
 
   // 1. Live test cases from execution or problem
   const rawTestResults = result?.testCaseResults || result?.results || [];
@@ -121,32 +123,6 @@ export default function DetailedAnalysisModal({ isOpen, onClose, result, problem
 
   const verdictCard = getVerdictCardData();
 
-  // Helper to generate failure explanation
-  const generateWhyFailedExplanation = (inputStr, expStr, actStr, errStr) => {
-    if (errStr && errStr.trim().length > 0) {
-      return {
-        line1: `Runtime exception encountered during test execution.`,
-        line2: errStr
-      };
-    }
-
-    try {
-      if (inputStr && (inputStr.includes("2") || inputStr.includes("7") || inputStr.includes("9"))) {
-        return {
-          line1: `Expected target ${expStr || "correct output"} for the provided test case.`,
-          line2: `Your solution returned ${actStr || "incorrect result"}.`
-        };
-      }
-    } catch (e) {
-      // fallback
-    }
-
-    return {
-      line1: `Expected value ${expStr || "correct output"} for the provided test case.`,
-      line2: `Your solution returned ${actStr || "incorrect result"}.`
-    };
-  };
-
   // Per-testcase list computation
   const testList = Array.from({ length: totalTests }).map((_, idx) => {
     const rawRes = rawTestResults[idx];
@@ -176,13 +152,13 @@ export default function DetailedAnalysisModal({ isOpen, onClose, result, problem
       ? `${(Number(rawRes?.memoryUsage || rawRes?.metrics?.memoryUsage) / (1024 * 1024)).toFixed(1)} MB`
       : defaultMems[idx % defaultMems.length];
 
-    const inputStr = typeof input === "object" ? JSON.stringify(input) : String(input);
-    const expectedStr = typeof expected === "object" ? JSON.stringify(expected) : String(expected);
-    const actualStr = typeof actual === "object" ? JSON.stringify(actual) : String(actual);
+    const inputStr = typeof input === "object" ? JSON.stringify(input, null, 2) : String(input);
+    const expectedStr = typeof expected === "object" ? JSON.stringify(expected, null, 2) : String(expected);
+    const actualStr = typeof actual === "object" ? JSON.stringify(actual, null, 2) : String(actual);
 
-    const whyFailedInfo = !isPass
-      ? generateWhyFailedExplanation(inputStr, expectedStr, actualStr, rawRes?.error)
-      : null;
+    // Only real exceptions/errors, not generic labels
+    const rawError = rawRes?.error || (rawRes?.status && rawRes.status !== "Wrong Answer" && !rawRes.passed ? rawRes.status : null);
+    const errorMessage = rawError && !rawError.toLowerCase().includes("wrong answer") ? rawError : null;
 
     return {
       id: idx + 1,
@@ -192,7 +168,7 @@ export default function DetailedAnalysisModal({ isOpen, onClose, result, problem
       actual: actualStr,
       runtime: tcTime,
       memory: tcMem,
-      whyFailedInfo,
+      errorMessage,
     };
   });
 
@@ -228,8 +204,6 @@ export default function DetailedAnalysisModal({ isOpen, onClose, result, problem
     spaceComplexityEst = "O(1)";
   }
 
-  const inputSizeLabel = "4,080 elements";
-
   // 5. Dynamic Efficiency Score & Tier Calculation
   let tier = "D Tier";
   let tierClass = "tier-d";
@@ -249,31 +223,35 @@ export default function DetailedAnalysisModal({ isOpen, onClose, result, problem
   const runtimePercent = Math.min(100, Math.max(8, Math.round((totalExecutionTimeMs / timeLimitMs) * 100)));
   const memoryPercent = Math.min(100, Math.max(6, Math.round((measuredMemoryMb / memoryLimitMb) * 100)));
 
+  const handleCopyOutput = () => {
+    const textToCopy = result?.output || activeTest?.actual || "";
+    if (textToCopy) {
+      navigator.clipboard.writeText(textToCopy);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
   const modalContent = (
     <div className="analysis-portal-overlay" onClick={onClose}>
       <motion.div
         className="analysis-modal-container"
         onClick={(e) => e.stopPropagation()}
-        initial={{ opacity: 0, scale: 0.96, y: 12 }}
+        initial={{ opacity: 0, scale: 0.97, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.96, y: 12 }}
-        transition={{ duration: 0.22, ease: "easeOut" }}
+        exit={{ opacity: 0, scale: 0.97, y: 10 }}
+        transition={{ duration: 0.2, ease: "easeOut" }}
       >
-        {/* HEADER: Matching AlgoFight Modals */}
+        {/* HEADER: Clean, spacious, minimal clutter */}
         <div className="analysis-modal-header">
           <div className="analysis-header-info">
-            <div className="analysis-badge-row">
+            <div className="analysis-header-title-row">
               <span className="import-badge">
                 <span className="badge-pulse-dot" />
                 {problem?.difficulty || "PRACTICE"}
               </span>
-              <span className="analysis-mode-badge">
-                <FontAwesomeIcon icon={faShieldHalved} style={{ marginRight: 5 }} />
-                EXECUTION BENCHMARK
-              </span>
+              <h2>{problem?.title ? `${problem.title} — Detailed Analysis` : "Detailed Analysis"}</h2>
             </div>
-            <h2>{problem?.title ? `${problem.title} — Detailed Analysis` : "Execution & Performance Analysis"}</h2>
-            <p>Algorithmic benchmarks, test suite validation & performance telemetry</p>
           </div>
 
           <div className="analysis-header-right">
@@ -284,24 +262,6 @@ export default function DetailedAnalysisModal({ isOpen, onClose, result, problem
                 <span className="hud-verdict-name">{verdictCard.title}</span>
                 <span className="hud-verdict-sub">{verdictCard.subtext}</span>
               </div>
-            </div>
-
-            {/* Pipeline Strip */}
-            <div className="hud-timeline-strip">
-              {[
-                { name: "COMPILE", status: "pass" },
-                { name: "SANDBOX", status: "pass" },
-                { name: "TESTS", status: isAllPassed ? "pass" : "fail" },
-                { name: "DONE", status: isAllPassed ? "pass" : "fail" }
-              ].map((stage, sIdx, arr) => (
-                <React.Fragment key={stage.name}>
-                  <div className="hud-timeline-node">
-                    <span className={`hud-node-dot ${stage.status === "pass" ? "dot-green" : "dot-red"}`} />
-                    <span className="hud-node-name">{stage.name}</span>
-                  </div>
-                  {sIdx < arr.length - 1 && <div className="hud-timeline-line" />}
-                </React.Fragment>
-              ))}
             </div>
 
             <button className="analysis-close-btn" onClick={onClose} aria-label="Close Analysis">
@@ -354,7 +314,6 @@ export default function DetailedAnalysisModal({ isOpen, onClose, result, problem
           <div className="kpi-widget">
             <div className="kpi-label">
               <span className="kpi-title"><FontAwesomeIcon icon={faGaugeHigh} /> COMPLEXITY</span>
-              <span className="kpi-input-tag">{inputSizeLabel}</span>
             </div>
             <div className="kpi-complexity-badges">
               <span className="kpi-pill-badge time-pill">Time: <strong>{timeComplexityEst}</strong></span>
@@ -380,13 +339,13 @@ export default function DetailedAnalysisModal({ isOpen, onClose, result, problem
           </div>
         </div>
 
-        {/* BALANCED 2-COLUMN WORKSPACE */}
+        {/* SPACIOUS WORKSPACE GRID */}
         <div className="analysis-workspace-grid">
           {/* LEFT COLUMN: TEST CASES INSPECTOR */}
           <div className="analysis-panel testcase-panel">
             <div className="panel-header-bar">
               <div className="panel-title-group">
-                <span className="panel-title-text">TEST CASES INSPECTOR</span>
+                <span className="panel-title-text">TEST CASES</span>
                 <span className="panel-count-pill">{passedTests}/{totalTests} Passed</span>
               </div>
 
@@ -415,7 +374,7 @@ export default function DetailedAnalysisModal({ isOpen, onClose, result, problem
               </div>
             </div>
 
-            {/* Quick Test Tabs */}
+            {/* Test Tabs */}
             <div className="test-tabs-scroll-row">
               {filteredTests.map((t) => {
                 const isSelected = t.id === activeTest.id;
@@ -451,23 +410,17 @@ export default function DetailedAnalysisModal({ isOpen, onClose, result, problem
                 </div>
               </div>
 
-              {/* Why It Failed Callout Box */}
-              {!activeTest.passed && activeTest.whyFailedInfo && (
-                <div className="why-failed-callout">
-                  <div className="callout-header">
-                    <FontAwesomeIcon icon={faBug} className="callout-icon" />
-                    <span>DIAGNOSTIC EXPLANATION</span>
-                  </div>
-                  <div className="callout-body">
-                    <p className="callout-line highlight">{activeTest.whyFailedInfo.line1}</p>
-                    <p className="callout-line">{activeTest.whyFailedInfo.line2}</p>
-                  </div>
+              {/* Genuine error strip if runtime error exists */}
+              {activeTest.errorMessage && (
+                <div className="test-error-strip">
+                  <FontAwesomeIcon icon={faBug} className="error-strip-icon" />
+                  <span>{activeTest.errorMessage}</span>
                 </div>
               )}
 
-              {/* Input Box */}
+              {/* Spacious I/O Section */}
               <div className="io-section-wrap">
-                <div className="io-block">
+                <div className="io-block io-block-input">
                   <div className="io-header-label">INPUT</div>
                   <pre className="io-code-box input-box">{activeTest.input}</pre>
                 </div>
@@ -491,49 +444,10 @@ export default function DetailedAnalysisModal({ isOpen, onClose, result, problem
             </div>
           </div>
 
-          {/* RIGHT COLUMN: PERFORMANCE GAUGES & CONSOLE TERMINAL */}
-          <div className="analysis-panel side-panel">
-            {/* Upper: Performance Breakdown & Score Metrics */}
-            <div className="side-card perf-breakdown-card">
-              <div className="side-card-title">
-                <FontAwesomeIcon icon={faBolt} />
-                PERFORMANCE BREAKDOWN
-              </div>
-
-              <div className="perf-meter-row">
-                <div className="meter-label-row">
-                  <span>Execution Speed Score</span>
-                  <span className="meter-score-text">⚡ {speedScore} / 1000</span>
-                </div>
-                <div className="meter-track">
-                  <div
-                    className={`meter-fill ${isAllPassed ? "meter-green" : "meter-orange"}`}
-                    style={{ width: `${Math.min(100, Math.max(10, speedScore / 10))}%` }}
-                  />
-                </div>
-              </div>
-
-              <div className="perf-meter-row">
-                <div className="meter-label-row">
-                  <span>Memory Efficiency Score</span>
-                  <span className="meter-score-text">💧 {memoryScore} / 1000</span>
-                </div>
-                <div className="meter-track">
-                  <div
-                    className="meter-fill meter-cyan"
-                    style={{ width: `${Math.min(100, Math.max(10, memoryScore / 10))}%` }}
-                  />
-                </div>
-              </div>
-
-              <div className="side-complexity-footer">
-                <span>Theoretical Bound: <strong>{timeComplexityEst}</strong> Time, <strong>{spaceComplexityEst}</strong> Space</span>
-              </div>
-            </div>
-
-            {/* Lower: Terminal Console Output matching LiveBattle styling */}
-            <div className="side-card terminal-card">
-              <div className="console-bar">
+          {/* RIGHT COLUMN: FULL-HEIGHT SPACIOUS CONSOLE TERMINAL */}
+          <div className="analysis-panel terminal-panel">
+            <div className="console-bar">
+              <div className="console-bar-left">
                 <div className="console-dots">
                   <span className="dot dot-red" />
                   <span className="dot dot-yellow" />
@@ -544,11 +458,19 @@ export default function DetailedAnalysisModal({ isOpen, onClose, result, problem
                   Console Output (Stdout)
                 </span>
               </div>
-              <div className="terminal-body-scroll">
-                <pre className="terminal-pre">
-                  {result?.output || "Execution completed. No additional stdout logs reported by sandbox."}
-                </pre>
-              </div>
+              <button
+                className={`console-copy-btn ${copied ? "copied" : ""}`}
+                onClick={handleCopyOutput}
+                title="Copy output"
+              >
+                <FontAwesomeIcon icon={copied ? faCheck : faCopy} />
+                <span>{copied ? "Copied" : "Copy"}</span>
+              </button>
+            </div>
+            <div className="terminal-body-scroll">
+              <pre className="terminal-pre">
+                {result?.output || "Execution completed. No additional stdout logs reported by sandbox."}
+              </pre>
             </div>
           </div>
         </div>

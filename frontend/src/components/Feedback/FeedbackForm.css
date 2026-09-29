@@ -1,0 +1,303 @@
+/* frontend/src/components/Feedback/FeedbackForm.css */
+
+.af-feedback-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    width: 100%;
+}
+
+.af-feedback-form.compact {
+    gap: 10px;
+}
+
+.feedback-compact-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 2px;
+}
+
+.feedback-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: rgba(0, 229, 255, 0.12);
+    border: 1px solid rgba(0, 229, 255, 0.35);
+    color: #00e5ff;
+}
+
+.feedback-sub-prompt {
+    font-size: 0.78rem;
+    color: #94a3b8;
+}
+
+.feedback-rating-group,
+.feedback-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.feedback-label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #cbd5e1;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+}
+
+.stars-interactive-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.star-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.35rem;
+    color: #475569;
+    padding: 4px 2px;
+    transition: transform 0.18s ease, color 0.18s ease;
+}
+
+.star-btn:hover {
+    transform: scale(1.22);
+}
+
+.star-btn.active {
+    color: #ffb300;
+    filter: drop-shadow(0 0 6px rgba(255, 179, 0, 0.5));
+}
+
+.rating-text-indicator {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #ffb300;
+    margin-left: 6px;
+    min-width: 140px;
+}
+
+.feedback-textarea {
+    width: 100%;
+    background: rgba(15, 23, 42, 0.75);
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-family: inherit;
+    font-size: 0.86rem;
+    color: #f8fafc;
+    resize: vertical;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    box-sizing: border-box;
+}
+
+.af-feedback-form.compact .feedback-textarea {
+    font-size: 0.82rem;
+    padding: 8px 10px;
+}
+
+.feedback-textarea:focus {
+    outline: none;
+    border-color: #00e5ff;
+    box-shadow: 0 0 0 2px rgba(0, 229, 255, 0.2);
+}
+
+.char-count {
+    font-size: 0.7rem;
+    color: #64748b;
+    text-align: right;
+    margin-top: -2px;
+}
+
+/* Showcase Checker Toggle */
+.feedback-showcase-box {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    background: rgba(0, 229, 255, 0.04);
+    border: 1px solid rgba(0, 229, 255, 0.18);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.feedback-showcase-box:hover {
+    background: rgba(0, 229, 255, 0.08);
+    border-color: rgba(0, 229, 255, 0.35);
+}
+
+.feedback-checkbox {
+    margin-top: 3px;
+    cursor: pointer;
+    accent-color: #00e5ff;
+    width: 16px;
+    height: 16px;
+}
+
+.showcase-label {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    cursor: pointer;
+}
+
+.showcase-title {
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: #00e5ff;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.globe-icon {
+    font-size: 0.82rem;
+}
+
+.showcase-desc {
+    font-size: 0.74rem;
+    color: #94a3b8;
+    line-height: 1.35;
+}
+
+/* Actions */
+.feedback-actions-row {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 10px;
+    margin-top: 4px;
+}
+
+.feedback-btn-cancel {
+    background: transparent;
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    color: #94a3b8;
+    padding: 7px 16px;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.18s ease;
+}
+
+.feedback-btn-cancel:hover {
+    color: #f1f5f9;
+    border-color: #94a3b8;
+}
+
+.feedback-btn-submit {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: linear-gradient(135deg, #00e5ff 0%, #00b4d8 100%);
+    border: none;
+    color: #050b14;
+    padding: 8px 18px;
+    border-radius: 6px;
+    font-size: 0.84rem;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 0 12px rgba(0, 229, 255, 0.3);
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.feedback-btn-submit:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 0 18px rgba(0, 229, 255, 0.5);
+}
+
+.feedback-btn-submit:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Success Card */
+.feedback-success-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 20px 16px;
+    background: rgba(0, 255, 170, 0.05);
+    border: 1px solid rgba(0, 255, 170, 0.25);
+    border-radius: 10px;
+    gap: 10px;
+}
+
+.feedback-success-card.compact {
+    padding: 14px 10px;
+}
+
+.success-icon-wrapper {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(0, 255, 170, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.success-check-icon {
+    font-size: 1.4rem;
+    color: #00ffaa;
+}
+
+.feedback-success-card h4 {
+    margin: 0;
+    font-size: 1.05rem;
+    color: #00ffaa;
+    font-weight: 700;
+}
+
+.feedback-success-card p {
+    margin: 0;
+    font-size: 0.82rem;
+    color: #cbd5e1;
+    line-height: 1.45;
+    max-width: 420px;
+}
+
+.submitted-summary-stars {
+    display: flex;
+    gap: 6px;
+    margin-top: 4px;
+}
+
+.summary-star {
+    font-size: 1.1rem;
+    color: #475569;
+}
+
+.summary-star.filled {
+    color: #ffb300;
+    filter: drop-shadow(0 0 4px rgba(255, 179, 0, 0.5));
+}
+
+.feedback-done-btn {
+    margin-top: 6px;
+    background: rgba(0, 255, 170, 0.15);
+    border: 1px solid rgba(0, 255, 170, 0.4);
+    color: #00ffaa;
+    font-weight: 600;
+    padding: 6px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.18s ease;
+}
+
+.feedback-done-btn:hover {
+    background: rgba(0, 255, 170, 0.28);
+}

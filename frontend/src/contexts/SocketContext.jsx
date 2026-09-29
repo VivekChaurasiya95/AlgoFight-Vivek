@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 import { useUserStore } from "../store/useUserStore";
@@ -24,7 +24,19 @@ const INACTIVE_SOCKET_ROUTES = new Set([
   "/cookies",
 ]);
 
+function hasPersistedActiveEvent() {
+  try {
+    const raw = localStorage.getItem("af_active_event_session");
+    if (!raw) return false;
+    const parsed = JSON.parse(raw);
+    return Boolean(parsed?.roomCode || parsed?.roomId);
+  } catch {
+    return false;
+  }
+}
+
 function shouldConnectSocket(pathname) {
+  if (hasPersistedActiveEvent()) return true;
   if (INACTIVE_SOCKET_ROUTES.has(pathname)) return false;
   if (
     pathname.startsWith("/about") ||
@@ -43,6 +55,20 @@ export function SocketProvider({ children }) {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
 
+  const [hasActiveEvent, setHasActiveEvent] = useState(() => hasPersistedActiveEvent());
+
+  useEffect(() => {
+    const handleActiveEventChange = () => {
+      setHasActiveEvent(hasPersistedActiveEvent());
+    };
+    window.addEventListener("af_active_event_change", handleActiveEventChange);
+    window.addEventListener("storage", handleActiveEventChange);
+    return () => {
+      window.removeEventListener("af_active_event_change", handleActiveEventChange);
+      window.removeEventListener("storage", handleActiveEventChange);
+    };
+  }, []);
+
   // Zustand Store integrations
   const setMatchState = useGameStore((state) => state.setMatchState);
   const setLeaderboard = useGlobalStore((state) => state.setLeaderboard);
@@ -50,7 +76,7 @@ export function SocketProvider({ children }) {
 
   const userId = user?.uid;
   const username = user?.displayName || user?.email?.split("@")[0] || "Player";
-  const shouldConnect = Boolean(userId) && shouldConnectSocket(location.pathname);
+  const shouldConnect = Boolean(userId) && (hasActiveEvent || shouldConnectSocket(location.pathname));
 
   useEffect(() => {
     if (loading) return;

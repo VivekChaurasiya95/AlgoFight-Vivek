@@ -6,6 +6,11 @@ import { generatePlatformCode } from "../utils/platform-code";
 
 export class PrismaUserRepository implements UserRepository {
     async createUser(input: CreateUserInput): Promise<UserEntity> {
+        const initialMeta = (input.studentIdentityMetadata as any) || {};
+        const studentIdentityMetadata = (input.school || input.designation)
+            ? { ...initialMeta, ...(input.school ? { school: input.school } : {}), ...(input.designation ? { designation: input.designation } : {}) }
+            : (input.studentIdentityMetadata || null);
+
         const createData: any = {
             id: input.id,
             username: input.username,
@@ -24,12 +29,19 @@ export class PrismaUserRepository implements UserRepository {
             admissionYear: input.admissionYear || null,
             branch: input.branch || null,
             enrollmentNumber: input.enrollmentNumber || null,
-            studentIdentityMetadata: input.studentIdentityMetadata || null,
+            studentIdentityMetadata,
         };
 
-        return prisma.user.create({
+        const created = await prisma.user.create({
             data: createData,
-        }) as unknown as UserEntity;
+        });
+
+        const meta = (created.studentIdentityMetadata as any) || {};
+        return {
+            ...created,
+            school: meta.school || null,
+            designation: meta.designation || (created.userType === "FACULTY" ? "Faculty Educator" : null),
+        } as unknown as UserEntity;
     }
 
     async upsertUser(input: CreateUserInput): Promise<UserEntity> {
@@ -57,6 +69,16 @@ export class PrismaUserRepository implements UserRepository {
                 }
             }
 
+            const existingMeta = (existing.studentIdentityMetadata as any) || {};
+            let updatedMeta = input.studentIdentityMetadata !== undefined ? input.studentIdentityMetadata : existingMeta;
+            if (input.school !== undefined || input.designation !== undefined) {
+                updatedMeta = {
+                    ...(typeof updatedMeta === 'object' && updatedMeta !== null ? updatedMeta : {}),
+                    ...(input.school !== undefined ? { school: input.school } : {}),
+                    ...(input.designation !== undefined ? { designation: input.designation } : {}),
+                };
+            }
+
             const updateData: any = {
                 username: finalUsername,
                 email: finalEmail,
@@ -72,13 +94,20 @@ export class PrismaUserRepository implements UserRepository {
                 admissionYear: input.admissionYear || existing.admissionYear,
                 branch: input.branch || existing.branch,
                 enrollmentNumber: input.enrollmentNumber || existing.enrollmentNumber,
-                studentIdentityMetadata: input.studentIdentityMetadata !== undefined ? input.studentIdentityMetadata : existing.studentIdentityMetadata,
+                studentIdentityMetadata: updatedMeta,
             };
 
-            return prisma.user.update({
+            const updated = await prisma.user.update({
                 where: { id: existing.id },
                 data: updateData,
-            }) as unknown as UserEntity;
+            });
+
+            const meta = (updated.studentIdentityMetadata as any) || {};
+            return {
+                ...updated,
+                school: meta.school || null,
+                designation: meta.designation || (updated.userType === "FACULTY" ? "Faculty Educator" : null),
+            } as unknown as UserEntity;
         }
 
         const usernameConflict = await prisma.user.findUnique({ where: { username: input.username } });
@@ -146,20 +175,34 @@ export class PrismaUserRepository implements UserRepository {
                 ],
             },
         });
+        let finalUser = user;
         if (user && !user.platformCode) {
             const newCode = generatePlatformCode(user.userType as any);
-            return prisma.user.update({
+            finalUser = await prisma.user.update({
                 where: { id: user.id },
                 data: { platformCode: newCode },
             });
         }
-        return user;
+        if (!finalUser) return null;
+        const meta = (finalUser.studentIdentityMetadata as any) || {};
+        return {
+            ...finalUser,
+            school: meta.school || null,
+            designation: meta.designation || (finalUser.userType === "FACULTY" ? "Faculty Educator" : null),
+        } as unknown as UserEntity;
     }
 
     async getUserByUsername(username: string): Promise<UserEntity | null> {
-        return prisma.user.findUnique({
+        const user = await prisma.user.findUnique({
             where: { username },
         });
+        if (!user) return null;
+        const meta = (user.studentIdentityMetadata as any) || {};
+        return {
+            ...user,
+            school: meta.school || null,
+            designation: meta.designation || (user.userType === "FACULTY" ? "Faculty Educator" : null),
+        } as unknown as UserEntity;
     }
 
     async updateRating(userId: string, newRating: number, isWin: boolean): Promise<UserEntity> {

@@ -1,83 +1,204 @@
-/* ================= UNIFIED FOOTER ================= */
+/* ================= PREMIUM COMPACT CYBER FOOTER ================= */
 .page-footer {
   border-top: 1px solid rgba(255, 255, 255, 0.08);
-  padding-top: 64px;
-  padding-bottom: 24px;
-  margin-top: 40px;
+  padding-top: 28px;
+  padding-bottom: 20px;
+  margin-top: 36px;
   width: 100%;
   box-sizing: border-box;
+  background: radial-gradient(circle at 50% 0%, rgba(0, 229, 255, 0.03) 0%, transparent 70%);
 }
 
-.footer-columns-wrapper {
-  display: grid;
-  grid-template-columns: 1.6fr 1fr 1fr 1fr 1.3fr;
-  gap: 40px;
-  margin-bottom: 48px;
+.footer-container {
   max-width: 1320px;
   margin-left: auto;
   margin-right: auto;
   padding: 0 24px;
   box-sizing: border-box;
-}
-
-.footer-col-brand {
   display: flex;
   flex-direction: column;
+  gap: 20px;
 }
 
-.footer-crest-mini {
-  margin-bottom: 18px;
+/* ================= 1. TOP BRAND & INSTITUTION BAR ================= */
+.footer-top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 20px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.footer-brand-group {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.footer-brand-logo-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.footer-brand-logo-wrap:hover {
+  transform: translateY(-1px);
 }
 
 .footer-logo-img {
-  height: 36px;
+  height: 32px;
   width: auto;
   object-fit: contain;
 }
 
+.footer-brand-name {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: #ffffff;
+  background: linear-gradient(135deg, #ffffff 40%, #00e5ff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
 .footer-mission-text {
-  font-size: 0.9rem;
-  line-height: 1.65;
+  font-size: 0.85rem;
+  line-height: 1.5;
   color: #8a93a6;
-  margin-bottom: 24px;
-  max-width: 320px;
+  margin: 0;
+  max-width: 520px;
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  padding-left: 16px;
 }
 
-.footer-social-icons {
-  display: flex;
-  gap: 14px;
-}
-
-.footer-social-icons a {
-  width: 38px;
-  height: 38px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+/* MITS Institution Emblem */
+.footer-institution-badge {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #8a93a6;
-  font-size: 1.05rem;
-  transition: all 0.25s ease;
-  text-decoration: none;
+  padding: 3px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.04);
+  overflow: hidden;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.footer-social-icons a:hover {
-  background: rgba(0, 229, 255, 0.15);
+.footer-institution-badge:hover {
   border-color: #00e5ff;
-  color: #00e5ff;
+  box-shadow: 0 0 14px rgba(0, 229, 255, 0.35);
   transform: translateY(-2px);
+}
+
+.footer-mits-logo {
+  height: 48px;
+  width: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+  cursor: pointer;
+  transition: transform 0.25s ease;
+}
+
+/* ================= 2. 4-SECTION ACCORDION GRID ================= */
+.footer-accordion-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.footer-accordion-card {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  transition: all 0.25s ease;
+  box-sizing: border-box;
+}
+
+.footer-accordion-card:hover {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.footer-accordion-card.is-expanded {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+/* Accordion trigger button */
+.footer-accordion-btn {
+  background: transparent;
+  border: none;
+  padding: 6px 0;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  cursor: pointer;
+  text-align: left;
+  outline: none;
+  user-select: none;
+  transition: all 0.2s ease;
 }
 
 .footer-col-title {
   font-family: 'Space Grotesk', sans-serif;
-  font-size: 0.88rem;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  color: #ffffff;
-  margin-bottom: 20px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #cbd5e1;
+  margin: 0;
   text-transform: uppercase;
+  transition: color 0.2s ease, text-shadow 0.2s ease;
+}
+
+.footer-accordion-btn:hover .footer-col-title {
+  color: #00e5ff;
+}
+
+.footer-chevron-badge {
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.footer-accordion-btn:hover .footer-chevron-badge {
+  background: transparent;
+}
+
+.footer-col-chevron {
+  font-size: 0.72rem;
+  color: #64748b;
+  transition: transform 0.26s cubic-bezier(0.16, 1, 0.3, 1), color 0.2s ease;
+}
+
+.footer-accordion-btn:hover .footer-col-chevron {
+  color: #00e5ff;
+}
+
+.footer-col-chevron.is-open {
+  transform: rotate(180deg);
+  color: #00e5ff;
+}
+
+.footer-accordion-body {
+  overflow: hidden;
+  padding-top: 8px;
+  padding-bottom: 6px;
+  border-top: none;
+  margin-top: 0;
 }
 
 .footer-list {
@@ -86,19 +207,21 @@
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
 .footer-list li a {
-  font-size: 0.9rem;
+  font-size: 0.84rem;
   color: #8a93a6;
   cursor: pointer;
-  transition: color 0.2s ease;
+  transition: color 0.18s ease, transform 0.18s ease;
   text-decoration: none;
+  display: inline-block;
 }
 
 .footer-list li a:hover {
   color: #00e5ff;
+  transform: translateX(3px);
 }
 
 .footer-contact-items {
@@ -107,21 +230,22 @@
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
 }
 
 .footer-contact-items li {
   display: flex;
   align-items: center;
-  gap: 12px;
-  font-size: 0.88rem;
+  gap: 8px;
+  font-size: 0.82rem;
   color: #8a93a6;
 }
 
 .footer-contact-link {
   color: #8a93a6;
   text-decoration: none;
-  transition: color 0.2s ease;
+  transition: color 0.18s ease;
+  word-break: break-all;
 }
 
 .footer-contact-link:hover {
@@ -131,19 +255,15 @@
 
 .c-icon {
   color: #00e5ff;
-  font-size: 0.9rem;
-  width: 16px;
+  font-size: 0.82rem;
+  width: 14px;
+  flex-shrink: 0;
 }
 
+/* ================= 3. BOTTOM LINE ================= */
 .footer-bottom-line {
   border-top: 1px solid rgba(255, 255, 255, 0.05);
-  padding-top: 20px;
-  padding-bottom: 8px;
-  max-width: 1320px;
-  margin-left: auto;
-  margin-right: auto;
-  padding-left: 24px;
-  padding-right: 24px;
+  padding-top: 16px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -154,73 +274,146 @@
   box-sizing: border-box;
 }
 
-.footer-dev-avatars {
+.footer-copyright-group {
   display: flex;
   align-items: center;
-  padding-left: 8px;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
-.dev-avatar-circle {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
+.footer-divider {
+  color: rgba(255, 255, 255, 0.2);
+  font-size: 0.8rem;
+}
+
+.footer-powered-by {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: 0.8rem;
-  font-weight: 700;
-  text-decoration: none;
-  margin-left: -8px;
-  background: #04080d;
-  border: 1.5px solid rgba(0, 229, 255, 0.25);
+  gap: 10px;
   color: #94a3b8;
-  position: relative;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  cursor: pointer;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  font-size: 0.88rem;
+  font-weight: 600;
 }
 
-.dev-avatar-circle:first-child {
+.footer-sdc-logo {
+  height: 58px;
+  width: auto;
+  object-fit: contain;
+  vertical-align: middle;
+  filter: drop-shadow(0 0 10px rgba(0, 229, 255, 0.35)) brightness(1.05);
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), filter 0.22s ease;
+  margin: -12px 0;
+  display: inline-block;
+}
+
+.footer-sdc-logo:hover {
+  transform: scale(1.1);
+  filter: drop-shadow(0 0 16px rgba(0, 229, 255, 0.6)) brightness(1.15);
+}
+
+/* ================= DEVELOPER AVATAR STACK ================= */
+.footer-dev-avatar-stack {
+  display: flex;
+  align-items: center;
+  padding: 2px;
+  cursor: pointer;
+}
+
+.dev-stack-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #000000;
+  margin-left: -9px;
+  position: relative;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  background: #0d1522;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+}
+
+.dev-stack-avatar:first-child {
   margin-left: 0;
+  z-index: 4;
+}
+
+.dev-stack-avatar:nth-child(2) {
   z-index: 3;
 }
 
-.dev-avatar-circle:nth-child(2) {
+.dev-stack-avatar:nth-child(3) {
   z-index: 2;
 }
 
-.dev-avatar-circle:nth-child(3) {
-  z-index: 1;
+.dev-stack-arin {
+  object-position: center 20%;
 }
 
-.dev-avatar-circle:hover {
-  z-index: 10;
-  transform: translateY(-2px) scale(1.15);
-  background: #0a1322;
+.dev-stack-vivek {
+  object-position: center top;
+}
+
+.dev-stack-krish {
+  object-position: center 15%;
+}
+
+.dev-stack-avatar.dev-stack-plus {
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #232936;
+  color: #94a3b8;
+  font-size: 0.72rem;
+  font-weight: 700;
+  border: 2px solid #000000;
+}
+
+.dev-stack-avatar:hover {
+  transform: translateY(-3px) scale(1.18);
   border-color: #00e5ff;
-  color: #00e5ff;
-  box-shadow: 0 0 12px rgba(0, 229, 255, 0.4);
+  box-shadow: 0 0 14px rgba(0, 229, 255, 0.55);
+  z-index: 10 !important;
+}
+
+.dev-stack-avatar.dev-stack-plus:hover {
+  background: #00e5ff;
+  color: #04080d;
 }
 
 /* ================= RESPONSIVENESS ================= */
 @media (max-width: 1024px) {
-  .footer-columns-wrapper {
+  .footer-accordion-grid {
     grid-template-columns: repeat(2, 1fr);
-    gap: 32px;
+  }
+
+  .footer-mission-text {
+    border-left: none;
+    padding-left: 0;
+    max-width: 100%;
   }
 }
 
 @media (max-width: 640px) {
-  .footer-columns-wrapper {
+  .footer-top-bar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .footer-accordion-grid {
     grid-template-columns: 1fr;
-    gap: 28px;
+    gap: 10px;
   }
 
   .footer-bottom-line {
     flex-direction: column;
     align-items: center;
     text-align: center;
+    gap: 10px;
+  }
+
+  .footer-copyright-group {
+    justify-content: center;
   }
 }

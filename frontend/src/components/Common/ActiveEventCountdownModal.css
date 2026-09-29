@@ -1,0 +1,140 @@
+/* frontend/src/components/Common/ActiveEventCountdownModal.css */
+
+.countdown-overlay-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(5, 11, 20, 0.88);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    padding: 16px;
+}
+
+.countdown-modal-box {
+    width: 100%;
+    max-width: 440px;
+    background: #090f1d;
+    border: 2px solid #00e5ff;
+    border-radius: 16px;
+    box-shadow: 0 0 50px rgba(0, 229, 255, 0.4), 0 25px 60px rgba(0, 0, 0, 0.8);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 32px 24px 28px;
+    position: relative;
+    overflow: hidden;
+}
+
+.countdown-glow-line {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #ffaa00 0%, #00e5ff 50%, #00ffaa 100%);
+}
+
+.countdown-icon-halo {
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
+    background: rgba(0, 229, 255, 0.15);
+    border: 2px solid #00e5ff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 16px;
+    box-shadow: 0 0 24px rgba(0, 229, 255, 0.5);
+    animation: halo-pulse 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes halo-pulse {
+    0% {
+        transform: scale(1);
+        box-shadow: 0 0 16px rgba(0, 229, 255, 0.4);
+    }
+    100% {
+        transform: scale(1.08);
+        box-shadow: 0 0 32px rgba(0, 229, 255, 0.8);
+    }
+}
+
+.countdown-bolt-icon {
+    font-size: 1.8rem;
+    color: #00e5ff;
+}
+
+.countdown-heading {
+    margin: 0 0 8px;
+    font-size: 1.45rem;
+    font-weight: 800;
+    letter-spacing: 1px;
+    color: #f8fafc;
+    text-shadow: 0 0 12px rgba(0, 229, 255, 0.6);
+}
+
+.countdown-subtext {
+    margin: 0 0 20px;
+    font-size: 0.86rem;
+    color: #cbd5e1;
+    line-height: 1.4;
+    max-width: 340px;
+}
+
+.countdown-room-badge {
+    color: #00e5ff;
+    font-family: monospace;
+    font-weight: 700;
+    background: rgba(0, 229, 255, 0.12);
+    padding: 1px 6px;
+    border-radius: 4px;
+}
+
+.countdown-number-circle {
+    width: 76px;
+    height: 76px;
+    border-radius: 50%;
+    background: rgba(0, 229, 255, 0.08);
+    border: 2px solid rgba(0, 229, 255, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 24px;
+    box-shadow: inset 0 0 20px rgba(0, 229, 255, 0.2);
+}
+
+.countdown-digit {
+    font-size: 2.8rem;
+    font-weight: 900;
+    color: #00e5ff;
+    text-shadow: 0 0 16px rgba(0, 229, 255, 0.8);
+    font-family: monospace;
+}
+
+.countdown-instant-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: linear-gradient(135deg, #00e5ff 0%, #00b4d8 100%);
+    border: none;
+    color: #050b14;
+    padding: 10px 24px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 800;
+    cursor: pointer;
+    box-shadow: 0 0 16px rgba(0, 229, 255, 0.4);
+    transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+
+.countdown-instant-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 24px rgba(0, 229, 255, 0.7);
+}

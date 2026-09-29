@@ -21,10 +21,40 @@ export function NotificationInboxProvider({ children }) {
 
     const userId = user?.uid || user?.email;
 
+    const getFeedbackInboxItem = useCallback(() => {
+        const isSubmitted = localStorage.getItem('af_feedback_submitted') === 'true';
+        const isRead = isSubmitted || localStorage.getItem('af_feedback_notif_read') === 'true';
+        return {
+            id: 'notif_welcome_feedback',
+            type: 'FEEDBACK',
+            title: 'Platform Feedback & Review',
+            message: 'Welcome to AlgoFight! Rate your arena experience, share your suggestions, and optionally showcase your review on our homepage.',
+            read: isRead,
+            createdAt: Number(localStorage.getItem('af_feedback_created_at')) || Date.now() - 60000,
+            metadata: {
+                isFeedback: true,
+                isSubmitted,
+            },
+        };
+    }, []);
+
+    const addFeedbackNotificationToInbox = useCallback(() => {
+        const item = getFeedbackInboxItem();
+        setNotifications((prev) => {
+            if (prev.some((n) => n.id === 'notif_welcome_feedback')) {
+                return prev;
+            }
+            const updated = [item, ...prev];
+            setUnreadCount(updated.filter((n) => !n.read).length);
+            return updated;
+        });
+    }, [getFeedbackInboxItem]);
+
     const fetchInbox = useCallback(async () => {
         if (!userId) {
-            setNotifications([]);
-            setUnreadCount(0);
+            const feedbackItem = getFeedbackInboxItem();
+            setNotifications([feedbackItem]);
+            setUnreadCount(feedbackItem.read ? 0 : 1);
             return;
         }
 
@@ -42,17 +72,22 @@ export function NotificationInboxProvider({ children }) {
                 return true;
             });
 
-            // Calculate active unread count
-            const validUnread = activeList.filter((n) => !n.read).length;
+            // Ensure feedback notification resides in inbox
+            const hasFeedbackItem = activeList.some((n) => n.id === 'notif_welcome_feedback' || n.type === 'FEEDBACK');
+            const mergedList = hasFeedbackItem ? activeList : [getFeedbackInboxItem(), ...activeList];
 
-            setNotifications(activeList);
+            // Calculate active unread count
+            const validUnread = mergedList.filter((n) => !n.read).length;
+
+            setNotifications(mergedList);
             setUnreadCount(validUnread);
         } catch (err) {
             console.error("Failed to load notification inbox:", err);
+            setNotifications([getFeedbackInboxItem()]);
         } finally {
             setIsLoading(false);
         }
-    }, [userId]);
+    }, [userId, getFeedbackInboxItem]);
 
     // Initial load on user login
     useEffect(() => {
@@ -216,7 +251,18 @@ export function NotificationInboxProvider({ children }) {
     }, [user]);
 
     const markAsRead = async (notificationId) => {
-        if (!userId || !notificationId) return;
+        if (!notificationId) return;
+
+        if (notificationId === 'notif_welcome_feedback') {
+            localStorage.setItem('af_feedback_notif_read', 'true');
+            setNotifications((prev) =>
+                prev.map((n) => (n.id === notificationId ? { ...n, read: true } : n))
+            );
+            setUnreadCount((prev) => Math.max(0, prev - 1));
+            return;
+        }
+
+        if (!userId) return;
 
         // Optimistic UI update
         setNotifications((prev) =>
@@ -233,11 +279,12 @@ export function NotificationInboxProvider({ children }) {
     };
 
     const markAllAsRead = async () => {
-        if (!userId) return;
-
+        localStorage.setItem('af_feedback_notif_read', 'true');
         // Optimistic UI update
         setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
         setUnreadCount(0);
+
+        if (!userId) return;
 
         try {
             await markAllNotificationsAsRead(userId);
@@ -248,7 +295,11 @@ export function NotificationInboxProvider({ children }) {
     };
 
     const clearInbox = async () => {
-        if (!userId) return;
+        if (!userId) {
+            setNotifications([]);
+            setUnreadCount(0);
+            return;
+        }
 
         setNotifications([]);
         setUnreadCount(0);
@@ -271,6 +322,7 @@ export function NotificationInboxProvider({ children }) {
                 markAsRead,
                 markAllAsRead,
                 clearInbox,
+                addFeedbackNotificationToInbox,
             }}
         >
             {children}

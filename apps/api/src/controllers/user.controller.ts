@@ -20,6 +20,8 @@ export interface SyncUserPayload {
     admissionYear?: number;
     enrollmentNumber?: string;
     studentIdentityMetadata?: any;
+    school?: string;
+    designation?: string;
 }
 
 export class UserController {
@@ -61,6 +63,15 @@ export class UserController {
             }
         }
 
+        if (payload.school || payload.designation) {
+            studentIdentityMetadata = {
+                ...(typeof studentIdentityMetadata === 'object' && studentIdentityMetadata !== null ? studentIdentityMetadata : {}),
+                ...(payload.school ? { school: payload.school.trim() } : {}),
+                ...(payload.designation ? { designation: payload.designation.trim() } : {}),
+                ...(department ? { department: department.trim() } : {}),
+            };
+        }
+
         const user = await this.userRepository.upsertUser({
             id: userId,
             email: email,
@@ -72,6 +83,8 @@ export class UserController {
             institutionId: institutionId || null,
             institutionDomain: institutionDomain || null,
             department: department || null,
+            school: payload.school || null,
+            designation: payload.designation || null,
             branch: branch || null,
             admissionYear: admissionYear || null,
             enrollmentNumber: enrollmentNumber || null,
@@ -87,8 +100,11 @@ export class UserController {
             );
         }
 
+        const syncMeta = (user.studentIdentityMetadata as any) || {};
         return {
             ...user,
+            school: user.school || syncMeta.school || null,
+            designation: user.designation || syncMeta.designation || (user.userType === "FACULTY" ? "Faculty Educator" : null),
             academicProfile,
             matchesWon: user.wins,
             matchesPlayed: user.wins + user.losses,
@@ -96,6 +112,44 @@ export class UserController {
             practiceSolvedProblemIds: [],
             practiceSolvedCount: 0,
             practiceSubmissionCount: 0,
+        };
+    }
+
+    async updateFacultyProfile(userId: string, data: { school: string; department?: string; designation: string; institutionName?: string }) {
+        const user = await this.userRepository.getUserById(userId);
+        if (!user) {
+            throw { statusCode: 404, message: "Faculty user not found." };
+        }
+
+        const existingMeta = (user.studentIdentityMetadata as any) || {};
+        const cleanSchool = data.school ? data.school.trim() : existingMeta.school || "";
+        const cleanDept = data.department !== undefined ? (data.department ? data.department.trim() : null) : (existingMeta.department || user.department || null);
+        const cleanDesignation = data.designation ? data.designation.trim() : existingMeta.designation || "Faculty Educator";
+
+        const updatedMeta = {
+            ...existingMeta,
+            school: cleanSchool,
+            department: cleanDept,
+            designation: cleanDesignation,
+        };
+
+        const updated = await this.userRepository.upsertUser({
+            id: user.id,
+            email: user.email,
+            username: user.username,
+            userType: "FACULTY",
+            institutionName: data.institutionName || user.institutionName || "Madhav Institute of Technology & Science",
+            department: cleanDept || cleanSchool,
+            school: cleanSchool,
+            designation: cleanDesignation,
+            studentIdentityMetadata: updatedMeta,
+        });
+
+        return {
+            ...updated,
+            school: cleanSchool,
+            department: cleanDept,
+            designation: cleanDesignation,
         };
     }
 
@@ -142,8 +196,11 @@ export class UserController {
             }
         }
 
+        const userMeta = (user.studentIdentityMetadata as any) || {};
         return {
             ...user,
+            school: user.school || userMeta.school || null,
+            designation: user.designation || userMeta.designation || (user.userType === "FACULTY" ? "Faculty Educator" : null),
             academicProfile,
             matchesWon: user.wins,
             matchesPlayed: user.wins + user.losses,

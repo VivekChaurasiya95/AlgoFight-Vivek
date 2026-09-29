@@ -96,9 +96,9 @@ export class BattleRoomService {
             return room;
         }
 
-        // 2. Allow joining as long as battle hasn't started (both WAITING and READY states)
-        if (room.status !== "WAITING" && room.status !== "READY") {
-            throw new Error("Cannot join: Battle has already started or finished");
+        // 2. Allow joining in WAITING, READY, or RUNNING states (to support re-entry into active matches)
+        if (room.status !== "WAITING" && room.status !== "READY" && room.status !== "RUNNING") {
+            throw new Error("Cannot join: Battle has already finished or cancelled");
         }
 
         // 3. Check capacity

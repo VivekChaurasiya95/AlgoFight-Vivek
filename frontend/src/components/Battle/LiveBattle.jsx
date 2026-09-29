@@ -5,6 +5,7 @@ import { connectSocket, disconnectSocket } from "../../services/socket";
 import { getSessionToken } from "../../services/authStorage";
 import { useAuth } from "../../contexts/AuthContext";
 import { useNotification } from "../../contexts/NotificationContext.jsx";
+import { useActiveEvent } from "../../contexts/ActiveEventContext";
 import { requestJson } from "../../services/api";
 import { useAntiCheat } from "../../hooks/useAntiCheat";
 import { saveLocalDraft, getLocalDraft, markDraftAcked, clearDraft } from "../../services/storage/indexedDbRecovery.js";
@@ -213,6 +214,7 @@ export default function LiveBattle() {
   const { roomCode: paramRoomCode } = useParams();
   const { user } = useAuth();
   const { notify } = useNotification();
+  const { setActiveEvent, clearActiveEvent } = useActiveEvent();
 
   const initialMatch = location.state?.matchData;
   const initialRoomCode = paramRoomCode || location.state?.roomCode;
@@ -240,7 +242,22 @@ export default function LiveBattle() {
   const [opponentName, setOpponentName] = useState("");
   const [code, setCode] = useState("");
   const [language, setLanguage] = useState("javascript");
-  const [timeLeft, setTimeLeft] = useState(initialMatch?.timeLimitSeconds || 0);
+  const [timeLeft, setTimeLeft] = useState(() => {
+    const targetId = initialMatch?.roomId || initialMatch?.roomCode || initialRoomCode || paramRoomCode;
+    if (initialMatch?.persistedTimeRemaining !== undefined && !isNaN(Number(initialMatch.persistedTimeRemaining))) {
+      return Math.max(0, Number(initialMatch.persistedTimeRemaining));
+    }
+    if (targetId && user?.uid) {
+      try {
+        const saved = localStorage.getItem(`af_persisted_time_${targetId}_${user.uid}`);
+        if (saved !== null && !isNaN(Number(saved))) {
+          return Math.max(0, Number(saved));
+        }
+      } catch (_) {}
+    }
+    return initialMatch?.timeLimitSeconds || 0;
+  });
+  const timeLeftRef = useRef(timeLeft);
   const [liveState, setLiveState] = useState(null);
   const [showSummary, setShowSummary] = useState(false);
   const [roomId, setRoomId] = useState(initialMatch?.roomId || null);
@@ -253,6 +270,22 @@ export default function LiveBattle() {
   const [isSubmitPanelOpen, setIsSubmitPanelOpen] = useState(true);
   const [searchElapsed, setSearchElapsed] = useState(0);
   const [searchWindow, setSearchWindow] = useState("±50 ELO");
+
+  // Sync active battle session so user can roam and return
+  useEffect(() => {
+    if (status === "matched") {
+      const targetId = roomId || initialMatch?.roomId || initialMatch?.roomCode || initialRoomCode || paramRoomCode;
+      if (targetId) {
+        setActiveEvent({
+          type: "BATTLE",
+          roomId: targetId,
+          roomCode: targetId,
+          status: "RUNNING",
+          timeLimitSeconds: timeLeft,
+        });
+      }
+    }
+  }, [status, roomId, initialRoomCode, paramRoomCode, setActiveEvent]);
 
   // Fullscreen Mode State & Auto-Trigger
   const [isFullscreen, setIsFullscreen] = useState(!!document.fullscreenElement);
@@ -412,8 +445,15 @@ export default function LiveBattle() {
           if (Array.isArray(roomData.problems) && roomData.problems.length > 0) {
             setProblems(roomData.problems);
           }
-          if (roomData.timeLimitMinutes) {
-            setTimeLeft((prev) => (prev > 0 ? prev : roomData.timeLimitMinutes * 60));
+          if (roomData.persistedTimeRemaining !== undefined && !isNaN(Number(roomData.persistedTimeRemaining))) {
+            setTimeLeft(Math.max(0, Number(roomData.persistedTimeRemaining)));
+          } else {
+            const savedLocal = user?.uid ? localStorage.getItem(`af_persisted_time_${targetId}_${user.uid}`) : null;
+            if (savedLocal !== null && !isNaN(Number(savedLocal))) {
+              setTimeLeft(Math.max(0, Number(savedLocal)));
+            } else if (roomData.timeLimitMinutes) {
+              setTimeLeft((prev) => (prev > 0 ? prev : roomData.timeLimitMinutes * 60));
+            }
           }
           setStatus("matched");
         }
@@ -506,13 +546,39 @@ export default function LiveBattle() {
 
   const sampleCases = Array.isArray(problem?.testCases) ? problem.testCases.slice(0, 2) : [];
 
+  // Always keep timeLeftRef and localStorage in sync with the exact second remaining
+  useEffect(() => {
+    timeLeftRef.current = timeLeft;
+    const targetId = roomId || initialMatch?.roomId || initialMatch?.roomCode || initialRoomCode || paramRoomCode;
+    if (targetId && user?.uid && timeLeft > 0) {
+      try {
+        localStorage.setItem(`af_persisted_time_${targetId}_${user.uid}`, String(timeLeft));
+      } catch (_) {}
+    }
+  }, [timeLeft, roomId, initialMatch, initialRoomCode, paramRoomCode, user?.uid]);
+
   useEffect(() => {
     let timer;
     if (status === "matched" && timeLeft > 0) {
-      timer = setInterval(() => setTimeLeft(prev => prev > 0 ? prev - 1 : 0), 1000);
+      timer = setInterval(() => {
+        setTimeLeft((prev) => {
+          const next = prev > 0 ? prev - 1 : 0;
+          if (next > 0 && next % 10 === 0 && socketRef.current?.connected) {
+            const targetId = roomId || initialMatch?.roomId || initialMatch?.roomCode || initialRoomCode || paramRoomCode;
+            if (targetId && user?.uid) {
+              socketRef.current.emit("sync_timer_remaining", {
+                roomId: targetId,
+                userId: user.uid,
+                timeRemaining: next,
+              });
+            }
+          }
+          return next;
+        });
+      }, 1000);
     }
     return () => clearInterval(timer);
-  }, [status, timeLeft]);
+  }, [status, timeLeft > 0, roomId, initialMatch, initialRoomCode, paramRoomCode, user?.uid]);
 
   const formatTime = (seconds) => {
     const m = Math.floor(seconds / 60).toString().padStart(2, "0");
@@ -528,6 +594,7 @@ export default function LiveBattle() {
   };
 
   const handleCancelQueue = () => {
+    clearActiveEvent();
     if (socketRef.current) {
       socketRef.current.emit("cancel_queue", { userId: user?.uid });
     }
@@ -535,24 +602,38 @@ export default function LiveBattle() {
   };
 
   const handleLeaveBattle = () => {
+    clearActiveEvent();
     if (status === "finished") {
       navigate("/battle");
       return;
     }
 
     const targetId = roomId || initialMatch?.roomId || initialMatch?.roomCode || initialRoomCode;
+    const remainingToSave = timeLeftRef.current || timeLeft;
+
+    if (targetId && user?.uid && remainingToSave > 0) {
+      try {
+        localStorage.setItem(`af_persisted_time_${targetId}_${user.uid}`, String(remainingToSave));
+        const blob = new Blob([JSON.stringify({ userId: user.uid, timeRemaining: remainingToSave })], {
+          type: "application/json",
+        });
+        navigator.sendBeacon(`/api/battle/rooms/${encodeURIComponent(targetId)}/persist-time`, blob);
+      } catch (_) {}
+    }
+
     if (socketRef.current && targetId) {
       socketRef.current.emit("leave_battle", {
         roomId: targetId,
         userId: user?.uid,
         username,
+        timeRemaining: remainingToSave,
       });
     }
 
     notify({
       type: "info",
-      title: "Battle Forfeited",
-      message: "You have left the battle arena.",
+      title: "Left Battle Arena",
+      message: "You have left the battle room. Your remaining time has been saved.",
       duration: 3500,
     });
 
@@ -560,6 +641,7 @@ export default function LiveBattle() {
   };
 
   const goBack = () => {
+    clearActiveEvent();
     navigate("/battle");
   };
 
@@ -567,23 +649,31 @@ export default function LiveBattle() {
     const handleBeforeUnload = () => {
       const targetId = roomId || initialMatch?.roomId || initialMatch?.roomCode || initialRoomCode || paramRoomCode;
       const currentProblemId = problem?.id || activeProblemIndex;
-      if (targetId && user?.uid && code) {
+      if (targetId && user?.uid) {
         try {
-          const key = `af_draft_battle_${targetId}_${currentProblemId}_${user.uid}`;
-          localStorage.setItem(key, JSON.stringify({
-            code,
-            language,
-            updatedAt: Date.now(),
-          }));
-        } catch {
-          // ignore
-        }
+          if (code) {
+            const key = `af_draft_battle_${targetId}_${currentProblemId}_${user.uid}`;
+            localStorage.setItem(key, JSON.stringify({
+              code,
+              language,
+              updatedAt: Date.now(),
+            }));
+          }
+          if (timeLeftRef.current > 0) {
+            localStorage.setItem(`af_persisted_time_${targetId}_${user.uid}`, String(timeLeftRef.current));
+            const blob = new Blob([JSON.stringify({ userId: user.uid, timeRemaining: timeLeftRef.current })], {
+              type: "application/json",
+            });
+            navigator.sendBeacon(`/api/battle/rooms/${encodeURIComponent(targetId)}/persist-time`, blob);
+          }
+        } catch (_) {}
       }
     };
 
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
+      handleBeforeUnload();
     };
   }, [roomId, initialMatch, initialRoomCode, paramRoomCode, problem?.id, activeProblemIndex, user?.uid, code, language]);
 
@@ -632,6 +722,7 @@ export default function LiveBattle() {
       });
 
       socket.on("matchmaking_timeout", (data) => {
+        clearActiveEvent();
         notify({ type: "warning", title: "Matchmaking Failed", message: data?.message || "No available player found for 1v1 battle.", duration: 5000 });
         navigate("/battle");
       });
@@ -800,6 +891,7 @@ export default function LiveBattle() {
         }
         setStatus("finished");
         setShowSummary(true);
+        clearActiveEvent();
 
         if (data.reason === "OPPONENT_FORFEIT") {
           notify({
@@ -898,11 +990,62 @@ export default function LiveBattle() {
       });
 
       socket.on("player_readmitted", (data) => {
+        if (data?.targetUserId === user?.uid) {
+          if (data?.persistedTimeRemaining !== undefined && !isNaN(Number(data.persistedTimeRemaining))) {
+            const rest = Math.max(0, Number(data.persistedTimeRemaining));
+            setTimeLeft(rest);
+            const targetId = roomId || initialMatch?.roomId || initialMatch?.roomCode || initialRoomCode || paramRoomCode;
+            if (targetId && user?.uid) {
+              try {
+                localStorage.setItem(`af_persisted_time_${targetId}_${user.uid}`, String(rest));
+              } catch (_) {}
+            }
+          }
+          notify({
+            type: "success",
+            title: "Re-admitted to Battle!",
+            message: "You were re-admitted by the host. Your remaining battle time has been restored!",
+            duration: 4000,
+          });
+        } else {
+          notify({
+            type: "info",
+            title: "Player Re-admitted",
+            message: `${data?.targetUsername || "Player"} was re-admitted by the host.`,
+            duration: 3500,
+          });
+        }
+      });
+
+      socket.on("timer_restored", (data) => {
+        if (data?.persistedTimeRemaining !== undefined && !isNaN(Number(data.persistedTimeRemaining))) {
+          const rest = Math.max(0, Number(data.persistedTimeRemaining));
+          setTimeLeft(rest);
+          const targetId = roomId || initialMatch?.roomId || initialMatch?.roomCode || initialRoomCode || paramRoomCode;
+          if (targetId && user?.uid) {
+            try {
+              localStorage.setItem(`af_persisted_time_${targetId}_${user.uid}`, String(rest));
+            } catch (_) {}
+          }
+        }
+      });
+
+      socket.on("readmitted_to_battle", (data) => {
+        if (data?.persistedTimeRemaining !== undefined && !isNaN(Number(data.persistedTimeRemaining))) {
+          const rest = Math.max(0, Number(data.persistedTimeRemaining));
+          setTimeLeft(rest);
+          const targetId = roomId || initialMatch?.roomId || initialMatch?.roomCode || initialRoomCode || paramRoomCode;
+          if (targetId && user?.uid) {
+            try {
+              localStorage.setItem(`af_persisted_time_${targetId}_${user.uid}`, String(rest));
+            } catch (_) {}
+          }
+        }
         notify({
-          type: "info",
-          title: "Player Re-admitted",
-          message: `${data?.targetUsername || "Player"} was re-admitted by the host.`,
-          duration: 3500,
+          type: "success",
+          title: "Re-admitted to Battle!",
+          message: data?.message || "You have been re-admitted to the battle by the host. Your time has been restored.",
+          duration: 4000,
         });
       });
 
@@ -937,6 +1080,8 @@ export default function LiveBattle() {
         socketRef.current.off("checkpoint_ack");
         socketRef.current.off("player_kicked");
         socketRef.current.off("player_readmitted");
+        socketRef.current.off("timer_restored");
+        socketRef.current.off("readmitted_to_battle");
         socketRef.current.off("disconnect");
       }
       

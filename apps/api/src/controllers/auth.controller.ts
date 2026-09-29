@@ -42,13 +42,13 @@ export class AuthController {
             }
         }
 
-        let user = await prisma.user.findUnique({
+        let user = await (prisma.user as any).findUnique({
             where: { googleSub: googleUser.sub },
         });
 
         // If existing user by googleSub, ensure department is synced if available
         if (user && institutionalData.department && (!user.department || user.userType === "INDIVIDUAL")) {
-            user = await prisma.user.update({
+            user = await (prisma.user as any).update({
                 where: { id: user.id },
                 data: {
                     department: user.department || institutionalData.department,
@@ -61,11 +61,11 @@ export class AuthController {
 
         // Link existing account by email if not already linked to googleSub
         if (!user && googleUser.email) {
-            user = await prisma.user.findUnique({
+            user = await (prisma.user as any).findUnique({
                 where: { email: googleUser.email },
             });
             if (user) {
-                user = await prisma.user.update({
+                user = await (prisma.user as any).update({
                     where: { id: user.id },
                     data: {
                         googleSub: googleUser.sub,
@@ -98,7 +98,7 @@ export class AuthController {
             const platformPrefix = userType === "STUDENT" ? "AF-STU" : "AF-USR";
             const platformCode = `${platformPrefix}-${Math.floor(10000 + Math.random() * 90000)}`;
 
-            user = await prisma.user.create({
+            user = await (prisma.user as any).create({
                 data: {
                     email: googleUser.email,
                     googleSub: googleUser.sub,
@@ -126,6 +126,7 @@ export class AuthController {
             userAgent: params.userAgent,
         });
 
+        const identityMeta = (user.studentIdentityMetadata as any) || {};
         return {
             success: true,
             token: session.sessionId,
@@ -138,6 +139,8 @@ export class AuthController {
                 platformCode: user.platformCode,
                 institutionName: user.institutionName,
                 department: user.department,
+                school: identityMeta.school || null,
+                designation: identityMeta.designation || (user.userType === "FACULTY" ? "Faculty Educator" : null),
                 batchYear: user.batchYear,
                 rating: user.rating,
                 highestRank: user.highestRank,
@@ -157,11 +160,11 @@ export class AuthController {
             where: { email: cleanEmail },
         });
 
-        if (!user || !user.passwordHash) {
+        if (!user || !(user as any).passwordHash) {
             throw { statusCode: 401, message: "Invalid email or password." };
         }
 
-        const valid = verifyPassword(params.password, user.passwordHash);
+        const valid = verifyPassword(params.password, (user as any).passwordHash);
         if (!valid) {
             throw { statusCode: 401, message: "Invalid email or password." };
         }
@@ -178,6 +181,7 @@ export class AuthController {
             userAgent: params.userAgent,
         });
 
+        const manualMeta = (user.studentIdentityMetadata as any) || {};
         return {
             success: true,
             token: session.sessionId,
@@ -186,8 +190,13 @@ export class AuthController {
                 email: user.email,
                 username: user.username,
                 role: isAdmin ? "ADMIN" : "USER",
+                userType: user.userType,
                 platformCode: user.platformCode,
                 institutionName: user.institutionName,
+                department: user.department,
+                school: manualMeta.school || null,
+                designation: manualMeta.designation || (user.userType === "FACULTY" ? "Faculty Educator" : null),
+                batchYear: user.batchYear,
                 rating: user.rating,
                 highestRank: user.highestRank,
             },
@@ -201,6 +210,9 @@ export class AuthController {
         displayName?: string;
         userType?: "STUDENT" | "FACULTY" | "INDIVIDUAL";
         institutionName?: string;
+        school?: string;
+        department?: string;
+        designation?: string;
         ip?: string;
         userAgent?: string;
     }) {
@@ -256,17 +268,26 @@ export class AuthController {
         const platformPrefix = resolvedUserType === "STUDENT" ? "AF-STU" : resolvedUserType === "FACULTY" ? "AF-FAC" : "AF-USR";
         const platformCode = `${platformPrefix}-${Math.floor(10000 + Math.random() * 90000)}`;
 
-        const user = await prisma.user.create({
+        const studentIdentityMetadata = (params.school || params.designation || params.department)
+            ? {
+                school: params.school || null,
+                department: params.department || null,
+                designation: params.designation || (resolvedUserType === "FACULTY" ? "Faculty Educator" : null),
+            }
+            : undefined;
+
+        const user = await (prisma.user as any).create({
             data: {
                 email: cleanEmail,
                 username: uniqueUsername,
                 passwordHash,
                 primaryEmail: cleanEmail,
                 userType: resolvedUserType,
-                institutionName: params.institutionName || institutionalData.institutionName || null,
-                department: institutionalData.department || null,
+                institutionName: params.institutionName || institutionalData.institutionName || (resolvedUserType === "FACULTY" ? "Madhav Institute of Technology & Science" : null),
+                department: params.department || params.school || institutionalData.department || null,
                 batchYear: institutionalData.batchYear || null,
                 platformCode,
+                studentIdentityMetadata,
             },
         });
 
@@ -282,6 +303,7 @@ export class AuthController {
             userAgent: params.userAgent,
         });
 
+        const signupMeta = (user.studentIdentityMetadata as any) || {};
         return {
             success: true,
             token: session.sessionId,
@@ -294,6 +316,8 @@ export class AuthController {
                 platformCode: user.platformCode,
                 institutionName: user.institutionName,
                 department: user.department,
+                school: signupMeta.school || null,
+                designation: signupMeta.designation || (user.userType === "FACULTY" ? "Faculty Educator" : null),
                 batchYear: user.batchYear,
                 rating: user.rating,
                 highestRank: user.highestRank,
