@@ -1,6 +1,5 @@
-// frontend/src/components/Home/Home.jsx
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import './Home.css';
 import heroCharacterVideo from '../../assets/watermark-removed-gemini_generated_video_a46fd70e.mp4';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -28,6 +27,14 @@ const mockAvatars = [
   "/testimonials/prateek.png",
 ];
 
+const dynamicWords = [
+  { w1: "SHARP", w2: "MINDS", c1: "dynamic-pink", c2: "dynamic-cyan" },
+  { w1: "ELITE", w2: "CODERS", c1: "dynamic-gold", c2: "dynamic-purple" },
+  { w1: "FUTURE", w2: "MASTERS", c1: "dynamic-cyan", c2: "dynamic-green" },
+  { w1: "SPEED", w2: "DEMONS", c1: "dynamic-pink", c2: "dynamic-gold" },
+  { w1: "CODE", w2: "WARRIORS", c1: "dynamic-purple", c2: "dynamic-cyan" },
+];
+
 const getInitials = (user) => {
   if (!user) return 'KD';
   const name = user.displayName?.trim() || user.username?.trim() || user.email?.split('@')[0] || 'KD';
@@ -47,6 +54,15 @@ function Home() {
     }
     return false;
   });
+
+  const [wordIndex, setWordIndex] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setWordIndex((prev) => (prev + 1) % dynamicWords.length);
+    }, 2800);
+    return () => clearInterval(timer);
+  }, []);
 
   // Compute live user stats or sensible defaults
   const userRating = user?.rating ?? 0;
@@ -217,7 +233,13 @@ function Home() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
             >
-              <span className="kicker-slash">//</span> CODE <span className="kicker-cross">×</span> COMPETE <span className="kicker-cross">×</span> <span className="text-cyan">GROW</span> <span className="kicker-slash">//</span>
+              <span className="kicker-slash">//</span>
+              <span className="kicker-word">CODE</span>
+              <span className="kicker-cross">×</span>
+              <span className="kicker-word">COMPETE</span>
+              <span className="kicker-cross">×</span>
+              <span className="kicker-word word-glow-cyan">GROW</span>
+              <span className="kicker-slash">//</span>
             </motion.div>
 
             {/* Main Title */}
@@ -228,7 +250,26 @@ function Home() {
               transition={{ duration: 0.6, delay: 0.15 }}
             >
               ALGORITHMIC BATTLES<br />
-              FOR <span className="hero-word-sharp">SHARP</span> <span className="hero-word-minds">MINDS</span>
+              <span className="hero-for-text">FOR </span>
+              <span className="dynamic-rotator-wrapper">
+                <AnimatePresence mode="wait">
+                  <motion.span
+                    key={wordIndex}
+                    className="dynamic-word-pair"
+                    initial={{ y: 20, opacity: 0, filter: "blur(6px)" }}
+                    animate={{ y: 0, opacity: 1, filter: "blur(0px)" }}
+                    exit={{ y: -20, opacity: 0, filter: "blur(6px)" }}
+                    transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                  >
+                    <span className={`hero-word-sharp ${dynamicWords[wordIndex].c1}`}>
+                      {dynamicWords[wordIndex].w1}
+                    </span>{" "}
+                    <span className={`hero-word-minds ${dynamicWords[wordIndex].c2}`}>
+                      {dynamicWords[wordIndex].w2}
+                    </span>
+                  </motion.span>
+                </AnimatePresence>
+              </span>
             </motion.h1>
 
             {/* Subtitle */}

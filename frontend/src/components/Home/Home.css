@@ -249,6 +249,9 @@ body {
 body::before {
   display: none !important;
 }
+.background-paths-wrapper {
+  align-items: flex-start !important;
+}
 .background-paths-wrapper::after {
   opacity: 0.38 !important;
   display: block !important;
@@ -261,7 +264,7 @@ body::before {
   align-items: center;
   text-align: center;
   position: relative;
-  padding: 10 10px;
+  padding: 0 10px;
 }
 
 .hero-kicker-tag {
@@ -269,21 +272,43 @@ body::before {
   font-size: 0.78rem;
   letter-spacing: 0.22em;
   color: #94a3b8;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
   font-weight: 600;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  padding: 5px 14px;
+  background: rgba(0, 229, 255, 0.04);
+  border: 1px solid rgba(0, 229, 255, 0.16);
+  border-radius: 999px;
+  box-shadow: 0 0 16px rgba(0, 229, 255, 0.08);
 }
 
 .kicker-slash {
   color: #3b82f6;
   font-weight: 700;
+  animation: kickerSlashGlow 2.5s infinite ease-in-out;
+}
+
+@keyframes kickerSlashGlow {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; text-shadow: 0 0 8px #3b82f6; }
 }
 
 .kicker-cross {
   color: #64748b;
   font-size: 0.72rem;
+}
+
+.kicker-word.word-glow-cyan {
+  color: #00e5ff;
+  text-shadow: 0 0 12px rgba(0, 229, 255, 0.6);
+  animation: glowWordPulse 3s infinite ease-in-out;
+}
+
+@keyframes glowWordPulse {
+  0%, 100% { opacity: 0.9; }
+  50% { opacity: 1; text-shadow: 0 0 16px rgba(0, 229, 255, 0.85); }
 }
 
 .text-cyan {
@@ -300,24 +325,113 @@ body::before {
   text-transform: uppercase !important;
   text-shadow: none !important;
   margin: 0 0 12px;
+  min-height: 2.3em;
+}
+
+.hero-for-text {
+  color: #ffffff;
+}
+
+/* Dynamic Rotator Wrapper */
+.dynamic-rotator-wrapper {
+  display: inline-block;
+  position: relative;
+  vertical-align: baseline;
+  min-width: 250px;
+}
+
+.dynamic-word-pair {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.28em;
+  white-space: nowrap;
 }
 
 .hero-word-sharp {
+  display: inline-block;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  transition: all 0.3s ease;
+}
+
+.hero-word-sharp.dynamic-pink {
   background: linear-gradient(135deg, #d946ef 0%, #ec4899 100%);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
   color: transparent;
-  text-shadow: 0 0 25px rgba(217, 70, 239, 0.4);
+  text-shadow: 0 0 25px rgba(217, 70, 239, 0.45);
 }
 
-.hero-word-minds {
-  background: linear-gradient(135deg, #00e5ff 0%, #38bdf8 100%);
+.hero-word-sharp.dynamic-gold {
+  background: linear-gradient(135deg, #ffd500 0%, #ff8c00 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  text-shadow: 0 0 25px rgba(255, 213, 0, 0.45);
+}
+
+.hero-word-sharp.dynamic-cyan {
+  background: linear-gradient(135deg, #00e5ff 0%, #00b0ff 100%);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
   color: transparent;
   text-shadow: 0 0 25px rgba(0, 229, 255, 0.45);
+}
+
+.hero-word-sharp.dynamic-purple {
+  background: linear-gradient(135deg, #a855f7 0%, #8b5cf6 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  text-shadow: 0 0 25px rgba(168, 85, 247, 0.45);
+}
+
+.hero-word-minds {
+  display: inline-block;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  transition: all 0.3s ease;
+}
+
+.hero-word-minds.dynamic-cyan {
+  background: linear-gradient(135deg, #00e5ff 0%, #38bdf8 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  text-shadow: 0 0 25px rgba(0, 229, 255, 0.5);
+}
+
+.hero-word-minds.dynamic-purple {
+  background: linear-gradient(135deg, #c084fc 0%, #9333ea 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  text-shadow: 0 0 25px rgba(192, 132, 252, 0.5);
+}
+
+.hero-word-minds.dynamic-green {
+  background: linear-gradient(135deg, #00ff88 0%, #10b981 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  text-shadow: 0 0 25px rgba(0, 255, 136, 0.5);
+}
+
+.hero-word-minds.dynamic-gold {
+  background: linear-gradient(135deg, #ffd700 0%, #f59e0b 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  text-shadow: 0 0 25px rgba(255, 215, 0, 0.5);
 }
 
 .hero-main-subtext {
