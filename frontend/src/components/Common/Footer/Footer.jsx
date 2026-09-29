@@ -2,10 +2,13 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faEnvelope, faLocationDot, faClock, faChevronDown } from '@fortawesome/free-solid-svg-icons';
+import { faEnvelope, faLocationDot, faClock, faChevronDown, faPlus } from '@fortawesome/free-solid-svg-icons';
 import logoIcon from '../../../assets/algofight-logo.png';
 import mitsLogo from '../../../assets/mits-logo.png';
 import sdcLogo from '../../../assets/sdc-logo.png';
+import arinPic from '../../../assets/devs/arin.png';
+import vivekPic from '../../../assets/devs/vivek.png';
+import krishPic from '../../../assets/devs/krish.jpg';
 import PublicInfoModal from '../modals/PublicInfoModal.jsx';
 import { useAuth } from '../../../contexts/AuthContext.jsx';
 import './Footer.css';
@@ -243,12 +246,35 @@ export default function Footer() {
               </span>
             </div>
             
-            <div className="footer-dev-credits">
-              <a onClick={() => navigate('/developer')} className="footer-dev-name" title="Arin Gupta">Arin</a>
-              <span className="footer-dev-sep">,</span>
-              <a onClick={() => navigate('/developer')} className="footer-dev-name" title="Vivek Chaurasiya">Vivek</a>
-              <span className="footer-dev-sep">,</span>
-              <a onClick={() => navigate('/developer')} className="footer-dev-name" title="Krish Dargar">Krish</a>
+            <div className="footer-dev-avatar-stack" title="Developers & Contributors">
+              <img
+                src={arinPic}
+                alt="Arin Gupta"
+                className="dev-stack-avatar dev-stack-arin"
+                title="Arin Gupta"
+                onClick={() => navigate('/developer')}
+              />
+              <img
+                src={vivekPic}
+                alt="Vivek Chaurasiya"
+                className="dev-stack-avatar dev-stack-vivek"
+                title="Vivek Chaurasiya"
+                onClick={() => navigate('/developer')}
+              />
+              <img
+                src={krishPic}
+                alt="Krish Dargar"
+                className="dev-stack-avatar dev-stack-krish"
+                title="Krish Dargar"
+                onClick={() => navigate('/developer')}
+              />
+              <div
+                className="dev-stack-avatar dev-stack-plus"
+                title="View All Developers & Contributors"
+                onClick={() => navigate('/developer')}
+              >
+                <FontAwesomeIcon icon={faPlus} />
+              </div>
             </div>
           </div>
         </div>

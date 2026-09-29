@@ -311,32 +311,75 @@
   filter: drop-shadow(0 0 16px rgba(0, 229, 255, 0.6)) brightness(1.15);
 }
 
-.footer-dev-credits {
+/* ================= DEVELOPER AVATAR STACK ================= */
+.footer-dev-avatar-stack {
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-size: 0.84rem;
-  color: #8a93a6;
-}
-
-.footer-dev-name {
-  color: #cbd5e1;
-  font-weight: 600;
-  text-decoration: none;
+  padding: 2px;
   cursor: pointer;
-  transition: color 0.18s ease, text-shadow 0.18s ease;
-  padding: 1px 3px;
-  border-radius: 4px;
 }
 
-.footer-dev-name:hover {
-  color: #00e5ff;
-  text-shadow: 0 0 10px rgba(0, 229, 255, 0.45);
+.dev-stack-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #000000;
+  margin-left: -9px;
+  position: relative;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  background: #0d1522;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
 }
 
-.footer-dev-sep {
-  color: #64748b;
-  margin-right: 2px;
+.dev-stack-avatar:first-child {
+  margin-left: 0;
+  z-index: 4;
+}
+
+.dev-stack-avatar:nth-child(2) {
+  z-index: 3;
+}
+
+.dev-stack-avatar:nth-child(3) {
+  z-index: 2;
+}
+
+.dev-stack-arin {
+  object-position: center 20%;
+}
+
+.dev-stack-vivek {
+  object-position: center top;
+}
+
+.dev-stack-krish {
+  object-position: center 15%;
+}
+
+.dev-stack-avatar.dev-stack-plus {
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #232936;
+  color: #94a3b8;
+  font-size: 0.72rem;
+  font-weight: 700;
+  border: 2px solid #000000;
+}
+
+.dev-stack-avatar:hover {
+  transform: translateY(-3px) scale(1.18);
+  border-color: #00e5ff;
+  box-shadow: 0 0 14px rgba(0, 229, 255, 0.55);
+  z-index: 10 !important;
+}
+
+.dev-stack-avatar.dev-stack-plus:hover {
+  background: #00e5ff;
+  color: #04080d;
 }
 
 /* ================= RESPONSIVENESS ================= */
