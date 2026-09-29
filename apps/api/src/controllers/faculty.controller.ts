@@ -381,6 +381,7 @@ export class FacultyController {
                 department: true,
                 branch: true,
                 userType: true,
+                studentIdentityMetadata: true,
                 createdAt: true,
             },
         });
@@ -401,8 +402,11 @@ export class FacultyController {
                     }).catch(() => 0),
                 ]);
 
+                const meta = (f.studentIdentityMetadata as any) || {};
                 return {
                     ...f,
+                    school: meta.school || null,
+                    designation: meta.designation || "Faculty Educator",
                     quizCount,
                     reminderCount,
                 };
@@ -412,6 +416,49 @@ export class FacultyController {
         return {
             total: facultiesWithCounts.length,
             faculties: facultiesWithCounts,
+        };
+    }
+
+    /**
+     * Update faculty institutional details (School/Centre, Department, Designation)
+     */
+    async updateFacultyProfile(userId: string, data: { school: string; department?: string; designation: string; institutionName?: string }) {
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        if (!user) {
+            throw { statusCode: 404, message: "Faculty record not found." };
+        }
+
+        const existingMeta = (user.studentIdentityMetadata as any) || {};
+        const cleanSchool = data.school ? data.school.trim() : existingMeta.school || "";
+        const cleanDept = data.department !== undefined ? (data.department ? data.department.trim() : null) : (existingMeta.department || user.department || null);
+        const cleanDesignation = data.designation ? data.designation.trim() : existingMeta.designation || "Faculty Educator";
+
+        const updatedMeta = {
+            ...existingMeta,
+            school: cleanSchool,
+            department: cleanDept,
+            designation: cleanDesignation,
+        };
+
+        const updated = await prisma.user.update({
+            where: { id: userId },
+            data: {
+                userType: "FACULTY",
+                institutionName: data.institutionName || user.institutionName || "Madhav Institute of Technology & Science",
+                department: cleanDept || cleanSchool,
+                studentIdentityMetadata: updatedMeta,
+            },
+        });
+
+        return {
+            id: updated.id,
+            email: updated.email,
+            username: updated.username,
+            userType: updated.userType,
+            institutionName: updated.institutionName,
+            department: updated.department,
+            school: cleanSchool,
+            designation: cleanDesignation,
         };
     }
 }

@@ -117,6 +117,7 @@
     line-height: 1.1;
     background: linear-gradient(135deg, #ffffff 0%, #94a3b8 100%);
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
     letter-spacing: -0.02em;
     white-space: nowrap;
@@ -751,6 +752,62 @@
 
 .profile-content-grid.faculty-view {
     grid-template-columns: 1fr;
+}
+
+.faculty-header-edit-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    margin-left: 6px;
+    background: rgba(168, 85, 247, 0.2);
+    border: 1px solid rgba(168, 85, 247, 0.4);
+    border-radius: 8px;
+    color: #e9d5ff;
+    font-size: 0.76rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.faculty-header-edit-btn:hover {
+    background: rgba(168, 85, 247, 0.35);
+    color: #ffffff;
+    box-shadow: 0 0 12px rgba(168, 85, 247, 0.35);
+    transform: translateY(-1px);
+}
+
+.faculty-card-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.edit-faculty-details-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    background: linear-gradient(135deg, rgba(0, 229, 255, 0.15), rgba(168, 85, 247, 0.2));
+    border: 1px solid rgba(0, 229, 255, 0.35);
+    border-radius: 8px;
+    color: #00e5ff;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.edit-faculty-details-btn:hover {
+    background: linear-gradient(135deg, rgba(0, 229, 255, 0.28), rgba(168, 85, 247, 0.32));
+    color: #ffffff;
+    border-color: #00e5ff;
+    box-shadow: 0 0 14px rgba(0, 229, 255, 0.3);
+    transform: translateY(-1px);
 }
 
 

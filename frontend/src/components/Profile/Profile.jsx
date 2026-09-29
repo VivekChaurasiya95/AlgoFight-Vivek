@@ -21,6 +21,8 @@ import {
     faCopy,
     faChalkboardUser,
     faGraduationCap,
+    faPen,
+    faBuildingColumns,
 } from '@fortawesome/free-solid-svg-icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotification } from '../../contexts/NotificationContext';
@@ -32,17 +34,19 @@ import BackgroundPaths from '../BackgroundPaths/BackgroundPaths';
 import '../BackgroundPaths/BackgroundPaths.css';
 import Footer from '../Common/Footer/Footer';
 import RankEmblem from '../Common/gamification/RankEmblem';
+import FacultyDetailsModal from '../Faculty/FacultyDetailsModal';
 
 function Profile() {
     const { userId } = useParams();
     const navigate = useNavigate();
-    const { user, loading: authLoading } = useAuth();
+    const { user, loading: authLoading, updateFacultyDetails } = useAuth();
     const { notify } = useNotification();
 
     const [profile, setProfile] = useState(null);
     const [isLoadingProfile, setIsLoadingProfile] = useState(false);
     const [profileError, setProfileError] = useState('');
     const [avatarError, setAvatarError] = useState(false);
+    const [isFacultyModalOpen, setIsFacultyModalOpen] = useState(false);
 
     // Duel challenge states
     const [outgoingChallenge, setOutgoingChallenge] = useState(null);
@@ -52,6 +56,35 @@ function Profile() {
 
     const targetUserId = userId || user?.email || user?.uid;
     const isOwnProfile = !userId || userId === user?.uid || userId === user?.email || (profile && userId === profile?.id);
+
+    const handleSaveFacultyDetails = async (data) => {
+        try {
+            const res = await updateFacultyDetails(data);
+            if (res) {
+                setProfile((prev) => ({
+                    ...(prev || {}),
+                    ...res,
+                    school: data.school,
+                    department: data.department,
+                    designation: data.designation,
+                    institutionName: data.institutionName,
+                }));
+                notify({
+                    type: 'success',
+                    title: 'Profile Updated',
+                    message: 'Your faculty academic details have been successfully updated.',
+                    duration: 4000,
+                });
+            }
+        } catch (err) {
+            notify({
+                type: 'error',
+                title: 'Update Failed',
+                message: err?.message || 'Could not update faculty profile.',
+            });
+            throw err;
+        }
+    };
 
     useEffect(() => {
         let active = true;
@@ -605,9 +638,23 @@ function Profile() {
                                 <div className="faculty-badge-display">
                                     <FontAwesomeIcon icon={faChalkboardUser} className="faculty-badge-icon" />
                                     <div className="faculty-badge-text">
-                                        <span className="faculty-badge-title">FACULTY EDUCATOR</span>
-                                        <span className="faculty-badge-sub">{profile?.department || "Academic Mentor"}</span>
+                                        <span className="faculty-badge-title">
+                                            {profile?.designation || profile?.studentIdentityMetadata?.designation || "FACULTY EDUCATOR"}
+                                        </span>
+                                        <span className="faculty-badge-sub">
+                                            {profile?.school || profile?.studentIdentityMetadata?.school || profile?.department || "Academic Mentor"}
+                                        </span>
                                     </div>
+                                    {isOwnProfile && (
+                                        <button
+                                            type="button"
+                                            className="faculty-header-edit-btn"
+                                            onClick={() => setIsFacultyModalOpen(true)}
+                                            title="Edit your School/Centre, Department, and Designation"
+                                        >
+                                            <FontAwesomeIcon icon={faPen} /> Edit
+                                        </button>
+                                    )}
                                 </div>
                             ) : (
                                 <RankEmblem rank={rank} rating={rating} size={48} showBadge={true} glow={true} />
@@ -626,7 +673,19 @@ function Profile() {
                                 <span className="student-card-icon">🏛️</span>
                                 <span className="student-card-title">INSTITUTIONAL FACULTY IDENTITY</span>
                             </div>
-                            <span className="academic-session-tag">Academic Faculty & Mentor</span>
+                            <div className="faculty-card-header-actions">
+                                <span className="academic-session-tag">Academic Faculty & Mentor</span>
+                                {isOwnProfile && (
+                                    <button
+                                        type="button"
+                                        className="edit-faculty-details-btn"
+                                        onClick={() => setIsFacultyModalOpen(true)}
+                                        title="Edit School/Centre, Department, and Designation"
+                                    >
+                                        <FontAwesomeIcon icon={faPen} /> Edit Details
+                                    </button>
+                                )}
+                            </div>
                         </div>
                         <div className="student-card-grid">
                             <div className="student-info-item">
@@ -634,12 +693,22 @@ function Profile() {
                                 <span className="info-value highlight-cyan">{profile?.institutionName || "Madhav Institute of Technology & Science (MITS DU)"}</span>
                             </div>
                             <div className="student-info-item">
-                                <span className="info-label">Department</span>
-                                <span className="info-value">{profile?.department || "School of Engineering"}</span>
+                                <span className="info-label">School / Centre</span>
+                                <span className="info-value highlight-cyan">
+                                    {profile?.school || profile?.studentIdentityMetadata?.school || "Not Configured"}
+                                </span>
                             </div>
                             <div className="student-info-item">
-                                <span className="info-label">Designation / Role</span>
-                                <span className="info-value highlight-sem">Faculty Educator</span>
+                                <span className="info-label">Department</span>
+                                <span className="info-value">
+                                    {profile?.department || profile?.studentIdentityMetadata?.department || "— (General / None)"}
+                                </span>
+                            </div>
+                            <div className="student-info-item">
+                                <span className="info-label">Designation</span>
+                                <span className="info-value highlight-sem">
+                                    {profile?.designation || profile?.studentIdentityMetadata?.designation || "Faculty Educator"}
+                                </span>
                             </div>
                             <div className="student-info-item">
                                 <span className="info-label">Platform Code</span>
@@ -979,6 +1048,20 @@ function Profile() {
                     </motion.div>
                 )}
             </AnimatePresence>
+
+            {/* Faculty Academic Details Edit Modal */}
+            {isFacultyProfile && isOwnProfile && (
+                <FacultyDetailsModal
+                    isOpen={isFacultyModalOpen}
+                    onClose={() => setIsFacultyModalOpen(false)}
+                    onSubmit={handleSaveFacultyDetails}
+                    initialSchool={profile?.school || profile?.studentIdentityMetadata?.school || ""}
+                    initialDepartment={profile?.department || profile?.studentIdentityMetadata?.department || ""}
+                    initialDesignation={profile?.designation || profile?.studentIdentityMetadata?.designation || ""}
+                    isOnboarding={false}
+                    userDisplayName={displayName}
+                />
+            )}
             </div>
             <Footer />
         </BackgroundPaths>

@@ -18,6 +18,8 @@ export interface CreateUserInput {
     admissionYear?: number | null;
     branch?: string | null;
     enrollmentNumber?: string | null;
+    school?: string | null;
+    designation?: string | null;
     studentIdentityMetadata?: any | null;
 }
 

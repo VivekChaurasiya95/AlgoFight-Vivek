@@ -5,37 +5,52 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../../contexts/AuthContext";
 import { useNotification } from "../../contexts/NotificationContext.jsx";
 import GoogleAuthButton from "../Common/GoogleAuthButton.jsx";
+import FacultyDetailsModal from "../Faculty/FacultyDetailsModal.jsx";
 
 function Signup() {
+  const [accountRole, setAccountRole] = useState("STUDENT"); // "STUDENT" | "FACULTY"
   const [authMethod, setAuthMethod] = useState("google"); // "google" | "manual"
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [showFacultyOnboarding, setShowFacultyOnboarding] = useState(false);
+  const [newFacultyUser, setNewFacultyUser] = useState(null);
 
   const navigate = useNavigate();
   const location = useLocation();
-  const from = location.state?.from?.pathname || "/";
-  const { user, signupManual, loginWithGoogle } = useAuth();
+  const from = location.state?.from?.pathname || (accountRole === "FACULTY" ? "/faculty" : "/");
+  const { user, signupManual, loginWithGoogle, updateFacultyDetails } = useAuth();
   const { notify } = useNotification();
 
   useEffect(() => {
-    if (user) {
-      navigate(from, { replace: true });
+    // Only auto-redirect if NOT waiting for faculty onboarding form
+    if (user && !showFacultyOnboarding) {
+      navigate(user.userType === "FACULTY" ? "/faculty" : from, { replace: true });
     }
-  }, [user, navigate, from]);
+  }, [user, navigate, from, showFacultyOnboarding]);
 
   const handleGoogleSuccess = async (credential) => {
     setLoading(true);
     try {
-      await loginWithGoogle(credential);
-      notify({
-        type: "success",
-        title: "Account Created",
-        message: "Welcome to AlgoFight! Signed up with Google.",
-      });
-      navigate(from, { replace: true });
+      const loggedUser = await loginWithGoogle(credential);
+      if (accountRole === "FACULTY" || loggedUser?.userType === "FACULTY") {
+        setNewFacultyUser(loggedUser);
+        setShowFacultyOnboarding(true);
+        notify({
+          type: "info",
+          title: "Account Created",
+          message: "Please complete your official Faculty institutional details.",
+        });
+      } else {
+        notify({
+          type: "success",
+          title: "Account Created",
+          message: "Welcome to AlgoFight! Signed up with Google.",
+        });
+        navigate(from, { replace: true });
+      }
     } catch (err) {
       notify({
         type: "error",
@@ -89,19 +104,30 @@ function Signup() {
       const cleanEmail = email.trim();
       const defaultUsername = cleanEmail.split("@")[0].replace(/[^a-zA-Z0-9_]/g, "");
 
-      await signupManual({
+      const createdUser = await signupManual({
         email: cleanEmail,
         password,
         username: defaultUsername,
-        userType: "INDIVIDUAL",
+        userType: accountRole === "FACULTY" ? "FACULTY" : "INDIVIDUAL",
+        institutionName: accountRole === "FACULTY" ? "Madhav Institute of Technology & Science" : undefined,
       });
 
-      notify({
-        type: "success",
-        title: "Account Created",
-        message: "Welcome to AlgoFight! Your account is ready.",
-      });
-      navigate(from, { replace: true });
+      if (accountRole === "FACULTY") {
+        setNewFacultyUser(createdUser);
+        setShowFacultyOnboarding(true);
+        notify({
+          type: "info",
+          title: "Account Created",
+          message: "Please complete your official Faculty institutional details.",
+        });
+      } else {
+        notify({
+          type: "success",
+          title: "Account Created",
+          message: "Welcome to AlgoFight! Your account is ready.",
+        });
+        navigate(from, { replace: true });
+      }
     } catch (err) {
       notify({
         type: "error",
@@ -110,6 +136,28 @@ function Signup() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleFacultyDetailsSubmit = async (facultyData) => {
+    try {
+      await updateFacultyDetails(facultyData);
+      notify({
+        type: "success",
+        title: "Faculty Profile Configured",
+        message: `Welcome, ${facultyData.designation || "Faculty Member"}! Portal access configured successfully.`,
+        duration: 5000,
+      });
+      setShowFacultyOnboarding(false);
+      navigate("/faculty", { replace: true });
+    } catch (err) {
+      notify({
+        type: "error",
+        title: "Configuration Error",
+        message: err?.message || "Could not save faculty details. You can update them in Profile anytime.",
+      });
+      setShowFacultyOnboarding(false);
+      navigate("/profile", { replace: true });
     }
   };
 
@@ -125,10 +173,58 @@ function Signup() {
         <div className="Signup-Container">
           <div className="Signup-Heading">
             <h1>Create an Account</h1>
-            <p>Join the next generation of competitive programmers</p>
+            <p>
+              {accountRole === "FACULTY"
+                ? "Join as an Academic Faculty Educator & Mentor"
+                : "Join the next generation of competitive programmers"}
+            </p>
           </div>
 
-          {/* Segmented Slidable Switcher */}
+          {/* Account Role Selector: Student vs Faculty */}
+          <div className="role-selector-wrap">
+            <span className="role-selector-label">I AM REGISTERING AS:</span>
+            <div className="account-role-switch" role="tablist" aria-label="Account Role">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={accountRole === "STUDENT"}
+                className={`account-role-btn ${accountRole === "STUDENT" ? "active" : ""}`}
+                onClick={() => setAccountRole("STUDENT")}
+              >
+                <span>🎓 Student / Competitor</span>
+                {accountRole === "STUDENT" && (
+                  <motion.div
+                    className="account-role-pill student-pill"
+                    layoutId="account-role-pill"
+                    transition={{ type: "spring", stiffness: 450, damping: 35 }}
+                  />
+                )}
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={accountRole === "FACULTY"}
+                className={`account-role-btn ${accountRole === "FACULTY" ? "active faculty-active" : ""}`}
+                onClick={() => setAccountRole("FACULTY")}
+              >
+                <span>🏛️ Faculty Educator</span>
+                {accountRole === "FACULTY" && (
+                  <motion.div
+                    className="account-role-pill faculty-pill"
+                    layoutId="account-role-pill"
+                    transition={{ type: "spring", stiffness: 450, damping: 35 }}
+                  />
+                )}
+              </button>
+            </div>
+            {accountRole === "FACULTY" && (
+              <div className="faculty-role-note">
+                ℹ️ Faculty educator accounts have institutional mentorship, question authoring & department analytics access.
+              </div>
+            )}
+          </div>
+
+          {/* Segmented Slidable Switcher for Google vs Manual */}
           <div className="auth-mode-switch" role="tablist" aria-label="Sign-up methods">
             <button
               type="button"
@@ -196,7 +292,7 @@ function Signup() {
                 <div className="input-group">
                   <input
                     type="email"
-                    placeholder="Email Address"
+                    placeholder={accountRole === "FACULTY" ? "Faculty Email Address" : "Email Address"}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     autoComplete="email"
@@ -235,7 +331,11 @@ function Signup() {
                   disabled={loading}
                   style={{ marginTop: "8px", width: "100%" }}
                 >
-                  {loading ? "INITIALIZING COMBAT TAG..." : "CREATE ACCOUNT"}
+                  {loading
+                    ? "CREATING ACCOUNT..."
+                    : accountRole === "FACULTY"
+                    ? "PROCEED TO FACULTY SETUP →"
+                    : "CREATE ACCOUNT"}
                 </button>
               </motion.form>
             )}
@@ -250,6 +350,18 @@ function Signup() {
           </div>
         </div>
       </motion.div>
+
+      {/* Faculty Institutional Details Modal (Prompted immediately after faculty signup) */}
+      <FacultyDetailsModal
+        isOpen={showFacultyOnboarding}
+        isOnboarding={true}
+        userDisplayName={newFacultyUser?.username || email.split("@")[0] || "Educator"}
+        onClose={() => {
+          setShowFacultyOnboarding(false);
+          navigate("/faculty", { replace: true });
+        }}
+        onSubmit={handleFacultyDetailsSubmit}
+      />
     </div>
   );
 }
