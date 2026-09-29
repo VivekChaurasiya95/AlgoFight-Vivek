@@ -18,6 +18,7 @@ import {
     faFire,
     faHourglassHalf,
     faGamepad,
+    faRobot,
 } from "@fortawesome/free-solid-svg-icons";
 import { fetchAvailablePlayers } from "../../services/api";
 import { connectSocket, getSocket } from "../../services/socket";
@@ -36,7 +37,7 @@ export default function AvailablePlayers({ onPlayerCountChange }) {
     const [onlinePresences, setOnlinePresences] = useState(new Map());
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
-    const [statusFilter, setStatusFilter] = useState("ALL"); // ALL | ONLINE | AVAILABLE | IN_BATTLE
+    const [statusFilter, setStatusFilter] = useState("ALL"); // ALL | AVAILABLE | IN_BATTLE | IN_LOBBY
     const [sortBy, setSortBy] = useState("rating"); // rating | wins | winRate | name
 
     // Direct Challenge States
@@ -51,7 +52,7 @@ export default function AvailablePlayers({ onPlayerCountChange }) {
     const loadPlayersFromDb = async () => {
         try {
             setLoading(true);
-            const data = await fetchAvailablePlayers({ limit: 100 });
+            const data = await fetchAvailablePlayers({ limit: 150 });
             if (Array.isArray(data)) {
                 setDbPlayers(data);
             }
@@ -225,86 +226,85 @@ export default function AvailablePlayers({ onPlayerCountChange }) {
         return () => clearInterval(timer);
     }, [outgoingChallenge, incomingChallenge]);
 
-    // 4. Merge DB players with live WebSocket presences
-    const mergedPlayers = useMemo(() => {
-        const map = new Map();
-
-        // Populate from DB baseline
+    // 4. Merge DB players with live WebSocket presences — KEEP ONLY ONLINE PLAYERS
+    const onlinePlayers = useMemo(() => {
+        const dbMap = new Map();
         for (const p of dbPlayers) {
             if (p.userType === "FACULTY" || p.role === "FACULTY") continue;
-            const isMe = p.id === currentUserId || p.email === user?.email;
-            map.set(p.id, {
-                id: p.id,
-                username: p.username || "Player",
-                platformCode: p.platformCode || "",
-                institutionName: p.institutionName || "",
-                userType: p.userType || "INDIVIDUAL",
-                rating: p.rating ?? 0,
-                matchesWon: p.matchesWon ?? p.wins ?? 0,
-                matchesPlayed: p.matchesPlayed ?? ((p.wins || 0) + (p.losses || 0)),
-                winRate: p.winRate ?? (p.wins && (p.wins + p.losses) > 0 ? Math.round((p.wins / (p.wins + p.losses)) * 100) : 0),
-                status: "OFFLINE",
+            dbMap.set(p.id, p);
+        }
+
+        const onlineMap = new Map();
+
+        // 1. All currently active socket presences
+        for (const [userId, pres] of onlinePresences.entries()) {
+            if (pres.userType === "FACULTY" || pres.role === "FACULTY") continue;
+            const dbData = dbMap.get(userId);
+            const isMe = userId === currentUserId || pres.username === currentUsername;
+
+            onlineMap.set(userId, {
+                id: userId,
+                username: pres.username || dbData?.username || "Player",
+                platformCode: pres.platformCode || dbData?.platformCode || "",
+                institutionName: pres.institutionName || dbData?.institutionName || "",
+                userType: pres.userType || dbData?.userType || "INDIVIDUAL",
+                rating: pres.rating ?? dbData?.rating ?? 1200,
+                matchesWon: dbData?.matchesWon ?? dbData?.wins ?? 0,
+                matchesPlayed: dbData?.matchesPlayed ?? ((dbData?.wins || 0) + (dbData?.losses || 0)),
+                winRate: dbData?.winRate ?? (dbData?.wins && (dbData.wins + (dbData.losses || 0)) > 0
+                    ? Math.round((dbData.wins / (dbData.wins + dbData.losses)) * 100)
+                    : 0),
+                status: pres.status || "AVAILABLE",
                 isMe,
             });
         }
 
-        // Overlay with live presence entries
-        for (const [userId, pres] of onlinePresences.entries()) {
-            if (pres.userType === "FACULTY" || pres.role === "FACULTY") continue;
-            const existing = map.get(userId);
-            const isMe = userId === currentUserId || pres.username === currentUsername;
-            if (existing) {
-                map.set(userId, {
-                    ...existing,
-                    username: pres.username || existing.username,
-                    platformCode: pres.platformCode || existing.platformCode,
-                    rating: pres.rating ?? existing.rating ?? 0,
-                    status: pres.status || "AVAILABLE",
-                    isMe,
-                });
-            } else {
-                map.set(userId, {
-                    id: userId,
-                    username: pres.username || "Player",
-                    platformCode: pres.platformCode || "",
-                    institutionName: pres.institutionName || "",
-                    userType: pres.userType || "INDIVIDUAL",
-                    rating: pres.rating ?? 0,
-                    matchesWon: 0,
-                    matchesPlayed: 0,
-                    winRate: 0,
-                    status: pres.status || "AVAILABLE",
-                    isMe,
-                });
-            }
+        // 2. Ensure current user appears in the online table if logged in
+        if (currentUserId && currentUserId !== "Guest" && !onlineMap.has(currentUserId)) {
+            const dbMe = dbMap.get(currentUserId);
+            onlineMap.set(currentUserId, {
+                id: currentUserId,
+                username: currentUsername,
+                platformCode: dbMe?.platformCode || "",
+                institutionName: dbMe?.institutionName || "",
+                userType: dbMe?.userType || "INDIVIDUAL",
+                rating: dbMe?.rating ?? user?.rating ?? 1200,
+                matchesWon: dbMe?.matchesWon ?? dbMe?.wins ?? 0,
+                matchesPlayed: dbMe?.matchesPlayed ?? ((dbMe?.wins || 0) + (dbMe?.losses || 0)),
+                winRate: dbMe?.winRate ?? 0,
+                status: "AVAILABLE",
+                isMe: true,
+            });
         }
 
-        return Array.from(map.values());
-    }, [dbPlayers, onlinePresences, currentUserId, currentUsername, user?.email]);
+        return Array.from(onlineMap.values());
+    }, [dbPlayers, onlinePresences, currentUserId, currentUsername, user]);
 
-    // Live counts
-    const onlineCount = useMemo(() => {
-        return mergedPlayers.filter((p) => p.status !== "OFFLINE").length;
-    }, [mergedPlayers]);
+    // Live counts of online combatants
+    const onlineCount = onlinePlayers.length;
 
     const availableCount = useMemo(() => {
-        return mergedPlayers.filter((p) => p.status === "AVAILABLE" && !p.isMe).length;
-    }, [mergedPlayers]);
+        return onlinePlayers.filter((p) => p.status === "AVAILABLE" && !p.isMe).length;
+    }, [onlinePlayers]);
 
     const battlingCount = useMemo(() => {
-        return mergedPlayers.filter((p) => p.status === "IN_BATTLE").length;
-    }, [mergedPlayers]);
+        return onlinePlayers.filter((p) => p.status === "IN_BATTLE").length;
+    }, [onlinePlayers]);
 
-    // Update parent tab badge if callback provided
+    const inLobbyCount = useMemo(() => {
+        return onlinePlayers.filter((p) => p.status === "IN_LOBBY").length;
+    }, [onlinePlayers]);
+
+    // Update parent tab badge with active online count
     useEffect(() => {
         if (typeof onPlayerCountChange === "function") {
             onPlayerCountChange(onlineCount);
         }
     }, [onlineCount, onPlayerCountChange]);
 
-    // 5. Filter and Sort
+    // 5. Filter and Sort Online Players
     const filteredPlayers = useMemo(() => {
-        return mergedPlayers
+        return onlinePlayers
             .filter((p) => {
                 // Search query match
                 if (searchQuery.trim()) {
@@ -316,20 +316,19 @@ export default function AvailablePlayers({ onPlayerCountChange }) {
                 }
 
                 // Status filter
-                if (statusFilter === "ONLINE") {
-                    return p.status !== "OFFLINE";
-                }
                 if (statusFilter === "AVAILABLE") {
                     return p.status === "AVAILABLE";
                 }
                 if (statusFilter === "IN_BATTLE") {
                     return p.status === "IN_BATTLE";
                 }
+                if (statusFilter === "IN_LOBBY") {
+                    return p.status === "IN_LOBBY";
+                }
 
                 return true;
             })
             .sort((a, b) => {
-                // Pin self or online players near top if not sorting by specific field
                 if (sortBy === "rating") {
                     return (b.rating || 0) - (a.rating || 0);
                 }
@@ -344,7 +343,7 @@ export default function AvailablePlayers({ onPlayerCountChange }) {
                 }
                 return 0;
             });
-    }, [mergedPlayers, searchQuery, statusFilter, sortBy]);
+    }, [onlinePlayers, searchQuery, statusFilter, sortBy]);
 
     // 6. Action Handlers
     const handleSendChallenge = (targetPlayer) => {
@@ -395,25 +394,25 @@ export default function AvailablePlayers({ onPlayerCountChange }) {
 
     return (
         <div className="ap-container">
-            {/* Top Real-Time Stats Row */}
+            {/* Top Compact Live Stats Bar */}
             <div className="ap-stats-row">
-                <div className="ap-stat-card tone-gold">
-                    <div className="ap-stat-icon-wrap">
-                        <FontAwesomeIcon icon={faUsers} />
-                    </div>
-                    <div className="ap-stat-info">
-                        <div className="ap-stat-number">{mergedPlayers.length}</div>
-                        <div className="ap-stat-label">Total Registered Coders</div>
-                    </div>
-                </div>
-
                 <div className="ap-stat-card tone-cyan">
                     <div className="ap-stat-icon-wrap">
                         <FontAwesomeIcon icon={faBolt} />
                     </div>
                     <div className="ap-stat-info">
                         <div className="ap-stat-number">{onlineCount}</div>
-                        <div className="ap-stat-label">Online Right Now</div>
+                        <div className="ap-stat-label">Active Combatants Online</div>
+                    </div>
+                </div>
+
+                <div className="ap-stat-card tone-gold">
+                    <div className="ap-stat-icon-wrap">
+                        <FontAwesomeIcon icon={faCrosshairs} />
+                    </div>
+                    <div className="ap-stat-info">
+                        <div className="ap-stat-number">{availableCount}</div>
+                        <div className="ap-stat-label">Ready for 1v1 Duel</div>
                     </div>
                 </div>
 
@@ -423,7 +422,7 @@ export default function AvailablePlayers({ onPlayerCountChange }) {
                     </div>
                     <div className="ap-stat-info">
                         <div className="ap-stat-number">{battlingCount}</div>
-                        <div className="ap-stat-label">In Live Duels</div>
+                        <div className="ap-stat-label">In Live Battles</div>
                     </div>
                 </div>
             </div>
@@ -436,7 +435,7 @@ export default function AvailablePlayers({ onPlayerCountChange }) {
                     <input
                         type="text"
                         className="ap-search-input"
-                        placeholder="Search by username, code (AF-...), university..."
+                        placeholder="Search online players by name, code (AF-...), institute..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                     />
@@ -448,14 +447,7 @@ export default function AvailablePlayers({ onPlayerCountChange }) {
                         className={`ap-tab-btn ${statusFilter === "ALL" ? "active" : ""}`}
                         onClick={() => setStatusFilter("ALL")}
                     >
-                        All <span className="ap-count-pill">{mergedPlayers.length}</span>
-                    </button>
-
-                    <button
-                        className={`ap-tab-btn ${statusFilter === "ONLINE" ? "active" : ""}`}
-                        onClick={() => setStatusFilter("ONLINE")}
-                    >
-                        🟢 Online <span className="ap-count-pill">{onlineCount}</span>
+                        🟢 All Online <span className="ap-count-pill">{onlineCount}</span>
                     </button>
 
                     <button
@@ -469,8 +461,17 @@ export default function AvailablePlayers({ onPlayerCountChange }) {
                         className={`ap-tab-btn ${statusFilter === "IN_BATTLE" ? "active" : ""}`}
                         onClick={() => setStatusFilter("IN_BATTLE")}
                     >
-                        ⚔️ In Battle <span className="ap-count-pill">{battlingCount}</span>
+                        ⚔️ In Duel <span className="ap-count-pill">{battlingCount}</span>
                     </button>
+
+                    {inLobbyCount > 0 && (
+                        <button
+                            className={`ap-tab-btn ${statusFilter === "IN_LOBBY" ? "active" : ""}`}
+                            onClick={() => setStatusFilter("IN_LOBBY")}
+                        >
+                            ⏳ In Lobby <span className="ap-count-pill">{inLobbyCount}</span>
+                        </button>
+                    )}
 
                     {/* Sorting dropdown */}
                     <select
@@ -491,134 +492,186 @@ export default function AvailablePlayers({ onPlayerCountChange }) {
                 </div>
             </div>
 
-            {/* Players Grid */}
-            <div className="ap-grid">
-                {filteredPlayers.map((player) => {
-                    const tier = getRankTier(player.rating);
-                    const isOnline = player.status !== "OFFLINE";
-                    const isAvailable = player.status === "AVAILABLE" && !player.isMe;
-                    const isInBattle = player.status === "IN_BATTLE";
+            {/* High-Density Tabular Format */}
+            <div className="ap-table-container">
+                <div className="ap-table-responsive">
+                    <table className="ap-table">
+                        <thead>
+                            <tr>
+                                <th className="th-player">Combatant</th>
+                                <th className="th-status">Live Status</th>
+                                <th className="th-rating">Rating & Rank</th>
+                                <th className="th-record">Record & Win Rate</th>
+                                <th className="th-action text-right">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {filteredPlayers.map((player) => {
+                                const isAvailable = player.status === "AVAILABLE" && !player.isMe;
+                                const isInBattle = player.status === "IN_BATTLE";
+                                const isInLobby = player.status === "IN_LOBBY";
+                                const codeToCopy = player.platformCode || `AF-${player.id ? player.id.slice(0, 6).toUpperCase() : "USR"}`;
 
-                    return (
-                        <motion.div
-                            key={player.id}
-                            className={`ap-card ${player.isMe ? "is-self" : ""} ${isInBattle ? "is-in-battle" : ""}`}
-                            onClick={() => navigate(player.isMe ? "/profile" : `/profile/${encodeURIComponent(player.id)}`)}
-                            title={`Click to view ${player.username}'s full profile`}
-                            initial={{ opacity: 0, y: 8 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.2 }}
-                        >
-                            {/* Card Header */}
-                            <div className="ap-card-header">
-                                <div className="ap-avatar-wrap">
-                                    <div className="ap-avatar">
-                                        {(player.username || "P")[0].toUpperCase()}
-                                    </div>
-                                    <span className={`ap-status-indicator ${player.status.toLowerCase()}`} />
-                                </div>
-
-                                <div className="ap-player-meta">
-                                    <div className="ap-player-name-row">
-                                        <span className="ap-player-name">{player.username}</span>
-                                        {player.isMe && <span className="ap-self-pill">YOU</span>}
-                                    </div>
-
-                                    <span
-                                        className="ap-code-badge"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            const codeToCopy = player.platformCode || `AF-USR-${player.id ? player.id.slice(0, 6).toUpperCase() : "PLAYER"}`;
-                                            copyCode(codeToCopy);
-                                        }}
-                                        title="Click to copy Platform Code"
+                                return (
+                                    <tr
+                                        key={player.id}
+                                        className={`ap-table-row ${player.isMe ? "is-self" : ""} ${isInBattle ? "is-in-battle" : ""}`}
+                                        onClick={() => navigate(player.isMe ? "/profile" : `/profile/${encodeURIComponent(player.id)}`)}
+                                        title={`Click to view ${player.username}'s profile`}
                                     >
-                                        {player.platformCode || `AF-USR-${player.id ? player.id.slice(0, 6).toUpperCase() : "PLAYER"}`} <FontAwesomeIcon icon={faCopy} />
-                                    </span>
+                                        {/* Col 1: Combatant Info */}
+                                        <td className="td-player">
+                                            <div className="ap-table-player-cell">
+                                                <div className="ap-table-avatar-wrap">
+                                                    <div className="ap-table-avatar">
+                                                        {(player.username || "P")[0].toUpperCase()}
+                                                    </div>
+                                                    <span className={`ap-status-indicator ${player.status.toLowerCase()}`} />
+                                                </div>
 
-                                    {player.institutionName && (
-                                        <div className="ap-inst-text" title={player.institutionName}>
-                                            <FontAwesomeIcon icon={faBuildingColumns} /> {player.institutionName}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
+                                                <div className="ap-table-player-meta">
+                                                    <div className="ap-player-name-row">
+                                                        <span className="ap-player-name">{player.username}</span>
+                                                        {player.isMe && <span className="ap-self-pill">YOU</span>}
+                                                    </div>
 
-                            {/* Card Body Stats */}
-                            <div className="ap-card-body">
-                                <div className="ap-rating-tier-row">
-                                    <div className="ap-rating-box">
-                                        <span className="ap-rating-value">{player.rating ?? 0}</span>
-                                        <span className="ap-rating-label">Rating</span>
-                                    </div>
+                                                    <div className="ap-player-sub-row">
+                                                        <span
+                                                            className="ap-code-badge"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                copyCode(codeToCopy);
+                                                            }}
+                                                            title="Click to copy platform code"
+                                                        >
+                                                            {codeToCopy} <FontAwesomeIcon icon={faCopy} />
+                                                        </span>
 
-                                    <RankEmblem rating={player.rating ?? 0} size={26} showBadge={true} glow={false} />
-                                </div>
+                                                        {player.institutionName && (
+                                                            <span className="ap-table-inst-text" title={player.institutionName}>
+                                                                <FontAwesomeIcon icon={faBuildingColumns} /> {player.institutionName}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </td>
 
-                                <div className="ap-winrate-bar-wrap">
-                                    <div className="ap-winrate-labels">
-                                        <span>Win Rate: <b>{player.winRate || 0}%</b></span>
-                                        <span>Won: <b>{player.matchesWon || 0}</b></span>
-                                    </div>
-                                    <div className="ap-winrate-track">
-                                        <div
-                                            className="ap-winrate-fill"
-                                            style={{ width: `${Math.min(100, Math.max(5, player.winRate || 0))}%` }}
-                                        />
-                                    </div>
-                                </div>
-                            </div>
+                                        {/* Col 2: Live Status */}
+                                        <td className="td-status">
+                                            {isAvailable ? (
+                                                <span className="ap-status-pill available">
+                                                    <span className="pulse-dot available" /> Available
+                                                </span>
+                                            ) : isInBattle ? (
+                                                <span className="ap-status-pill battle">
+                                                    <span className="pulse-dot battle" /> In Duel
+                                                </span>
+                                            ) : isInLobby ? (
+                                                <span className="ap-status-pill lobby">
+                                                    <span className="pulse-dot lobby" /> In Lobby
+                                                </span>
+                                            ) : (
+                                                <span className="ap-status-pill online">
+                                                    <span className="pulse-dot online" /> Online
+                                                </span>
+                                            )}
+                                        </td>
 
-                            {/* Card Footer Actions */}
-                            <div className="ap-card-footer">
-                                {player.isMe ? (
-                                    <div className="ap-btn-disabled">
-                                        <FontAwesomeIcon icon={faShieldHalved} /> Your Profile
-                                    </div>
-                                ) : isAvailable ? (
-                                    <button
-                                        className="ap-btn-challenge"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleSendChallenge(player);
-                                        }}
-                                        title={`Send direct 1v1 duel challenge to ${player.username}`}
-                                    >
-                                        <FontAwesomeIcon icon={faBolt} /> Challenge 1v1
-                                    </button>
-                                ) : isInBattle ? (
-                                    <div className="ap-btn-disabled in_battle">
-                                        <FontAwesomeIcon icon={faFire} /> In Active Duel
-                                    </div>
-                                ) : isOnline ? (
-                                    <div className="ap-btn-disabled">
-                                        <FontAwesomeIcon icon={faHourglassHalf} /> In Lobby
-                                    </div>
-                                ) : (
-                                    <div className="ap-btn-disabled">
-                                        <FontAwesomeIcon icon={faCircle} /> Offline
-                                    </div>
-                                )}
-                            </div>
-                        </motion.div>
-                    );
-                })}
+                                        {/* Col 3: Rating & Tier */}
+                                        <td className="td-rating">
+                                            <div className="ap-rating-tier-cell">
+                                                <div className="ap-table-rating-num">{player.rating ?? 1200}</div>
+                                                <RankEmblem rating={player.rating ?? 1200} size={22} showBadge={true} glow={false} />
+                                            </div>
+                                        </td>
+
+                                        {/* Col 4: Record & Win Rate */}
+                                        <td className="td-record">
+                                            <div className="ap-table-record-cell">
+                                                <div className="ap-record-text">
+                                                    <strong>{player.winRate || 0}% Win Rate</strong>
+                                                    <span>({player.matchesWon || 0}W / {player.matchesPlayed || 0}M)</span>
+                                                </div>
+                                                <div className="ap-winrate-track">
+                                                    <div
+                                                        className="ap-winrate-fill"
+                                                        style={{ width: `${Math.min(100, Math.max(6, player.winRate || 0))}%` }}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </td>
+
+                                        {/* Col 5: Actions */}
+                                        <td className="td-action text-right">
+                                            {player.isMe ? (
+                                                <button
+                                                    className="ap-btn-table-self"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        navigate("/profile");
+                                                    }}
+                                                >
+                                                    <FontAwesomeIcon icon={faShieldHalved} /> Your Profile
+                                                </button>
+                                            ) : isAvailable ? (
+                                                <button
+                                                    className="ap-btn-table-challenge"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleSendChallenge(player);
+                                                    }}
+                                                    title={`Send direct 1v1 duel challenge to ${player.username}`}
+                                                >
+                                                    <FontAwesomeIcon icon={faBolt} /> Challenge 1v1
+                                                </button>
+                                            ) : isInBattle ? (
+                                                <span className="ap-status-tag-in-battle">
+                                                    <FontAwesomeIcon icon={faFire} /> In Active Duel
+                                                </span>
+                                            ) : (
+                                                <span className="ap-status-tag-in-lobby">
+                                                    <FontAwesomeIcon icon={faHourglassHalf} /> In Lobby
+                                                </span>
+                                            )}
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
 
                 {/* Empty State */}
                 {filteredPlayers.length === 0 && !loading && (
                     <div className="ap-empty-box">
                         <FontAwesomeIcon icon={faUsers} className="ap-empty-icon" />
-                        <h3>No Players Found</h3>
-                        <p>No players matched your active search or status filters.</p>
-                        <button
-                            className="ap-empty-reset-btn"
-                            onClick={() => {
-                                setSearchQuery("");
-                                setStatusFilter("ALL");
-                            }}
-                        >
-                            Reset Filters
-                        </button>
+                        <h3>{onlineCount === 0 ? "No Other Players Online" : "No Matching Online Combatants"}</h3>
+                        <p>
+                            {onlineCount === 0
+                                ? "There are currently no other combatants online right now. You can challenge our adaptive AlgoBot AI instantly or share your room code with peers!"
+                                : "No online combatants matched your active search or status filter."}
+                        </p>
+                        <div className="ap-empty-actions">
+                            {onlineCount === 0 ? (
+                                <button
+                                    className="ap-btn-bot-duel"
+                                    onClick={() => navigate("/battle/live", { state: { autoBot: true } })}
+                                >
+                                    <FontAwesomeIcon icon={faRobot} /> Duel AlgoBot (AI) Now
+                                </button>
+                            ) : (
+                                <button
+                                    className="ap-empty-reset-btn"
+                                    onClick={() => {
+                                        setSearchQuery("");
+                                        setStatusFilter("ALL");
+                                    }}
+                                >
+                                    Reset Filters
+                                </button>
+                            )}
+                        </div>
                     </div>
                 )}
             </div>
@@ -681,7 +734,7 @@ export default function AvailablePlayers({ onPlayerCountChange }) {
                             </div>
                             <h3 className="ap-modal-title">Incoming 1v1 Challenge!</h3>
                             <p className="ap-modal-desc">
-                                <span className="ap-modal-target-name">{incomingChallenge.fromUsername}</span> (Rating: {incomingChallenge.fromRating ?? 0}) has challenged you to an instant battle duel!
+                                <span className="ap-modal-target-name">{incomingChallenge.fromUsername}</span> (Rating: {incomingChallenge.fromRating ?? 1200}) has challenged you to an instant battle duel!
                             </p>
 
                             {incomingChallenge.config && (

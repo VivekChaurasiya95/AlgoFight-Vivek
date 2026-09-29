@@ -272,79 +272,105 @@
     border-color: #00e5ff;
 }
 
-/* ================= Players Grid ================= */
-.ap-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
-    gap: 1.25rem;
-}
-
-.ap-card {
+/* ================= High-Density Tabular Format ================= */
+.ap-table-container {
+    width: 100%;
     background: rgba(18, 20, 28, 0.55);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 14px;
-    padding: 1.3rem;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    gap: 1.1rem;
-    position: relative;
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    transition: all 0.25s ease;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
 }
 
-.ap-card:hover {
-    transform: translateY(-4px);
-    border-color: rgba(0, 229, 255, 0.35);
-    box-shadow: 0 8px 30px rgba(0, 229, 255, 0.12);
+.ap-table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
-.ap-card.is-self {
-    border-color: rgba(255, 215, 0, 0.4);
-    background: linear-gradient(160deg, rgba(26, 23, 16, 0.9), rgba(14, 17, 26, 0.95));
+.ap-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+    font-size: 0.88rem;
 }
 
-.ap-card.is-in-battle {
-    border-color: rgba(255, 0, 127, 0.3);
+.ap-table thead th {
+    background: rgba(8, 12, 20, 0.75);
+    padding: 0.95rem 1.25rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #8da0b6;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    white-space: nowrap;
 }
 
-/* Card Header */
-.ap-card-header {
+.ap-table tbody tr.ap-table-row {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    transition: background 0.15s ease, border-color 0.15s ease;
+    cursor: pointer;
+}
+
+.ap-table tbody tr.ap-table-row:hover {
+    background: rgba(0, 229, 255, 0.05);
+}
+
+.ap-table tbody tr.ap-table-row.is-self {
+    background: rgba(255, 215, 0, 0.04);
+}
+
+.ap-table tbody tr.ap-table-row.is-in-battle {
+    background: rgba(255, 0, 127, 0.03);
+}
+
+.ap-table tbody td {
+    padding: 0.85rem 1.25rem;
+    vertical-align: middle;
+}
+
+.text-right {
+    text-align: right;
+}
+
+/* Col 1: Combatant Cell */
+.ap-table-player-cell {
     display: flex;
     align-items: center;
-    gap: 0.9rem;
+    gap: 0.85rem;
 }
 
-.ap-avatar-wrap {
+.ap-table-avatar-wrap {
     position: relative;
-    width: 48px;
-    height: 48px;
+    width: 40px;
+    height: 40px;
     flex-shrink: 0;
 }
 
-.ap-avatar {
+.ap-table-avatar {
     width: 100%;
     height: 100%;
-    border-radius: 12px;
+    border-radius: 10px;
     background: linear-gradient(135deg, #1e293b, #0f172a);
-    border: 1.5px solid rgba(0, 229, 255, 0.25);
+    border: 1px solid rgba(0, 229, 255, 0.25);
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: 800;
-    font-size: 1.2rem;
+    font-size: 1.05rem;
     color: #00e5ff;
-    box-shadow: inset 0 0 10px rgba(0, 229, 255, 0.15);
+    box-shadow: inset 0 0 8px rgba(0, 229, 255, 0.15);
 }
 
 .ap-status-indicator {
     position: absolute;
     bottom: -2px;
     right: -2px;
-    width: 13px;
-    height: 13px;
+    width: 11px;
+    height: 11px;
     border-radius: 50%;
     border: 2px solid #0a0f1a;
 }
@@ -364,12 +390,14 @@
     box-shadow: 0 0 8px #ffb800;
 }
 
-.ap-status-indicator.offline {
-    background: #55687d;
+.ap-status-indicator.online {
+    background: #00e5ff;
+    box-shadow: 0 0 8px #00e5ff;
 }
 
-.ap-player-meta {
-    flex: 1;
+.ap-table-player-meta {
+    display: flex;
+    flex-direction: column;
     min-width: 0;
 }
 
@@ -377,11 +405,10 @@
     display: flex;
     align-items: center;
     gap: 0.45rem;
-    margin-bottom: 0.2rem;
 }
 
 .ap-player-name {
-    font-size: 1.05rem;
+    font-size: 0.95rem;
     font-weight: 700;
     color: #fff;
     white-space: nowrap;
@@ -393,135 +420,154 @@
     padding: 0.1rem 0.4rem;
     background: rgba(255, 215, 0, 0.2);
     border: 1px solid #ffd700;
-    border-radius: 6px;
+    border-radius: 5px;
     font-size: 0.65rem;
     font-weight: 800;
     color: #ffd700;
     letter-spacing: 0.05em;
 }
 
+.ap-player-sub-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-top: 0.2rem;
+}
+
 .ap-code-badge {
     display: inline-flex;
     align-items: center;
-    gap: 0.35rem;
+    gap: 0.3rem;
     background: rgba(255, 255, 255, 0.04);
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 4px;
-    padding: 0.12rem 0.45rem;
-    font-size: 0.72rem;
+    padding: 0.1rem 0.4rem;
+    font-size: 0.7rem;
     color: #8da0b6;
     font-family: monospace;
     cursor: pointer;
-    transition: color 0.15s;
+    transition: all 0.15s ease;
 }
 
 .ap-code-badge:hover {
     color: #00e5ff;
-    border-color: rgba(0, 229, 255, 0.3);
+    border-color: rgba(0, 229, 255, 0.35);
 }
 
-.ap-inst-text {
+.ap-table-inst-text {
     font-size: 0.72rem;
-    color: #62768e;
-    margin-top: 0.15rem;
+    color: #64748b;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    max-width: 200px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-/* Card Body - Stats & Status */
-.ap-card-body {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    background: rgba(8, 12, 20, 0.6);
-    border: 1px solid rgba(255, 255, 255, 0.04);
-    border-radius: 10px;
-    padding: 0.85rem 1rem;
+/* Col 2: Live Status Pills */
+.ap-status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.28rem 0.7rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
 }
 
-.ap-rating-tier-row {
+.ap-status-pill.available {
+    background: rgba(0, 255, 136, 0.1);
+    border: 1px solid rgba(0, 255, 136, 0.3);
+    color: #00ff88;
+}
+
+.ap-status-pill.battle {
+    background: rgba(255, 0, 127, 0.1);
+    border: 1px solid rgba(255, 0, 127, 0.35);
+    color: #ff007f;
+}
+
+.ap-status-pill.lobby {
+    background: rgba(255, 184, 0, 0.1);
+    border: 1px solid rgba(255, 184, 0, 0.35);
+    color: #ffb800;
+}
+
+.ap-status-pill.online {
+    background: rgba(0, 229, 255, 0.1);
+    border: 1px solid rgba(0, 229, 255, 0.3);
+    color: #00e5ff;
+}
+
+.pulse-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.pulse-dot.available {
+    background: #00ff88;
+    box-shadow: 0 0 6px #00ff88;
+    animation: apPulse 1.8s infinite;
+}
+
+.pulse-dot.battle {
+    background: #ff007f;
+    box-shadow: 0 0 6px #ff007f;
+    animation: apPulse 1.8s infinite;
+}
+
+.pulse-dot.lobby {
+    background: #ffb800;
+    box-shadow: 0 0 6px #ffb800;
+    animation: apPulse 1.8s infinite;
+}
+
+.pulse-dot.online {
+    background: #00e5ff;
+    box-shadow: 0 0 6px #00e5ff;
+    animation: apPulse 1.8s infinite;
+}
+
+/* Col 3: Rating & Rank Emblem */
+.ap-rating-tier-cell {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    gap: 0.65rem;
 }
 
-.ap-rating-box {
-    display: flex;
-    align-items: baseline;
-    gap: 0.35rem;
-}
-
-.ap-rating-value {
-    font-size: 1.25rem;
+.ap-table-rating-num {
+    font-size: 1.05rem;
     font-weight: 800;
     color: #fff;
     font-family: monospace, inherit;
 }
 
-.ap-rating-label {
-    font-size: 0.7rem;
-    color: #7b8fa5;
-    text-transform: uppercase;
-}
-
-.ap-tier-badge {
-    padding: 0.2rem 0.55rem;
-    border-radius: 6px;
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-}
-
-.ap-tier-badge.grandmaster {
-    background: rgba(255, 0, 127, 0.15);
-    border: 1px solid #ff007f;
-    color: #ff007f;
-}
-
-.ap-tier-badge.master {
-    background: rgba(186, 85, 211, 0.15);
-    border: 1px solid #ba55d3;
-    color: #ba55d3;
-}
-
-.ap-tier-badge.diamond {
-    background: rgba(0, 229, 255, 0.15);
-    border: 1px solid #00e5ff;
-    color: #00e5ff;
-}
-
-.ap-tier-badge.platinum {
-    background: rgba(0, 255, 136, 0.15);
-    border: 1px solid #00ff88;
-    color: #00ff88;
-}
-
-.ap-tier-badge.gold {
-    background: rgba(255, 215, 0, 0.15);
-    border: 1px solid #ffd700;
-    color: #ffd700;
-}
-
-.ap-tier-badge.silver {
-    background: rgba(192, 192, 192, 0.15);
-    border: 1px solid #c0c0c0;
-    color: #c0c0c0;
-}
-
-/* Win rate mini progress */
-.ap-winrate-bar-wrap {
+/* Col 4: Record & Win Rate */
+.ap-table-record-cell {
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
+    gap: 0.3rem;
+    min-width: 140px;
+    max-width: 200px;
 }
 
-.ap-winrate-labels {
+.ap-record-text {
     display: flex;
+    align-items: center;
     justify-content: space-between;
     font-size: 0.72rem;
     color: #8da0b6;
+}
+
+.ap-record-text strong {
+    color: #00e5ff;
+    font-weight: 700;
 }
 
 .ap-winrate-track {
@@ -538,58 +584,101 @@
     border-radius: 3px;
 }
 
-/* Card Action */
-.ap-card-footer {
-    display: flex;
+/* Col 5: Actions */
+.ap-btn-table-challenge {
+    padding: 0.45rem 1rem;
+    background: linear-gradient(135deg, rgba(0, 229, 255, 0.9), rgba(0, 140, 255, 0.9));
+    border: none;
+    border-radius: 7px;
+    color: #000;
+    font-weight: 800;
+    font-size: 0.78rem;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    display: inline-flex;
     align-items: center;
-    gap: 0.6rem;
+    gap: 0.4rem;
+    transition: all 0.2s ease;
+    box-shadow: 0 0 12px rgba(0, 229, 255, 0.3);
+    white-space: nowrap;
 }
 
-.ap-btn-challenge {
-    flex: 1;
-    padding: 0.65rem 1rem;
-    background: linear-gradient(135deg, rgba(0, 229, 255, 0.9), rgba(0, 140, 255, 0.9));
+.ap-btn-table-challenge:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 0 18px rgba(0, 229, 255, 0.6);
+    background: linear-gradient(135deg, #00e5ff, #00b0ff);
+}
+
+.ap-btn-table-self {
+    padding: 0.45rem 0.9rem;
+    background: rgba(255, 215, 0, 0.08);
+    border: 1px solid rgba(255, 215, 0, 0.3);
+    border-radius: 7px;
+    color: #ffd700;
+    font-weight: 700;
+    font-size: 0.78rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+}
+
+.ap-btn-table-self:hover {
+    background: rgba(255, 215, 0, 0.18);
+    border-color: #ffd700;
+}
+
+.ap-status-tag-in-battle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.35rem 0.8rem;
+    background: rgba(255, 0, 127, 0.08);
+    border: 1px solid rgba(255, 0, 127, 0.25);
+    border-radius: 6px;
+    color: #ff007f;
+    font-size: 0.75rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.ap-status-tag-in-lobby {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.35rem 0.8rem;
+    background: rgba(255, 184, 0, 0.08);
+    border: 1px solid rgba(255, 184, 0, 0.25);
+    border-radius: 6px;
+    color: #ffb800;
+    font-size: 0.75rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.ap-btn-bot-duel {
+    margin-top: 0.5rem;
+    padding: 0.6rem 1.4rem;
+    background: linear-gradient(135deg, #00e5ff, #0077ff);
     border: none;
     border-radius: 8px;
     color: #000;
     font-weight: 800;
     font-size: 0.85rem;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.03em;
     cursor: pointer;
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    justify-content: center;
     gap: 0.5rem;
+    box-shadow: 0 0 18px rgba(0, 229, 255, 0.4);
     transition: all 0.2s ease;
-    box-shadow: 0 0 15px rgba(0, 229, 255, 0.35);
 }
 
-.ap-btn-challenge:hover {
+.ap-btn-bot-duel:hover {
     transform: translateY(-2px);
-    box-shadow: 0 0 22px rgba(0, 229, 255, 0.6);
-    background: linear-gradient(135deg, #00e5ff, #00b0ff);
-}
-
-.ap-btn-disabled {
-    flex: 1;
-    padding: 0.65rem 1rem;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 8px;
-    color: #64748b;
-    font-size: 0.82rem;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.45rem;
-    cursor: not-allowed;
-}
-
-.ap-btn-disabled.in_battle {
-    color: #ff007f;
-    border-color: rgba(255, 0, 127, 0.3);
-    background: rgba(255, 0, 127, 0.06);
+    box-shadow: 0 0 25px rgba(0, 229, 255, 0.7);
 }
 
 /* ================= Empty State ================= */
