@@ -12,7 +12,8 @@ import {
   faTrophy,
   faFire,
   faCode,
-  faPlus
+  faPlus,
+  faBullhorn
 } from "@fortawesome/free-solid-svg-icons";
 import { useNavigate } from 'react-router-dom';
 import BackgroundPaths from '../BackgroundPaths/BackgroundPaths';
@@ -25,6 +26,41 @@ const mockAvatars = [
   "/testimonials/palash.png",
   "/testimonials/sneha.png",
   "/testimonials/prateek.png",
+];
+
+const publicNewsData = [
+  {
+    id: 1,
+    tag: "TOURNAMENT",
+    title: "Weekend 1v1 Blitz Series",
+    desc: "Ranked algorithmic duels open Saturday 8 PM IST. Earn Season 4 title banners.",
+    action: "Join Duel",
+    link: "/battle",
+  },
+  {
+    id: 2,
+    tag: "ARENA 2.0",
+    title: "Direct 1v1 Battles Active",
+    desc: "Real-time presence directory, sub-second execution sandboxes, and Elo telemetry are live.",
+    action: "View Players",
+    link: "/battle",
+  },
+  {
+    id: 3,
+    tag: "INTEGRITY",
+    title: "Anti-Cheat Engine v2.4",
+    desc: "Automated plagiarism detection & sealed judging test suites deployed.",
+    action: "Practice Now",
+    link: "/practice",
+  },
+  {
+    id: 4,
+    tag: "COMMUNITY",
+    title: "Global Hall of Fame",
+    desc: "Climb from Rookie to Grandmaster with live match analytics and seasonal badges.",
+    action: "Leaderboard",
+    link: "/leaderboard",
+  },
 ];
 
 const dynamicWords = [
@@ -64,6 +100,15 @@ function Home() {
     return () => clearInterval(timer);
   }, []);
 
+  const [newsIndex, setNewsIndex] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNewsIndex((prev) => (prev + 1) % publicNewsData.length);
+    }, 4500);
+    return () => clearInterval(timer);
+  }, []);
+
   // Compute live user stats or sensible defaults
   const userRating = user?.rating ?? 0;
   const userWins = user?.wins ?? 0;
@@ -85,7 +130,7 @@ function Home() {
           {/* ========== LEFT COLUMN: STATS & COMMUNITY ========== */}
           <div className="hero-side-col hero-left-col">
             
-            {/* Card 1: Global Rating */}
+            {/* Card 1: Global Rating with Proper Graph Structure */}
             <motion.div 
               className="dash-card rating-card"
               initial={{ opacity: 0, x: -20 }}
@@ -103,50 +148,87 @@ function Home() {
                 <span className="dash-pill-tag tag-purple">ELO RANKED</span>
               </div>
 
-              <div className="dash-stat-big">{userRating}</div>
+              <div className="rating-stat-row">
+                <div className="dash-stat-big">{userRating}</div>
+                <div className="rating-trend-badge">
+                  <span className="rating-trend-arrow">▲</span> +142 pts
+                </div>
+              </div>
               <div className="dash-card-subtext">Compete • Improve • Climb</div>
 
-              {/* Glowing Sparkline Graph */}
-              <div className="sparkline-wrapper">
-                <svg className="sparkline-svg" viewBox="0 0 240 50">
+              {/* Proper Graph Structure with Coordinates, Axes, and Grid Lines */}
+              <div className="proper-graph-container">
+                <svg className="proper-graph-svg" viewBox="0 0 250 74" preserveAspectRatio="none">
                   <defs>
-                    <linearGradient id="sparklineGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                      <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.4" />
-                      <stop offset="50%" stopColor="#8b5cf6" stopOpacity="0.8" />
-                      <stop offset="100%" stopColor="#a855f7" stopOpacity="1" />
+                    <linearGradient id="eloGraphGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" stopColor="#3b82f6" />
+                      <stop offset="45%" stopColor="#8b5cf6" />
+                      <stop offset="100%" stopColor="#c084fc" />
                     </linearGradient>
-                    <linearGradient id="sparklineArea" x1="0%" y1="0%" x2="0%" y2="100%">
-                      <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.18" />
+                    <linearGradient id="eloGraphArea" x1="0%" y1="0%" x2="0%" y2="100%">
+                      <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.32" />
+                      <stop offset="70%" stopColor="#8b5cf6" stopOpacity="0.08" />
                       <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0.0" />
                     </linearGradient>
-                    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-                      <feGaussianBlur stdDeviation="3" result="blur" />
+                    <filter id="graphGlow" x="-20%" y="-20%" width="140%" height="140%">
+                      <feGaussianBlur stdDeviation="2.5" result="blur" />
                       <feComposite in="SourceGraphic" in2="blur" operator="over" />
                     </filter>
                   </defs>
+
+                  {/* Horizontal Grid lines */}
+                  <line x1="32" y1="16" x2="242" y2="16" className="graph-grid-line" />
+                  <line x1="32" y1="34" x2="242" y2="34" className="graph-grid-line" />
+                  <line x1="32" y1="52" x2="242" y2="52" className="graph-grid-line" />
+
+                  {/* Y-axis Ticks & Labels */}
+                  <text x="4" y="19" className="graph-axis-text">1.5k</text>
+                  <text x="4" y="37" className="graph-axis-text">1.3k</text>
+                  <text x="4" y="55" className="graph-axis-text">1.1k</text>
+
+                  {/* Vertical Guideline at Live Match */}
+                  <line x1="234" y1="12" x2="234" y2="52" className="graph-live-guide" />
+
+                  {/* Gradient Area Fill Under Curve */}
                   <path
-                    d="M 8,38 C 45,39 60,36 90,34 C 120,32 140,24 170,27 C 195,29 215,18 232,13 L 232,48 L 8,48 Z"
-                    fill="url(#sparklineArea)"
+                    d="M 36,50 C 52,52 64,48 78,44 C 92,40 102,46 116,42 C 130,38 140,28 156,26 C 172,24 182,32 196,28 C 210,24 220,16 234,13 L 234,52 L 36,52 Z"
+                    fill="url(#eloGraphArea)"
                   />
-                  <path 
-                    d="M 8,38 C 45,39 60,36 90,34 C 120,32 140,24 170,27 C 195,29 215,18 232,13" 
-                    fill="none" 
-                    stroke="url(#sparklineGrad)" 
-                    strokeWidth="2.5" 
+
+                  {/* Main Metric Trajectory Curve */}
+                  <path
+                    d="M 36,50 C 52,52 64,48 78,44 C 92,40 102,46 116,42 C 130,38 140,28 156,26 C 172,24 182,32 196,28 C 210,24 220,16 234,13"
+                    fill="none"
+                    stroke="url(#eloGraphGrad)"
+                    strokeWidth="2.4"
                     strokeLinecap="round"
-                    filter="url(#glow)"
+                    filter="url(#graphGlow)"
                   />
-                  <circle cx="8" cy="38" r="2.5" fill="#60a5fa" />
-                  <circle cx="90" cy="34" r="2.5" fill="#818cf8" />
-                  <circle cx="170" cy="27" r="2.5" fill="#a78bfa" />
-                  <circle cx="232" cy="13" r="4.5" fill="#c084fc" className="sparkline-pulse-node" />
+
+                  {/* Match Data Points */}
+                  <circle cx="36" cy="50" r="2.5" className="graph-node-dot" />
+                  <circle cx="78" cy="44" r="2.5" className="graph-node-dot" />
+                  <circle cx="116" cy="42" r="2.5" className="graph-node-dot" />
+                  <circle cx="156" cy="26" r="2.5" className="graph-node-dot" />
+                  <circle cx="196" cy="28" r="2.5" className="graph-node-dot" />
+
+                  {/* Live Endpoint Pulse */}
+                  <circle cx="234" cy="13" r="6" className="graph-pulse-ring" />
+                  <circle cx="234" cy="13" r="3.5" fill="#e879f9" className="graph-live-dot" />
+
+                  {/* X-axis Match Ticks & Labels */}
+                  <text x="36" y="67" textAnchor="middle" className="graph-x-label">M1</text>
+                  <text x="88" y="67" textAnchor="middle" className="graph-x-label">M3</text>
+                  <text x="140" y="67" textAnchor="middle" className="graph-x-label">M5</text>
+                  <text x="190" y="67" textAnchor="middle" className="graph-x-label">M7</text>
+                  <text x="234" y="67" textAnchor="middle" className="graph-x-label graph-x-live">LIVE</text>
                 </svg>
               </div>
             </motion.div>
 
-            {/* Card 2: Win Rate */}
+            {/* Card 2: Public News & Battle Updates Dispatch */}
             <motion.div 
-              className="dash-card winrate-card"
+              className="dash-card news-dispatch-card"
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5, delay: 0.2 }}
@@ -155,28 +237,66 @@ function Home() {
               <div className="dash-card-header">
                 <div className="dash-card-title-group">
                   <div className="dash-icon-box icon-cyan">
-                    <FontAwesomeIcon icon={faBolt} />
+                    <FontAwesomeIcon icon={faBullhorn} />
                   </div>
-                  <span className="dash-card-title">Win Rate</span>
+                  <span className="dash-card-title">Battle Dispatch</span>
                 </div>
-                <span className="dash-pill-tag tag-muted">{(userRank || 'UNRANKED').toUpperCase()}</span>
+                <span className="dash-pill-tag tag-cyan live-news-tag">
+                  <span className="live-news-pulse" />
+                  NEWS
+                </span>
               </div>
 
-              <div className="dash-stat-big">{winRate}%</div>
-              <div className="dash-card-subtext">
-                {totalBattles > 0 ? `${userWins} won out of ${totalBattles} battles.` : 'Still preparing for your first battle.'}
-              </div>
+              {/* Dynamic News Item with AnimatePresence */}
+              <div className="news-content-box">
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={newsIndex}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.28, ease: "easeOut" }}
+                    className="news-item-body"
+                  >
+                    <div className="news-badge-row">
+                      <span className="news-category-badge">
+                        {publicNewsData[newsIndex].tag}
+                      </span>
+                      <span className="news-time-label">Active</span>
+                    </div>
 
-              {/* Progress Bar */}
-              <div className="dash-progress-track">
-                <motion.div 
-                  className="dash-progress-fill"
-                  initial={{ width: 0 }}
-                  animate={{ width: `${Math.max(winRate, 8)}%` }}
-                  transition={{ duration: 1, ease: 'easeOut', delay: 0.3 }}
-                >
-                  <span className="dash-progress-dot" />
-                </motion.div>
+                    <h4 className="news-title">
+                      {publicNewsData[newsIndex].title}
+                    </h4>
+
+                    <p className="news-snippet">
+                      {publicNewsData[newsIndex].desc}
+                    </p>
+
+                    <div className="news-footer-row">
+                      <div className="news-dots-group">
+                        {publicNewsData.map((item, idx) => (
+                          <button
+                            key={item.id}
+                            type="button"
+                            className={`news-dot-btn ${idx === newsIndex ? 'active' : ''}`}
+                            onClick={() => setNewsIndex(idx)}
+                            aria-label={`Show news item ${idx + 1}`}
+                          />
+                        ))}
+                      </div>
+
+                      <button
+                        type="button"
+                        className="news-action-btn"
+                        onClick={() => navigate(publicNewsData[newsIndex].link)}
+                      >
+                        <span>{publicNewsData[newsIndex].action}</span>
+                        <FontAwesomeIcon icon={faArrowRight} className="news-btn-icon" />
+                      </button>
+                    </div>
+                  </motion.div>
+                </AnimatePresence>
               </div>
             </motion.div>
 
