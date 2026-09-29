@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import "./Login.css";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../../contexts/AuthContext.jsx";
@@ -15,14 +15,16 @@ function Login() {
   const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
+  const location = useLocation();
+  const from = location.state?.from?.pathname || "/";
   const { user, loginManual, loginWithGoogle } = useAuth();
   const { notify } = useNotification();
 
   useEffect(() => {
     if (user) {
-      navigate("/home");
+      navigate(from, { replace: true });
     }
-  }, [user, navigate]);
+  }, [user, navigate, from]);
 
   const handleGoogleSuccess = async (credential) => {
     setLoading(true);
@@ -33,7 +35,7 @@ function Login() {
         title: "Signed In",
         message: "Welcome back! Signed in with Google.",
       });
-      navigate("/home");
+      navigate(from, { replace: true });
     } catch (err) {
       notify({
         type: "error",
@@ -78,7 +80,7 @@ function Login() {
         title: "Signed In",
         message: "Welcome back!",
       });
-      navigate("/home");
+      navigate(from, { replace: true });
     } catch (err) {
       notify({
         type: "error",

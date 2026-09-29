@@ -103,45 +103,47 @@ function App() {
       <SystemBroadcastBanner />
       <AnimatePresence mode="wait">
         <Routes location={location} key={location.pathname}>
-          {/* ================= Landing & Auth Routes ================= */}
+          {/* ================= Auth Routes ================= */}
           <Route element={<AuthLayout />}>
-            <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/student-login" element={<Navigate to="/login" replace />} />
           </Route>
 
-        {/* ================= Main App Routes ================= */}
-        <Route element={<MainLayout />}>
-          <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
-          <Route path="/rewards" element={<ProtectedRoute><Rewards /></ProtectedRoute>} />
-          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-          <Route path="/profile/:userId" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-          <Route path="/admin" element={<AdminRoute><ControlHub /></AdminRoute>} />
-          <Route path="/faculty" element={<FacultyRoute><FacultyControlHub /></FacultyRoute>} />
+          {/* ================= Main App Routes ================= */}
+          <Route element={<MainLayout />}>
+            {/* Merged Home Page (Open to all visitors, default landing) */}
+            <Route path="/" element={<Home />} />
+            <Route path="/home" element={<Home />} />
 
-          {/* ✅ Battle Routes */}
-          <Route path="/battle" element={<ProtectedRoute><BattleArena /></ProtectedRoute>} />
-          <Route path="/battle/players" element={<ProtectedRoute><BattleArena defaultTab="players" /></ProtectedRoute>} />
-          <Route path="/battle/live" element={<ProtectedRoute><LiveBattle /></ProtectedRoute>} />
-          <Route path="/battle/live/:roomCode" element={<ProtectedRoute><LiveBattle /></ProtectedRoute>} />
-          <Route path="/battle/room/:roomCode" element={<ProtectedRoute><RoomLobby /></ProtectedRoute>} />
-          <Route path="/practice" element={<ProtectedRoute><Practice /></ProtectedRoute>} />
-          <Route path="/practice/:problemId" element={<ProtectedRoute><PracticeWorkspace /></ProtectedRoute>} />
+            <Route path="/rewards" element={<ProtectedRoute><Rewards /></ProtectedRoute>} />
+            <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+            <Route path="/profile/:userId" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+            <Route path="/admin" element={<AdminRoute><ControlHub /></AdminRoute>} />
+            <Route path="/faculty" element={<FacultyRoute><FacultyControlHub /></FacultyRoute>} />
 
-          <Route path="/leaderboard" element={<ProtectedRoute><Leaderboard /></ProtectedRoute>} />
+            {/* ✅ Battle Routes */}
+            <Route path="/battle" element={<ProtectedRoute><BattleArena /></ProtectedRoute>} />
+            <Route path="/battle/players" element={<ProtectedRoute><BattleArena defaultTab="players" /></ProtectedRoute>} />
+            <Route path="/battle/live" element={<ProtectedRoute><LiveBattle /></ProtectedRoute>} />
+            <Route path="/battle/live/:roomCode" element={<ProtectedRoute><LiveBattle /></ProtectedRoute>} />
+            <Route path="/battle/room/:roomCode" element={<ProtectedRoute><RoomLobby /></ProtectedRoute>} />
+            <Route path="/practice" element={<ProtectedRoute><Practice /></ProtectedRoute>} />
+            <Route path="/practice/:problemId" element={<ProtectedRoute><PracticeWorkspace /></ProtectedRoute>} />
 
-          {/* ✅ Public Informational Routes (No Login Required) */}
-          <Route path="/about" element={<About />} />
-          <Route path="/blog" element={<Blog />} />
-          <Route path="/careers" element={<Careers />} />
-          <Route path="/help" element={<Help />} />
-          <Route path="/contact" element={<Contact />} />
-          <Route path="/developer" element={<Developer />} />
-          <Route path="/terms" element={<Terms />} />
-          <Route path="/privacy" element={<Privacy />} />
-          <Route path="/cookies" element={<Cookies />} />
-        </Route>
+            <Route path="/leaderboard" element={<ProtectedRoute><Leaderboard /></ProtectedRoute>} />
+
+            {/* ✅ Public Informational Routes (No Login Required) */}
+            <Route path="/about" element={<About />} />
+            <Route path="/blog" element={<Blog />} />
+            <Route path="/careers" element={<Careers />} />
+            <Route path="/help" element={<Help />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/developer" element={<Developer />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/cookies" element={<Cookies />} />
+          </Route>
       </Routes>
     </AnimatePresence>
     </>

@@ -1,10 +1,11 @@
 import React from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../../contexts/AuthContext";
 import { isAdminUser } from "../../../constants/admins";
 
 export default function FacultyRoute({ children }) {
   const { user, profileData, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -25,7 +26,7 @@ export default function FacultyRoute({ children }) {
   }
 
   if (!user) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   const isFacultyOrAdmin = Boolean(
@@ -33,7 +34,7 @@ export default function FacultyRoute({ children }) {
   );
 
   if (!isFacultyOrAdmin) {
-    return <Navigate to="/home" replace />;
+    return <Navigate to="/" replace />;
   }
 
   return children;

@@ -56,7 +56,7 @@ const Navbar = () => {
       <nav className="navbar">
         <div className="navbar-container">
           {/* Brand Logo */}
-          <Link to="/home" className="navbar-brand">
+          <Link to="/" className="navbar-brand">
             <img src={logoIcon} alt="AlgoFight Logo" className="brand-logo-img" />
           </Link>
 
