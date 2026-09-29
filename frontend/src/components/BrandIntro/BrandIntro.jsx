@@ -22,11 +22,11 @@ export default function BrandIntro({ onComplete }) {
       setStage('logoReveal');
       const timer = setTimeout(() => {
         handleFinish();
-      }, 1200);
+      }, 500);
       return () => clearTimeout(timer);
     }
 
-    // Scene 1: Measured, comfortable typing (0.0s - 1.5s)
+    // Scene 1: Fast, energetic typing (0.0s - 0.4s)
     let charIndex = 0;
     const typingInterval = setInterval(() => {
       charIndex++;
@@ -34,37 +34,37 @@ export default function BrandIntro({ onComplete }) {
       if (charIndex >= targetCode.length) {
         clearInterval(typingInterval);
       }
-    }, 62); // ~1.35s total typing duration
+    }, 20);
 
-    // Scene 2: Code Execution Output appears and lingers (1.8s)
+    // Scene 2: Code Execution Output appears (0.5s)
     const tExecute = setTimeout(() => {
       setStage('executed');
-    }, 1800);
+    }, 500);
 
-    // Scene 3: Camera Zoom Out + Wordmark emerges Big to Small (3.2s)
+    // Scene 3: Camera Zoom Out + Wordmark emerges Big to Small (0.9s)
     const tZoom = setTimeout(() => {
       setStage('zooming');
-    }, 3200);
+    }, 900);
 
-    // Scene 4: Wordmark settles gracefully in center (5.5s)
+    // Scene 4: Wordmark settles gracefully in center (1.4s)
     const tWordmark = setTimeout(() => {
       setStage('wordmark');
-    }, 5500);
+    }, 1400);
 
-    // Scene 5: Slow, smooth slide left & fade out of text, as Logo smoothly enters center (6.8s)
+    // Scene 5: Logo smoothly enters center (1.8s)
     const tLogo = setTimeout(() => {
       setStage('logoReveal');
-    }, 6800);
+    }, 1800);
 
-    // Scene 6: Hold on centered logo and prepare dissolve (8.8s)
+    // Scene 6: Hold and prepare dissolve (2.1s)
     const tFadeOut = setTimeout(() => {
       setStage('hold');
-    }, 8800);
+    }, 2100);
 
-    // Completion: Transition cleanly into landing page (10.0s)
+    // Completion: Transition cleanly into landing page (2.4s)
     const tComplete = setTimeout(() => {
       handleFinish();
-    }, 10000);
+    }, 2400);
 
     // Keyboard shortcut to skip (Escape)
     const handleKeyDown = (e) => {
