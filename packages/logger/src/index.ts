@@ -5,6 +5,34 @@ import { Writable } from "node:stream";
 const TELEMETRY_URL =
     process.env.TELEMETRY_URL || "http://localhost:8000";
 
+export type LogListener = (logObj: any) => void;
+const listeners = new Set<LogListener>();
+
+export function registerLogListener(listener: LogListener): () => void {
+    listeners.add(listener);
+    return () => listeners.delete(listener);
+}
+
+// In-memory stream dispatching to registered listeners
+const memoryDispatchStream = new Writable({
+    write(chunk, _encoding, callback) {
+        try {
+            const raw = chunk.toString();
+            const logObj = JSON.parse(raw);
+            for (const listener of listeners) {
+                try {
+                    listener(logObj);
+                } catch {
+                    // Safe isolation
+                }
+            }
+        } catch {
+            // Non-JSON or parse error
+        }
+        callback();
+    },
+});
+
 // Standard Node.js Writable Stream that dispatches logs to the Linux server
 const telemetryStream = new Writable({
     write(chunk, _encoding, callback) {
@@ -50,6 +78,7 @@ export const logger = pino(
     pino.multistream([
         { stream: prettyStream },
         { stream: telemetryStream },
+        { stream: memoryDispatchStream },
     ])
 );
 

@@ -340,7 +340,10 @@ export default function ControlHub() {
 
   const handleTabSwitch = (tabId) => {
     setActiveTab(tabId);
-    if (tabId === "analytics") fetchAnalytics();
+    if (tabId === "analytics") {
+      fetchAnalytics();
+      fetchAuditLogs();
+    }
     if (tabId === "audit_trail") fetchAuditLogs();
     if (tabId === "linux_telemetry") checkLinuxStatus();
     if (tabId === "users") fetchUsers(search);
@@ -477,7 +480,10 @@ export default function ControlHub() {
     const syncTimer = setInterval(() => {
       if (typeof document !== "undefined" && document.hidden) return;
       fetchTelemetry();
-      if (activeTabRef.current === "analytics") fetchAnalytics();
+      if (activeTabRef.current === "analytics") {
+        fetchAnalytics();
+        fetchAuditLogs();
+      }
       if (activeTabRef.current === "audit_trail") fetchAuditLogs();
       checkLinuxStatus();
     }, refreshInterval * 1000);
@@ -1038,6 +1044,20 @@ export default function ControlHub() {
                   handleCopyIp={handleCopyIp}
                   handleFilterByIp={handleFilterByIp}
                   copiedIp={copiedIp}
+                  auditLogs={auditLogs}
+                  auditTotal={auditTotal}
+                  auditCategory={auditCategory}
+                  setAuditCategory={setAuditCategory}
+                  auditSeverity={auditSeverity}
+                  setAuditSeverity={setAuditSeverity}
+                  auditMethod={auditMethod}
+                  setAuditMethod={setAuditMethod}
+                  auditSearch={auditSearch}
+                  setAuditSearch={setAuditSearch}
+                  auditLoading={auditLoading}
+                  fetchAuditLogs={fetchAuditLogs}
+                  expandedAuditId={expandedAuditId}
+                  setExpandedAuditId={setExpandedAuditId}
                 />
               )}
 

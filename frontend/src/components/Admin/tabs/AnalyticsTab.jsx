@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faChartColumn,
@@ -8,7 +8,10 @@ import {
   faUser,
   faCheck,
   faMagnifyingGlass,
-  faRotate
+  faRotate,
+  faShieldHalved,
+  faTerminal,
+  faBolt
 } from "@fortawesome/free-solid-svg-icons";
 
 export default function AnalyticsTab({
@@ -18,7 +21,72 @@ export default function AnalyticsTab({
   handleCopyIp,
   handleFilterByIp,
   copiedIp,
+  auditLogs = [],
+  auditTotal = 0,
+  auditCategory = "ALL",
+  setAuditCategory,
+  auditSeverity = "ALL",
+  setAuditSeverity,
+  auditMethod = "ALL",
+  setAuditMethod,
+  auditSearch = "",
+  setAuditSearch,
+  auditLoading = false,
+  fetchAuditLogs,
+  expandedAuditId,
+  setExpandedAuditId,
 }) {
+  const logsRef = useRef(null);
+  const [localSearch, setLocalSearch] = useState(auditSearch);
+  const [isLiveStreaming, setIsLiveStreaming] = useState(true);
+
+  // Sync incoming search state
+  useEffect(() => {
+    setLocalSearch(auditSearch);
+  }, [auditSearch]);
+
+  // Unified logs list: priority to live auditLogs from stream, fallback to analyticsData snapshot logs
+  const logsList = useMemo(() => {
+    if (auditLogs && auditLogs.length > 0) return auditLogs;
+    if (analyticsData?.recentLogs && analyticsData.recentLogs.length > 0) return analyticsData.recentLogs;
+    return [];
+  }, [auditLogs, analyticsData]);
+
+  // Live Auto-Stream: automatically refresh logs every 4 seconds when live streaming is enabled
+  useEffect(() => {
+    if (!isLiveStreaming || !fetchAuditLogs) return;
+
+    const timer = setInterval(() => {
+      if (typeof document !== "undefined" && document.hidden) return;
+      fetchAuditLogs(auditCategory, auditSeverity, auditMethod, auditSearch);
+    }, 4000);
+
+    return () => clearInterval(timer);
+  }, [isLiveStreaming, fetchAuditLogs, auditCategory, auditSeverity, auditMethod, auditSearch]);
+
+  // Handle local in-page IP filter
+  const handleFilterIpInPage = (ip, e) => {
+    if (e) e.stopPropagation();
+    if (setAuditSearch) setAuditSearch(ip);
+    if (fetchAuditLogs) fetchAuditLogs(auditCategory, auditSeverity, auditMethod, ip);
+    setTimeout(() => {
+      logsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+  };
+
+  const handleRefreshAll = () => {
+    if (fetchAnalytics) fetchAnalytics();
+    if (fetchAuditLogs) fetchAuditLogs(auditCategory, auditSeverity, auditMethod, auditSearch);
+  };
+
+  const handleClearFilters = () => {
+    if (setAuditSearch) setAuditSearch("");
+    if (setAuditCategory) setAuditCategory("ALL");
+    if (setAuditSeverity) setAuditSeverity("ALL");
+    if (setAuditMethod) setAuditMethod("ALL");
+    if (fetchAuditLogs) fetchAuditLogs("ALL", "ALL", "ALL", "");
+  };
+
   return (
     <div className="admin-analytics-section">
       {/* Analytics Header Panel */}
@@ -28,17 +96,20 @@ export default function AnalyticsTab({
           <h3>
             <FontAwesomeIcon icon={faChartColumn} /> Live Platform Surfing & Traffic Analytics
           </h3>
-          <p>Real-time active users, route hit volume, dwell times, and origin IP telemetry.</p>
+          <p>Real-time active users, route hit volume, dwell times, origin IP telemetry, and live execution logs.</p>
         </div>
-        <button
-          type="button"
-          className="refresh-btn"
-          onClick={fetchAnalytics}
-          disabled={isAnalyticsLoading}
-        >
-          <FontAwesomeIcon icon={faRotate} className={isAnalyticsLoading ? "fa-spin" : ""} />{" "}
-          Refresh Analytics
-        </button>
+        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+          <button
+            type="button"
+            className="refresh-btn"
+            onClick={handleRefreshAll}
+            disabled={isAnalyticsLoading || auditLoading}
+            title="Refresh analytics and platform logs"
+          >
+            <FontAwesomeIcon icon={faRotate} className={(isAnalyticsLoading || auditLoading) ? "fa-spin" : ""} />{" "}
+            Refresh Analytics & Logs
+          </button>
+        </div>
       </div>
 
       {/* Summary Scorecards */}
@@ -46,10 +117,10 @@ export default function AnalyticsTab({
         <div className="analytics-kpi-card glass-panel">
           <span className="kpi-tag-label">SURFING NOW</span>
           <div className="kpi-big-num cyan">{analyticsData?.activeUsersNow ?? 0}</div>
-          <span className="kpi-footnote">Active clients in rolling 5m window</span>
+          <span className="kpi-footnote">Active clients in rolling 3m window</span>
         </div>
         <div className="analytics-kpi-card glass-panel">
-          <span className="kpi-tag-label">TOTAL REQUESTS (24H)</span>
+          <span className="kpi-tag-label">TOTAL REQUESTS</span>
           <div className="kpi-big-num green">{analyticsData?.totalPageViews ?? 0}</div>
           <span className="kpi-footnote">Aggregated API & gateway hits</span>
         </div>
@@ -238,7 +309,7 @@ export default function AnalyticsTab({
         </div>
       </div>
 
-      {/* Bottom Deck: Top Origin Client IPs */}
+      {/* Middle Deck: Top Origin Client IPs */}
       <div className="admin-section" style={{ marginTop: "24px" }}>
         <div className="telemetry-card glass-panel ip-origins-card">
           <div className="card-header">
@@ -315,9 +386,10 @@ export default function AnalyticsTab({
                         <button
                           type="button"
                           className="inspect-ip-btn"
-                          onClick={() => handleFilterByIp(rec.ip)}
+                          onClick={(e) => handleFilterIpInPage(rec.ip, e)}
+                          title="Filter live platform logs for this IP"
                         >
-                          <FontAwesomeIcon icon={faMagnifyingGlass} /> Filter Logs
+                          <FontAwesomeIcon icon={faMagnifyingGlass} /> Filter Logs Below
                         </button>
                       </td>
                     </tr>
@@ -326,6 +398,312 @@ export default function AnalyticsTab({
               </tbody>
             </table>
           </div>
+        </div>
+      </div>
+
+      {/* 🚀 Bottom Deck: Comprehensive Live Platform Event & Execution Logs Stream */}
+      <div ref={logsRef} className="admin-section" style={{ marginTop: "28px" }} id="analytics-live-logs">
+        {/* Header Panel */}
+        <div className="audit-header-panel glass-panel">
+          <div className="audit-title-wrap">
+            <div className="pre-heading">FULL PLATFORM AUDIT TRAIL & LOG STREAM</div>
+            <h3>
+              <FontAwesomeIcon icon={faShieldHalved} /> Live Unified Platform Logs Stream
+            </h3>
+            <p>
+              Capturing <strong>every log</strong> in real-time across HTTP traffic, WebSockets, system errors, auth clearances, and code executions.
+            </p>
+          </div>
+          <div className="audit-controls-wrap">
+            {/* Live stream toggle */}
+            <button
+              type="button"
+              className={`preset-btn ${isLiveStreaming ? "active" : ""}`}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                borderColor: isLiveStreaming ? "#00e5ff" : "rgba(255,255,255,0.15)",
+                color: isLiveStreaming ? "#00e5ff" : "#94a3b8",
+                background: isLiveStreaming ? "rgba(0, 229, 255, 0.12)" : "transparent",
+              }}
+              onClick={() => setIsLiveStreaming(!isLiveStreaming)}
+              title={isLiveStreaming ? "Pause auto-streaming" : "Resume live log streaming"}
+            >
+              <span
+                style={{
+                  width: "8px",
+                  height: "8px",
+                  borderRadius: "50%",
+                  backgroundColor: isLiveStreaming ? "#00e5ff" : "#64748b",
+                  boxShadow: isLiveStreaming ? "0 0 8px #00e5ff" : "none",
+                  display: "inline-block",
+                }}
+              />
+              {isLiveStreaming ? "STREAMING LIVE" : "STREAM PAUSED"}
+            </button>
+
+            {/* Search Input */}
+            <div className="search-input-wrap">
+              <FontAwesomeIcon icon={faMagnifyingGlass} className="search-icon" />
+              <input
+                type="text"
+                className="audit-search-input"
+                placeholder="Search actions, IPs, status codes, routes, or errors..."
+                value={localSearch}
+                onChange={(e) => {
+                  setLocalSearch(e.target.value);
+                  if (setAuditSearch) setAuditSearch(e.target.value);
+                  if (fetchAuditLogs) fetchAuditLogs(auditCategory, auditSeverity, auditMethod, e.target.value);
+                }}
+              />
+            </div>
+
+            {/* Refresh Button */}
+            <button
+              type="button"
+              className="refresh-btn"
+              onClick={() => {
+                if (fetchAuditLogs) fetchAuditLogs(auditCategory, auditSeverity, auditMethod, localSearch);
+              }}
+              disabled={auditLoading}
+              title="Refresh logs immediately"
+            >
+              <FontAwesomeIcon icon={faRotate} className={auditLoading ? "fa-spin" : ""} />{" "}
+              {auditLoading ? "Syncing..." : "Refresh"}
+            </button>
+          </div>
+        </div>
+
+        {/* Filter Pills Bar */}
+        <div className="audit-filters-bar glass-panel">
+          <div className="filter-group">
+            <span className="filter-group-label">Category:</span>
+            {[
+              "ALL",
+              "HTTP_TRAFFIC",
+              "WEBSOCKET",
+              "AUTH",
+              "SECURITY",
+              "SUBMISSION",
+              "BATTLE",
+              "SYSTEM",
+              "ADMIN",
+              "FLEET",
+              "LINUX_TELEMETRY",
+              "PAGE_VIEW",
+            ].map((cat) => (
+              <button
+                key={cat}
+                type="button"
+                className={`audit-filter-pill ${auditCategory === cat ? "active" : ""}`}
+                onClick={() => {
+                  if (setAuditCategory) setAuditCategory(cat);
+                  if (fetchAuditLogs) fetchAuditLogs(cat, auditSeverity, auditMethod, localSearch);
+                }}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+
+          <div className="filter-group">
+            <span className="filter-group-label">Method:</span>
+            {["ALL", "GET", "POST", "PUT", "DELETE", "WS", "EVENT"].map((meth) => (
+              <button
+                key={meth}
+                type="button"
+                className={`audit-filter-pill meth-${meth.toLowerCase()} ${
+                  auditMethod === meth ? "active" : ""
+                }`}
+                onClick={() => {
+                  if (setAuditMethod) setAuditMethod(meth);
+                  if (fetchAuditLogs) fetchAuditLogs(auditCategory, auditSeverity, meth, localSearch);
+                }}
+              >
+                {meth}
+              </button>
+            ))}
+          </div>
+
+          <div className="filter-group" style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "5px", flexWrap: "wrap" }}>
+              <span className="filter-group-label">Severity:</span>
+              {["ALL", "INFO", "WARN", "ERROR", "CRITICAL"].map((sev) => (
+                <button
+                  key={sev}
+                  type="button"
+                  className={`audit-filter-pill sev-${sev.toLowerCase()} ${
+                    auditSeverity === sev ? "active" : ""
+                  }`}
+                  onClick={() => {
+                    if (setAuditSeverity) setAuditSeverity(sev);
+                    if (fetchAuditLogs) fetchAuditLogs(auditCategory, sev, auditMethod, localSearch);
+                  }}
+                >
+                  {sev}
+                </button>
+              ))}
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <span style={{ fontSize: "0.72rem", color: "#8494ad", fontFamily: "'Space Grotesk', sans-serif" }}>
+                Logs Count: <strong style={{ color: "#00e5ff" }}>{logsList.length}</strong> {auditTotal > 0 && `of ${auditTotal}`}
+              </span>
+              {(auditCategory !== "ALL" || auditSeverity !== "ALL" || auditMethod !== "ALL" || localSearch) && (
+                <button
+                  type="button"
+                  onClick={handleClearFilters}
+                  style={{
+                    background: "rgba(239, 68, 68, 0.12)",
+                    border: "1px solid rgba(239, 68, 68, 0.3)",
+                    color: "#f87171",
+                    fontSize: "0.68rem",
+                    padding: "2px 8px",
+                    borderRadius: "4px",
+                    cursor: "pointer",
+                  }}
+                >
+                  Reset Filters
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Audit Stream Table */}
+        <div className="audit-table-wrapper glass-panel">
+          {logsList.length === 0 ? (
+            <div className="no-audit-notice" style={{ padding: "40px 20px", textAlign: "center" }}>
+              <FontAwesomeIcon icon={faTerminal} style={{ fontSize: "2rem", color: "#334155", marginBottom: "12px" }} />
+              <div style={{ color: "#94a3b8", fontSize: "0.9rem", fontWeight: 600 }}>
+                No log records found matching current criteria.
+              </div>
+              <p style={{ color: "#64748b", fontSize: "0.78rem", marginTop: "4px" }}>
+                Live HTTP traffic, WebSocket connections, errors, and system events will stream in automatically.
+              </p>
+              {(auditCategory !== "ALL" || auditSeverity !== "ALL" || auditMethod !== "ALL" || localSearch) && (
+                <button
+                  type="button"
+                  onClick={handleClearFilters}
+                  className="inspect-ip-btn"
+                  style={{ marginTop: "12px" }}
+                >
+                  Clear All Filters
+                </button>
+              )}
+            </div>
+          ) : (
+            <table className="audit-table">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Method</th>
+                  <th>Origin IP</th>
+                  <th>Category</th>
+                  <th>Severity</th>
+                  <th>Action</th>
+                  <th>Actor</th>
+                  <th>Details</th>
+                </tr>
+              </thead>
+              <tbody>
+                {logsList.map((entry) => (
+                  <React.Fragment key={entry.id || `${entry.timestamp}_${entry.action}`}>
+                    <tr
+                      className={`audit-row ${expandedAuditId === entry.id ? "is-expanded" : ""}`}
+                      onClick={() =>
+                        setExpandedAuditId && setExpandedAuditId(expandedAuditId === entry.id ? null : entry.id)
+                      }
+                      title="Click to expand log metadata & payload"
+                    >
+                      <td className="audit-time-cell">
+                        {new Date(entry.timestamp).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          second: "2-digit",
+                        })}
+                      </td>
+                      <td>
+                        <span
+                          className={`method-badge meth-${(entry.method || "EVENT").toLowerCase()}`}
+                        >
+                          {entry.method || "EVENT"}
+                        </span>
+                      </td>
+                      <td className="audit-ip-cell">
+                        <span
+                          className={`ip-chip ${
+                            entry.ip === "127.0.0.1" ? "ip-local" : "ip-remote"
+                          }`}
+                          title="Click to copy IP"
+                          onClick={(e) => handleCopyIp(entry.ip || "127.0.0.1", e)}
+                        >
+                          <FontAwesomeIcon icon={faGlobe} /> {entry.ip || "127.0.0.1"}
+                          {copiedIp === entry.ip && (
+                            <span className="copied-tag">
+                              <FontAwesomeIcon icon={faCheck} />
+                            </span>
+                          )}
+                        </span>
+                      </td>
+                      <td>
+                        <span className={`cat-chip cat-${(entry.category || "SYSTEM").toLowerCase()}`}>
+                          {entry.category}
+                        </span>
+                      </td>
+                      <td>
+                        <span className={`sev-badge sev-${(entry.severity || "INFO").toLowerCase()}`}>
+                          {entry.severity}
+                        </span>
+                      </td>
+                      <td className="audit-action-cell">
+                        <strong>{entry.action}</strong>
+                      </td>
+                      <td className="audit-actor-cell">{entry.actor}</td>
+                      <td className="audit-detail-cell" style={{ maxWidth: "340px", wordBreak: "break-word" }}>
+                        {entry.details}
+                      </td>
+                    </tr>
+                    {expandedAuditId === entry.id && (
+                      <tr className="audit-meta-row">
+                        <td colSpan={8}>
+                          <div className="audit-meta-card">
+                            <div className="audit-meta-header">
+                              <span>
+                                Client IP Origin: <strong>{entry.ip || "127.0.0.1"}</strong>
+                              </span>
+                              <span>
+                                Method: <strong>{entry.method || "EVENT"}</strong>
+                              </span>
+                              <span>
+                                Timestamp: <strong>{new Date(entry.timestamp).toLocaleString()}</strong>
+                              </span>
+                              <button
+                                type="button"
+                                className="filter-by-ip-btn"
+                                onClick={(e) => handleFilterIpInPage(entry.ip || "127.0.0.1", e)}
+                              >
+                                <FontAwesomeIcon icon={faMagnifyingGlass} /> Filter Logs for this IP
+                              </button>
+                            </div>
+                            {entry.metadata && (
+                              <>
+                                <strong className="payload-heading">Metadata & Execution Payload:</strong>
+                                <pre className="payload-json">
+                                  {JSON.stringify(entry.metadata, null, 2)}
+                                </pre>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
     </div>

@@ -5,6 +5,7 @@ import { createRedisClient } from "@algofight/queue";
 import { ConnectionManager } from "../websocket/connection-manager";
 import { SocketHandler } from "../websocket/socket-handler";
 import { syncBattleToTelemetry } from "../events/battle.events";
+import { auditService } from "../services/audit.service";
 import type { FastifyInstance } from "fastify";
 
 export const connectionManager = new ConnectionManager();
@@ -44,7 +45,22 @@ export default fp(async function (app: FastifyInstance) {
                 socket.isAlive = true;
             });
 
+            const clientIp = req ? (req.headers["x-forwarded-for"] || req.socket?.remoteAddress || "127.0.0.1") : "127.0.0.1";
+            const cleanIp = String(clientIp).split(",")[0].trim();
+
             logger.info({ path: req?.url }, "New WebSocket connection established");
+            try {
+                auditService.recordEvent({
+                    category: "WEBSOCKET",
+                    severity: "INFO",
+                    action: "WS_CONNECTION_ESTABLISHED",
+                    actor: "WebSocket_Client",
+                    ip: cleanIp,
+                    method: "WS",
+                    details: `New WebSocket connection opened on ${req?.url || "/ws"}`,
+                });
+            } catch {}
+
             const currentUserId: { value: string | null } = { value: null };
 
             socket.on("message", (data: any) => {
@@ -56,10 +72,32 @@ export default fp(async function (app: FastifyInstance) {
                 if (currentUserId.value) {
                     connectionManager.unregisterUser(currentUserId.value, socket);
                 }
+                try {
+                    auditService.recordEvent({
+                        category: "WEBSOCKET",
+                        severity: "INFO",
+                        action: "WS_CONNECTION_CLOSED",
+                        actor: currentUserId.value || "WebSocket_Client",
+                        ip: cleanIp,
+                        method: "WS",
+                        details: `WebSocket client disconnected${currentUserId.value ? ` (${currentUserId.value})` : ""}`,
+                    });
+                } catch {}
             });
 
             socket.on("error", (error: any) => {
                 logger.error({ error }, "WebSocket error occurred");
+                try {
+                    auditService.recordEvent({
+                        category: "WEBSOCKET",
+                        severity: "ERROR",
+                        action: "WS_ERROR",
+                        actor: currentUserId.value || "WebSocket_Client",
+                        ip: cleanIp,
+                        method: "WS",
+                        details: error?.message || "WebSocket error occurred",
+                    });
+                } catch {}
             });
         };
 
@@ -73,12 +111,19 @@ export default fp(async function (app: FastifyInstance) {
             logger.warn({ error: err.message }, "Non-fatal Redis subscriber error in WebSocket server");
         });
 
-        redisSubscriber.subscribe("battle-events", "system-announcements", (err, count) => {
+        redisSubscriber.subscribe("battle-events", "system-announcements", "platform-audit-logs", (err, count) => {
             if (err) logger.error({ err }, "Failed to subscribe to redis channels");
-            else logger.info({ count }, "Subscribed to battle-events and system-announcements channels");
+            else logger.info({ count }, "Subscribed to battle-events, system-announcements, and platform-audit-logs channels");
         });
 
         redisSubscriber.on("message", (channel, message) => {
+            if (channel === "platform-audit-logs") {
+                try {
+                    const parsed = JSON.parse(message);
+                    auditService.recordEvent(parsed);
+                } catch {}
+                return;
+            }
             if (channel === "battle-events") {
                 try {
                     const payload = JSON.parse(message);

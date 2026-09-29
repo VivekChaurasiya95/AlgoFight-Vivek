@@ -27,18 +27,43 @@ export async function battleRoutes(app: FastifyInstance) {
         );
     });
 
-    // 2. Get room details (by UUID or RoomCode like "BTL-ABCD")
-    app.get("/battle/rooms/:idOrCode", async (req) => {
-        const { idOrCode } = req.params as { idOrCode: string };
-        return battleController.getRoom(idOrCode);
-    });
+    // 2. Get room details (by UUID or RoomCode like "BTL-ABCD") - High allowance for 2.5s lobby polling
+    app.get(
+        "/battle/rooms/:idOrCode",
+        {
+            config: {
+                rateLimit: {
+                    max: 600,
+                    timeWindow: "1 minute",
+                },
+            },
+        },
+        async (req) => {
+            const { idOrCode } = req.params as { idOrCode: string };
+            return battleController.getRoom(idOrCode);
+        },
+    );
 
-    // 3. Join room (Authenticated)
-    app.post("/battle/rooms/:idOrCode/join", { preHandler: [requireAuth] }, async (req) => {
-        const { idOrCode } = req.params as { idOrCode: string };
-        const userId = req.user!.id;
-        return battleController.joinRoom(idOrCode, userId);
-    });
+    // 3. Join room (Authenticated - increased joining limit)
+    app.post(
+        "/battle/rooms/:idOrCode/join",
+        {
+            preHandler: [requireAuth],
+            config: {
+                rateLimit: {
+                    max: 300,
+                    timeWindow: "1 minute",
+                },
+            },
+        },
+        async (req) => {
+            const { idOrCode } = req.params as { idOrCode: string };
+            const body = req.body as any;
+            const callerId = req.user!.id;
+            const targetUserId = body?.userId || callerId;
+            return battleController.joinRoom(idOrCode, targetUserId, req.user);
+        },
+    );
 
     // 4. Leave room (Authenticated)
     app.post("/battle/rooms/:id/leave", { preHandler: [requireAuth] }, async (req) => {

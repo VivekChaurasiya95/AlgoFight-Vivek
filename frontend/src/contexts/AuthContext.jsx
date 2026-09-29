@@ -110,13 +110,28 @@ export function AuthProvider({ children }) {
           clearGlobalUser();
         }
       } catch (err) {
-        // Degraded or network unreachable: use stored local profile if present
-        const stored = getStoredUser();
-        if (stored && active) {
-          setUser(formatUser(stored, token));
-        } else if (active) {
+        // If server explicitly rejected authentication (401 or invalid session), clear stale storage immediately
+        const isAuthRejection =
+          err?.message?.includes("401") ||
+          err?.message?.includes("Unauthorized") ||
+          err?.message?.includes("Valid Gateway admission");
+
+        if (isAuthRejection) {
           clearAuthStorage();
-          setUser(null);
+          if (active) {
+            setUser(null);
+            setProfileData(null);
+            clearGlobalUser();
+          }
+        } else {
+          // Degraded or network unreachable: use stored local profile if present
+          const stored = getStoredUser();
+          if (stored && active) {
+            setUser(formatUser(stored, token));
+          } else if (active) {
+            clearAuthStorage();
+            setUser(null);
+          }
         }
       } finally {
         if (active) setLoading(false);

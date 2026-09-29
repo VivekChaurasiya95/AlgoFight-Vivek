@@ -106,6 +106,9 @@ export async function requestJson(path, options = {}) {
     const parsedBody = await parseResponseBody(res);
 
     if (!res.ok) {
+      if (res.status === 401) {
+        clearAuthStorage();
+      }
       throw new Error(extractErrorMessage(parsedBody, res.status));
     }
 

@@ -17,6 +17,7 @@ const envSchema = z.object({
     ALLOWED_ORIGINS: z.string().default("http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000,http://localhost:5174,http://127.0.0.1:5174"),
     WS_PORT: z.coerce.number().int().min(1).max(65535).default(4001),
     GATEWAY_CLUSTER_SECRET: z.string().default("da20e600e5f93a55c86dcdafc0611c5e32bdc807384ce14c5c653984eb574037"),
+    RATE_LIMIT_MAX: z.coerce.number().int().min(1).default(300),
 });
 
 const env = envSchema.parse({
@@ -30,6 +31,7 @@ const env = envSchema.parse({
     ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS,
     WS_PORT: process.env.WS_PORT,
     GATEWAY_CLUSTER_SECRET: process.env.GATEWAY_CLUSTER_SECRET || "da20e600e5f93a55c86dcdafc0611c5e32bdc807384ce14c5c653984eb574037",
+    RATE_LIMIT_MAX: process.env.RATE_LIMIT_MAX,
 });
 
 export const config = {
@@ -41,6 +43,7 @@ export const config = {
     pistonUrl: env.PISTON_URL,
     adminSecretKey: env.ADMIN_SECRET_KEY,
     gatewayClusterSecret: env.GATEWAY_CLUSTER_SECRET,
+    rateLimitMax: env.RATE_LIMIT_MAX,
     allowedOrigins: env.ALLOWED_ORIGINS.split(",").map(o => o.trim()).filter(Boolean),
     redis: {
         host: env.REDIS_HOST,

@@ -1,5 +1,6 @@
 // apps/api/src/services/analytics.service.ts
 import { normalizeIp, normalizeMethod } from "../utils/ip.util";
+import { auditService } from "./audit.service";
 
 export interface ActiveSession {
     sessionId: string;
@@ -81,6 +82,18 @@ export interface AnalyticsSnapshot {
         lastActiveAgoSeconds: number;
         isAuthenticated: boolean;
         username?: string;
+    }>;
+    recentLogs: Array<{
+        id: string;
+        timestamp: string;
+        category: string;
+        severity: string;
+        action: string;
+        actor: string;
+        details: string;
+        ip?: string;
+        method?: string;
+        metadata?: any;
     }>;
 }
 
@@ -398,9 +411,8 @@ export class AnalyticsService {
             .sort((a, b) => b.hits - a.hits)
             .slice(0, 10);
 
-        // Top IP origins (Only Authenticated IPs as requested)
+        // Top IP origins (Sorted by request volume)
         const topIpOrigins = Array.from(this.ipRecords.values())
-            .filter(rec => rec.username)
             .map((rec) => {
                 // Determine dominant method
                 let primaryMethod = "GET";
@@ -464,6 +476,7 @@ export class AnalyticsService {
             deviceBreakdown: {},
             browserBreakdown: {},
             recentSessions: recentSessions.slice(0, 8),
+            recentLogs: auditService.getRecentLogs(80),
         };
     }
 

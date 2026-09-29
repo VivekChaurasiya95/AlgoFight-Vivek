@@ -27,6 +27,7 @@ import { requestJson } from "../../services/api";
 import { useAuth } from "../../contexts/AuthContext";
 import { useNotification } from "../../contexts/NotificationContext";
 import { getWsUrl } from "../../services/socket";
+import { getSessionToken } from "../../services/authStorage";
 import RankEmblem from "../Common/gamification/RankEmblem";
 import "./RoomLobby.css";
 
@@ -43,11 +44,14 @@ export default function RoomLobby() {
     const [starting, setStarting] = useState(false);
     const [countdown, setCountdown] = useState(null);
     const [joinRequests, setJoinRequests] = useState([]);
+    const [removedParticipants, setRemovedParticipants] = useState([]);
+    const [waitingForAdmission, setWaitingForAdmission] = useState(false);
     const [kickingUserId, setKickingUserId] = useState(null);
     const [searchQuery, setSearchQuery] = useState("");
     const [filterTab, setFilterTab] = useState("ALL"); // "ALL" | "READY" | "WAITING"
 
     const socketRef = useRef(null);
+    const hasAttemptedAutoJoin = useRef(false);
 
     const currentUserId = user?.uid || user?.email || "Guest";
     const currentUsername = user?.displayName || user?.email?.split("@")[0] || "Player";
@@ -71,11 +75,41 @@ export default function RoomLobby() {
             const me = currentParticipants.find((p) => p.userId === currentUserId);
             const amIHost = roomData?.hostId === currentUserId || roomData?.host?.id === currentUserId;
             
-            // If the user is not in the participants list and not the host, they have been kicked/removed
+            // If the user is not in the participants list and not the host, attempt auto-join or enter waiting-for-admission state
             if (!me && !amIHost && roomData) {
-                notify({ type: "error", title: "Removed from Lobby", message: "You were removed from the lobby." });
-                navigate("/battle");
+                if (!hasAttemptedAutoJoin.current && (roomData.status === "WAITING" || roomData.status === "READY")) {
+                    hasAttemptedAutoJoin.current = true;
+                    try {
+                        await requestJson(`/api/battle/rooms/${encodeURIComponent(roomCode)}/join`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ userId: currentUserId }),
+                            includeAuth: true,
+                        });
+                        return loadRoom(isBackgroundSync);
+                    } catch (joinErr) {
+                        console.warn("Auto-join lobby failed, requesting admission from host:", joinErr?.message);
+                        if (socketRef.current?.readyState === WebSocket.OPEN) {
+                            socketRef.current.send(JSON.stringify({
+                                action: "request_join_room",
+                                payload: {
+                                    roomCode,
+                                    userId: currentUserId,
+                                    username: currentUsername,
+                                    rating: user?.rating ?? 0,
+                                },
+                            }));
+                        }
+                        setWaitingForAdmission(true);
+                    }
+                } else if (!waitingForAdmission) {
+                    setWaitingForAdmission(true);
+                }
+                setRoom(roomData);
+                setParticipants(currentParticipants);
                 return;
+            } else if (me) {
+                setWaitingForAdmission(false);
             }
 
             setRoom(roomData);
@@ -110,10 +144,11 @@ export default function RoomLobby() {
             socketRef.current = ws;
 
             ws.onopen = () => {
-                // Authenticate socket & join room channel
+                const token = getSessionToken();
+                // Authenticate socket with session token & join room channel
                 ws.send(JSON.stringify({
                     action: "identify",
-                    payload: { userId: currentUserId, username: currentUsername },
+                    payload: { userId: currentUserId, username: currentUsername, token },
                 }));
 
                 ws.send(JSON.stringify({
@@ -142,6 +177,7 @@ export default function RoomLobby() {
                     }
 
                     if (evt === "join_request_approved") {
+                        setWaitingForAdmission(false);
                         notify({
                             type: "success",
                             title: "Access Granted!",
@@ -175,6 +211,13 @@ export default function RoomLobby() {
                                 title: "Combatant Evicted",
                                 message: `${payload?.targetUsername || "A player"} was removed by the host.`
                             });
+                            // Store in removedParticipants so host has 1-click button to let them back in
+                            if (isHost && payload?.targetUserId) {
+                                setRemovedParticipants((prev) => [
+                                    ...prev.filter((p) => p.userId !== payload.targetUserId),
+                                    { userId: payload.targetUserId, username: payload.targetUsername || "Player" }
+                                ]);
+                            }
                         }
                         loadRoom(true);
                     }
@@ -186,6 +229,13 @@ export default function RoomLobby() {
                                 title: "Combatant Departed",
                                 message: `${payload.username} has left the lobby.`
                             });
+                            // Store in removedParticipants so host can re-admit them
+                            if (isHost && payload?.userId) {
+                                setRemovedParticipants((prev) => [
+                                    ...prev.filter((p) => p.userId !== payload.userId),
+                                    { userId: payload.userId, username: payload.username || "Player" }
+                                ]);
+                            }
                         }
                         loadRoom(true);
                     }
@@ -263,6 +313,7 @@ export default function RoomLobby() {
     const handleApproveJoin = async (req) => {
         try {
             setJoinRequests((prev) => prev.filter((r) => r.userId !== req.userId));
+            setRemovedParticipants((prev) => prev.filter((r) => r.userId !== req.userId));
 
             await requestJson(`/api/battle/rooms/${room?.id || roomCode}/join`, {
                 method: "POST",
@@ -369,6 +420,11 @@ export default function RoomLobby() {
 
         try {
             setKickingUserId(targetUserId);
+            // Track in removed list so host can re-admit them at any time
+            setRemovedParticipants((prev) => [
+                ...prev.filter((p) => p.userId !== targetUserId),
+                { userId: targetUserId, username: targetUsername || "Player" }
+            ]);
 
             // Send ONLY via WebSocket to ensure proper event broadcasting
             // (REST call removed to prevent duplicate kicks/race conditions that break the kicked_from_room event)
@@ -491,6 +547,60 @@ export default function RoomLobby() {
                 <div className="lobby-loader">
                     <FontAwesomeIcon icon={faBolt} spin />
                     <h2>INITIALIZING COMBAT LOBBY...</h2>
+                </div>
+            </div>
+        );
+    }
+
+    if (waitingForAdmission) {
+        return (
+            <div className="lobby-root">
+                <div className="lobby-container" style={{ maxWidth: "600px", margin: "80px auto", textAlign: "center" }}>
+                    <motion.div
+                        className="lobby-card-main"
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        style={{ padding: "40px 24px", display: "flex", flexDirection: "column", alignItems: "center", gap: "20px" }}
+                    >
+                        <div style={{ width: "70px", height: "70px", borderRadius: "50%", background: "rgba(0, 240, 255, 0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "2rem", color: "#00f0ff" }}>
+                            <FontAwesomeIcon icon={faHourglassHalf} className="pulse" />
+                        </div>
+                        <h2 style={{ margin: 0, fontSize: "1.6rem", color: "#fff", letterSpacing: "1px" }}>
+                            ADMISSION REQUEST PENDING
+                        </h2>
+                        <p style={{ color: "#aaa", fontSize: "0.95rem", maxWidth: "450px", lineHeight: "1.6", margin: 0 }}>
+                            You have requested entry into battle room <strong>{roomCode}</strong>. The host has been notified and can admit you directly into the lobby.
+                        </p>
+                        <div style={{ display: "flex", gap: "12px", marginTop: "10px" }}>
+                            <button
+                                className="btn-hud-primary"
+                                style={{ padding: "10px 20px" }}
+                                onClick={() => {
+                                    if (socketRef.current?.readyState === WebSocket.OPEN) {
+                                        socketRef.current.send(JSON.stringify({
+                                            action: "request_join_room",
+                                            payload: {
+                                                roomCode,
+                                                userId: currentUserId,
+                                                username: currentUsername,
+                                                rating: user?.rating ?? 0,
+                                            },
+                                        }));
+                                        notify({ type: "info", title: "Request Sent", message: "Admission request re-sent to the room host." });
+                                    }
+                                }}
+                            >
+                                <FontAwesomeIcon icon={faBolt} /> Re-request Access
+                            </button>
+                            <button
+                                className="btn-hud-back"
+                                style={{ padding: "10px 20px" }}
+                                onClick={() => navigate("/battle")}
+                            >
+                                <FontAwesomeIcon icon={faArrowLeft} /> Exit to Arenas
+                            </button>
+                        </div>
+                    </motion.div>
                 </div>
             </div>
         );
@@ -651,6 +761,80 @@ export default function RoomLobby() {
                                                 className="btn-req-reject"
                                                 onClick={() => handleRejectJoin(req)}
                                                 title="Decline player"
+                                            >
+                                                <FontAwesomeIcon icon={faTimes} />
+                                            </button>
+                                        </div>
+                                    </motion.div>
+                                ))}
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                {/* Host Re-admit Removed Combatants Panel */}
+                <AnimatePresence>
+                    {isHost && removedParticipants.length > 0 && (
+                        <motion.div
+                            className="host-join-requests-panel"
+                            style={{ borderColor: "rgba(255, 170, 0, 0.4)", background: "rgba(25, 20, 10, 0.75)" }}
+                            initial={{ opacity: 0, y: -15 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                        >
+                            <div className="requests-header">
+                                <div className="requests-title">
+                                    <FontAwesomeIcon icon={faUserSlash} style={{ color: "#ffaa00" }} />
+                                    <span>Removed / Departed Players ({removedParticipants.length})</span>
+                                </div>
+                                <div className="requests-batch-actions">
+                                    <button
+                                        className="btn-batch-allow"
+                                        style={{ background: "#ffaa00", color: "#000" }}
+                                        onClick={() => {
+                                            removedParticipants.forEach((p) => handleApproveJoin(p));
+                                        }}
+                                        title="Allow all removed combatants back into the room"
+                                    >
+                                        <FontAwesomeIcon icon={faCheckDouble} /> Allow All Back In
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="requests-list">
+                                {removedParticipants.map((p) => (
+                                    <motion.div
+                                        key={p.userId}
+                                        className="request-item-card"
+                                        initial={{ opacity: 0, scale: 0.95 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        exit={{ opacity: 0, scale: 0.9 }}
+                                    >
+                                        <div className="req-user-info">
+                                            <div className="req-avatar" style={{ background: "rgba(255, 170, 0, 0.2)", color: "#ffaa00" }}>
+                                                {(p.username || "P")[0].toUpperCase()}
+                                            </div>
+                                            <div className="req-meta">
+                                                <div className="req-name">{p.username || "Player"}</div>
+                                                <div className="req-rating" style={{ color: "#aaa", fontSize: "0.85rem" }}>
+                                                    <span>Player exited or was removed</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="req-actions">
+                                            <button
+                                                className="btn-req-allow"
+                                                style={{ background: "rgba(255, 170, 0, 0.2)", color: "#ffaa00", borderColor: "rgba(255, 170, 0, 0.5)" }}
+                                                onClick={() => handleApproveJoin(p)}
+                                                title="Let player back into the room"
+                                            >
+                                                <FontAwesomeIcon icon={faUserCheck} /> Allow Back In
+                                            </button>
+                                            <button
+                                                className="btn-req-reject"
+                                                onClick={() => setRemovedParticipants((prev) => prev.filter((r) => r.userId !== p.userId))}
+                                                title="Dismiss"
                                             >
                                                 <FontAwesomeIcon icon={faTimes} />
                                             </button>

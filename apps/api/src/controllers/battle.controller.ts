@@ -24,20 +24,38 @@ export class BattleController {
         );
     }
 
-    private async resolveUserId(identifier: string): Promise<string> {
-        const user = await this.userRepository.getUserById(identifier);
-        if (!user) throw new Error(`User not found: ${identifier}`);
+    private async resolveUserId(identifier: string, authUser?: { id: string; email?: string; username?: string }): Promise<string> {
+        let user = await this.userRepository.getUserById(identifier);
+        if (!user && authUser && (authUser.id === identifier || authUser.email === identifier)) {
+            const safeEmail = authUser.email || `${authUser.id.toLowerCase().replace(/[^a-z0-9_]/g, "")}_${Date.now()}@algofight.local`;
+            const safeUsername = authUser.username || `Player_${Math.floor(1000 + Math.random() * 9000)}`;
+            user = await this.userRepository.upsertUser({
+                id: authUser.id,
+                email: safeEmail,
+                username: safeUsername,
+            });
+        }
+        if (!user) {
+            const clean = identifier.toLowerCase().replace(/[^a-z0-9_]/g, "") || "user";
+            const safeEmail = `${clean}_${Date.now()}@algofight.local`;
+            user = await this.userRepository.upsertUser({
+                id: identifier,
+                email: safeEmail,
+                username: `Player_${Math.floor(1000 + Math.random() * 9000)}`,
+            });
+        }
         return user.id;
     }
 
     private async resolveUser(authUser: { id: string; email?: string; username?: string }): Promise<string> {
         let user = await this.userRepository.getUserById(authUser.id);
         if (!user) {
-            // Upsert user if they don't exist in the database (e.g., due to frontend sync failure)
+            const safeEmail = authUser.email || `${authUser.id.toLowerCase().replace(/[^a-z0-9_]/g, "")}_${Date.now()}@algofight.local`;
+            const safeUsername = authUser.username || `Player_${Math.floor(1000 + Math.random() * 9000)}`;
             user = await this.userRepository.upsertUser({
                 id: authUser.id,
-                email: authUser.email || "",
-                username: authUser.username || "Guest_" + Math.random().toString(36).substring(2, 8),
+                email: safeEmail,
+                username: safeUsername,
             });
         }
         return user.id;
@@ -68,8 +86,8 @@ export class BattleController {
         return this.battleRoomService.getRoom(idOrCode);
     }
 
-    async joinRoom(idOrCode: string, userId: string) {
-        const resolvedUserId = await this.resolveUserId(userId);
+    async joinRoom(idOrCode: string, userId: string, authUser?: { id: string; email?: string; username?: string }) {
+        const resolvedUserId = await this.resolveUserId(userId, authUser);
         return this.battleRoomService.joinRoom(idOrCode, resolvedUserId);
     }
 

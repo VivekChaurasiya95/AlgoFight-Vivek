@@ -10,6 +10,7 @@ import { isAdminEmail } from "../../constants/admins";
 
 import { userSessionStore } from "../session/user-session";
 import { googleTokenVerifier } from "../../utils/google-auth.util";
+import { prisma } from "@algofight/database";
 
 export class UserGateway implements Gateway {
     public readonly id: string;
@@ -163,6 +164,42 @@ export class UserGateway implements Gateway {
                             email: devPayload.email,
                             username: devPayload.name || (devPayload.email ? devPayload.email.split("@")[0] : `dev_${userId}`),
                             role: isDevAdmin ? "ADMIN" : "USER",
+                            rawToken: token,
+                        };
+                    }
+                }
+
+                // If Redis was flushed or restarted during development, recover identity from database via candidate ID
+                const candidateId =
+                    (request.headers["x-user-id"] as string) ||
+                    (request.url.includes("userId=")
+                        ? new URL(request.url, "http://localhost").searchParams.get("userId")
+                        : null);
+
+                if (candidateId) {
+                    const dbUser = await prisma.user.findFirst({
+                        where: { OR: [{ id: candidateId }, { email: candidateId }] },
+                    });
+
+                    if (dbUser) {
+                        const isExplicitAdmin = isAdminEmail(dbUser.email);
+                        // Re-establish session
+                        await userSessionStore.createSession({
+                            userId: dbUser.id,
+                            email: dbUser.email,
+                            username: dbUser.username,
+                            role: isExplicitAdmin ? "ADMIN" : "USER",
+                            platformCode: dbUser.platformCode || undefined,
+                            institutionName: dbUser.institutionName || undefined,
+                        });
+
+                        return {
+                            id: dbUser.id,
+                            email: dbUser.email,
+                            username: dbUser.username,
+                            role: isExplicitAdmin ? "ADMIN" : "USER",
+                            platformCode: dbUser.platformCode || undefined,
+                            institutionName: dbUser.institutionName || undefined,
                             rawToken: token,
                         };
                     }

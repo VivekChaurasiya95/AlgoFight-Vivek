@@ -1,6 +1,7 @@
 // apps/api/src/services/audit.service.ts
 import crypto from "crypto";
 import { prisma } from "@algofight/database";
+import { registerLogListener } from "@algofight/logger";
 import { linuxTelemetryBridge } from "./linux-telemetry-bridge.service";
 import { normalizeIp, normalizeMethod } from "../utils/ip.util";
 
@@ -14,6 +15,7 @@ export type AuditCategory =
     | "LINUX_TELEMETRY"
     | "PAGE_VIEW"
     | "HTTP_TRAFFIC"
+    | "WEBSOCKET"
     | "SYSTEM";
 
 export type AuditSeverity = "INFO" | "WARN" | "ERROR" | "CRITICAL";
@@ -33,17 +35,53 @@ export interface AuditLogEntry {
 
 export class AuditService {
     private static instance: AuditService;
-    private static readonly MAX_BUFFER_SIZE = 300;
+    private static readonly MAX_BUFFER_SIZE = 3000;
     private readonly entries: AuditLogEntry[] = [];
     private isBootstrapped = false;
 
-    private constructor() {}
+    private constructor() {
+        // Automatically capture backend logger output into audit entries
+        registerLogListener((logObj) => {
+            try {
+                // Avoid double-logging Fastify HTTP requests that are already logged via onResponse
+                if (logObj.reqId || logObj.res || logObj.req) return;
+                const levelNum = typeof logObj.level === "number" ? logObj.level : 30;
+                if (levelNum < 20) return; // ignore trace
+
+                const severity: AuditSeverity =
+                    levelNum >= 50 ? "ERROR" : levelNum >= 40 ? "WARN" : "INFO";
+                const msg =
+                    logObj.msg ||
+                    logObj.message ||
+                    (typeof logObj.err === "object" ? logObj.err.message : JSON.stringify(logObj));
+
+                this.recordEvent({
+                    category: "SYSTEM",
+                    severity,
+                    action: logObj.action || `LOG_${(logObj.service || "CORE").toUpperCase()}`,
+                    actor: logObj.actor || logObj.service || "System",
+                    ip: "127.0.0.1",
+                    method: "EVENT",
+                    details: String(msg).slice(0, 300),
+                    metadata: logObj,
+                });
+            } catch {
+                // Fail-safe
+            }
+        });
+    }
 
     public static getInstance(): AuditService {
         if (!AuditService.instance) {
             AuditService.instance = new AuditService();
         }
         return AuditService.instance;
+    }
+
+    public getRecentLogs(limit = 60): AuditLogEntry[] {
+        return [...this.entries]
+            .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+            .slice(0, limit);
     }
 
     /**
@@ -249,24 +287,25 @@ export class AuditService {
             );
         }
 
-        const limit = Math.min(100, Math.max(1, filter.limit || 50));
+        const limit = Math.min(500, Math.max(1, filter.limit || 100));
         const paged = combined.slice(0, limit);
 
         const categories = [
             "ALL",
-            "PAGE_VIEW",
             "HTTP_TRAFFIC",
+            "WEBSOCKET",
             "AUTH",
             "SECURITY",
             "SUBMISSION",
             "BATTLE",
+            "SYSTEM",
             "ADMIN",
             "FLEET",
             "LINUX_TELEMETRY",
-            "SYSTEM",
+            "PAGE_VIEW",
         ];
 
-        const methods = ["ALL", "GET", "POST", "PUT", "DELETE", "EVENT"];
+        const methods = ["ALL", "GET", "POST", "PUT", "DELETE", "WS", "EVENT"];
 
         return {
             logs: paged,

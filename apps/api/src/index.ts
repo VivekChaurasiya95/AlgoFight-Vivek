@@ -21,9 +21,12 @@ import { notificationRoutes } from "./routes/notification.route";
 import { analyticsRoutes } from "./routes/analytics.route";
 import { facultyRoutes } from "./routes/faculty.route";
 import { authRoutes } from "./routes/auth.route";
+import { extractClientIp } from "./utils/ip.util";
+import { auditService, AuditCategory, AuditSeverity } from "./services/audit.service";
 
 const app = fastify({
     bodyLimit: 1048576, // 1 MB Request Body Limit
+    trustProxy: true, // Respect X-Forwarded-For and X-Real-IP behind reverse proxies (Nginx / Cloudflare)
 });
 
 const start = async () => {
@@ -76,13 +79,67 @@ const start = async () => {
 
         // 2. Global Rate Limiter Plugin
         await app.register(rateLimit, {
-            max: 120,
+            max: config.rateLimitMax || 300,
             timeWindow: "1 minute",
-            errorResponseBuilder: (_req, context) => ({
-                statusCode: 429,
-                error: "TOO_MANY_REQUESTS",
-                message: `Rate limit exceeded. Try again in ${Math.ceil(context.ttl / 1000)} seconds.`,
-            }),
+            keyGenerator: (req) => extractClientIp(req),
+            errorResponseBuilder: (req, context) => {
+                const clientIp = extractClientIp(req);
+                auditService.recordEvent({
+                    category: "SECURITY",
+                    severity: "WARN",
+                    action: "RATE_LIMIT_EXCEEDED",
+                    actor: (req as any).user?.username || clientIp,
+                    ip: clientIp,
+                    method: req.method,
+                    details: `Rate limit exceeded on ${req.method} ${req.url}. Window: 1m, Retry in ${Math.ceil(context.ttl / 1000)}s`,
+                    metadata: { path: req.url, ttl: context.ttl },
+                });
+                return {
+                    statusCode: 429,
+                    error: "TOO_MANY_REQUESTS",
+                    message: `Rate limit exceeded. Try again in ${Math.ceil(context.ttl / 1000)} seconds.`,
+                };
+            },
+        });
+
+        // 2b. Global HTTP Traffic Logging Hook (Captures every completed request)
+        app.addHook("onResponse", async (request, reply) => {
+            const url = request.url;
+            if (url.startsWith("/favicon") || url.startsWith("/@") || url.startsWith("/node_modules")) return;
+
+            const statusCode = reply.statusCode;
+            const durationMs = reply.elapsedTime ? Math.round(reply.elapsedTime) : 0;
+            const clientIp = extractClientIp(request);
+            const user = (request as any).user || (request as any).trustContext;
+            const actor = user?.username || (user?.id ? `user_${user.id.slice(0, 8)}` : "Guest");
+
+            let category: AuditCategory = "HTTP_TRAFFIC";
+            if (url.includes("/auth")) category = "AUTH";
+            else if (url.includes("/battle")) category = "BATTLE";
+            else if (url.includes("/submission")) category = "SUBMISSION";
+            else if (url.includes("/admin")) category = "ADMIN";
+            else if (url.includes("/ws")) category = "WEBSOCKET";
+            else if (statusCode === 401 || statusCode === 403 || statusCode === 429) category = "SECURITY";
+
+            let severity: AuditSeverity = "INFO";
+            if (statusCode >= 500) severity = "ERROR";
+            else if (statusCode >= 400) severity = "WARN";
+
+            auditService.recordEvent({
+                category,
+                severity,
+                action: `HTTP_${request.method}_${statusCode}`,
+                actor,
+                ip: clientIp,
+                method: request.method,
+                details: `${request.method} ${url} -> ${statusCode} (${durationMs}ms)`,
+                metadata: {
+                    statusCode,
+                    durationMs,
+                    userAgent: request.headers["user-agent"],
+                    requestId: (request as any).requestId,
+                },
+            });
         });
 
         // 3. Gateway Plugin (Logical Admission, Filtering, Identity, Rate Limiter)
@@ -148,10 +205,33 @@ const start = async () => {
 // 🛡️ Global Process Resilience - Prevent Unhandled Errors from Crashing Server
 process.on("unhandledRejection", (reason: any) => {
     logger.warn({ error: reason?.message || reason }, "Non-fatal unhandled promise rejection caught");
+    try {
+        auditService.recordEvent({
+            category: "SYSTEM",
+            severity: "WARN",
+            action: "UNHANDLED_PROMISE_REJECTION",
+            actor: "Node_Process",
+            ip: "127.0.0.1",
+            method: "EVENT",
+            details: String(reason?.message || reason).slice(0, 300),
+        });
+    } catch {}
 });
 
 process.on("uncaughtException", (error: Error) => {
     logger.error({ error: error.message, stack: error.stack }, "Uncaught exception intercepted by process guard");
+    try {
+        auditService.recordEvent({
+            category: "SYSTEM",
+            severity: "CRITICAL",
+            action: "UNCAUGHT_EXCEPTION",
+            actor: "Node_Process",
+            ip: "127.0.0.1",
+            method: "EVENT",
+            details: String(error.message).slice(0, 300),
+            metadata: { stack: error.stack },
+        });
+    } catch {}
 });
 
 start();

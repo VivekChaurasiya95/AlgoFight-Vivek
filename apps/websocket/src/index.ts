@@ -12,6 +12,23 @@ const wss = new WebSocketServer({ port: WS_PORT, host: "0.0.0.0" });
 const connectionManager = new ConnectionManager();
 const socketHandler = new SocketHandler(connectionManager);
 
+const redisPublisher = createRedisClient();
+
+function publishAuditEvent(event: {
+    category: string;
+    severity: string;
+    action: string;
+    actor?: string;
+    ip?: string;
+    method?: string;
+    details: string;
+    metadata?: any;
+}) {
+    try {
+        redisPublisher.publish("platform-audit-logs", JSON.stringify(event)).catch(() => {});
+    } catch {}
+}
+
 // 💓 30-Second Ping/Pong Heartbeat to prune dead socket connections
 const heartbeatInterval = setInterval(() => {
     wss.clients.forEach((ws: any) => {
@@ -35,6 +52,15 @@ wss.on("connection", (socket: any) => {
     });
 
     logger.info("New WebSocket connection established");
+    publishAuditEvent({
+        category: "WEBSOCKET",
+        severity: "INFO",
+        action: "WS_STANDALONE_CONNECTED",
+        actor: "WebSocket_Client",
+        method: "WS",
+        details: `Client connected to WebSocket server on port ${WS_PORT}`,
+    });
+
     const currentUserId: { value: string | null } = { value: null };
 
     socket.on("message", (data: any) => {
@@ -46,10 +72,26 @@ wss.on("connection", (socket: any) => {
         if (currentUserId.value) {
             connectionManager.unregisterUser(currentUserId.value, socket);
         }
+        publishAuditEvent({
+            category: "WEBSOCKET",
+            severity: "INFO",
+            action: "WS_STANDALONE_DISCONNECTED",
+            actor: currentUserId.value || "WebSocket_Client",
+            method: "WS",
+            details: `Client disconnected from WebSocket server${currentUserId.value ? ` (${currentUserId.value})` : ""}`,
+        });
     });
 
     socket.on("error", (error: any) => {
         logger.error({ error }, "WebSocket error occurred");
+        publishAuditEvent({
+            category: "WEBSOCKET",
+            severity: "ERROR",
+            action: "WS_STANDALONE_ERROR",
+            actor: currentUserId.value || "WebSocket_Client",
+            method: "WS",
+            details: error?.message || "WebSocket error occurred",
+        });
     });
 });
 

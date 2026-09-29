@@ -76,9 +76,10 @@ export class BattleRoomService {
 
 
     async getRoom(roomIdOrCode: string): Promise<BattleRoomEntity> {
-        const room = roomIdOrCode.startsWith("BTL-")
-            ? await this.battleRoomRepository.getRoomByCode(roomIdOrCode)
-            : await this.battleRoomRepository.getRoomById(roomIdOrCode);
+        let room = await this.battleRoomRepository.getRoomByCode(roomIdOrCode);
+        if (!room) {
+            room = await this.battleRoomRepository.getRoomById(roomIdOrCode);
+        }
 
         if (!room) {
             throw new Error(`Battle room not found: ${roomIdOrCode}`);
@@ -89,10 +90,18 @@ export class BattleRoomService {
     async joinRoom(roomIdOrCode: string, userId: string): Promise<BattleRoomEntity> {
         const room = await this.getRoom(roomIdOrCode);
 
-        if (room.status !== "WAITING") {
+        // 1. If user is already a registered participant (e.g., reconnecting or refreshing tab), return room immediately
+        const alreadyJoined = room.participants.some((p) => p.userId === userId);
+        if (alreadyJoined) {
+            return room;
+        }
+
+        // 2. Allow joining as long as battle hasn't started (both WAITING and READY states)
+        if (room.status !== "WAITING" && room.status !== "READY") {
             throw new Error("Cannot join: Battle has already started or finished");
         }
 
+        // 3. Check capacity
         if (room.participants.length >= room.maxPlayers) {
             throw new Error("Cannot join: Room is at maximum capacity");
         }
