@@ -17,6 +17,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    ports:
+      - "5432:5432"
     networks:
       - algofight-network
 
@@ -25,6 +27,8 @@ services:
     container_name: algofight-redis
     restart: unless-stopped
     command: redis-server --appendonly yes --appendfsync everysec --maxmemory 1gb --maxmemory-policy noeviction
+    ports:
+      - "6379:6379"
     volumes:
       - redis_data:/data
     healthcheck:
