@@ -62,6 +62,9 @@ export async function authRoutes(app: FastifyInstance) {
                 displayName: body.displayName,
                 userType: body.userType,
                 institutionName: body.institutionName,
+                school: body.school,
+                department: body.department,
+                designation: body.designation,
                 ip: req.ip,
                 userAgent: req.headers["user-agent"] as string,
             });

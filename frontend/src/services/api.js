@@ -554,6 +554,54 @@ export async function fetchFacultyStats(facultyId = "") {
   });
 }
 
+export async function submitPlatformFeedback(payload) {
+  return requestJson("/api/feedback", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+    includeAuth: true,
+  });
+}
 
+export async function fetchShowcaseFeedbacks(limit = 10) {
+  return requestJson(`/api/feedback/showcase?limit=${limit}`, {
+    ttlMs: 30000,
+  });
+}
 
+/**
+ * Update Faculty Institutional Profile (School/Centre, Department, Designation)
+ */
+export async function updateFacultyProfile(payload) {
+  invalidateApiCache("/api/faculty");
+  invalidateApiCache("/api/users");
+  try {
+    return await requestJson("/api/faculty/profile", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      includeAuth: true,
+    });
+  } catch {
+    // Fallback to /api/users/faculty-profile
+    return await requestJson("/api/users/faculty-profile", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      includeAuth: true,
+    });
+  }
+}
 
+/**
+ * Upsert or update authenticated user profile details
+ */
+export async function saveUserProfile(payload) {
+  invalidateApiCache("/api/users");
+  return requestJson("/api/users", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+    includeAuth: true,
+  });
+}

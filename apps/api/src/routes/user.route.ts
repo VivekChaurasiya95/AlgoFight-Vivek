@@ -20,7 +20,28 @@ export async function userRoutes(app: FastifyInstance) {
             userType: body.userType,
             institutionName: body.institutionName,
             department: body.department,
+            school: body.school,
+            designation: body.designation,
             batchYear: body.batchYear,
+            studentIdentityMetadata: body.studentIdentityMetadata,
+        });
+    });
+
+    // 1b. Update Faculty Profile (School/Centre, Department, Designation)
+    app.put("/users/faculty-profile", { preHandler: [requireAuth] }, async (req, reply) => {
+        const body = req.body as any;
+        const authenticatedId = req.user!.id;
+        if (!body.school) {
+            return reply.status(400).send({
+                error: "BAD_REQUEST",
+                message: "School or Centre is mandatory for faculty profiles.",
+            });
+        }
+        return userController.updateFacultyProfile(authenticatedId, {
+            school: body.school,
+            department: body.department,
+            designation: body.designation,
+            institutionName: body.institutionName,
         });
     });
 

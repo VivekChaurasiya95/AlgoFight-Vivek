@@ -103,4 +103,22 @@ export async function facultyRoutes(app: FastifyInstance) {
         const targetFacultyId = query?.targetFacultyId || query?.facultyId;
         return facultyController.getFacultyStats(req.user, targetFacultyId);
     });
+
+    // 7. Update Faculty Profile
+    app.put("/faculty/profile", { preHandler: [requireFacultyOrAdmin] }, async (req, reply) => {
+        const body = req.body as any;
+        const targetUserId = req.user!.id;
+        if (!body.school) {
+            return reply.status(400).send({
+                error: "BAD_REQUEST",
+                message: "School or Centre is mandatory for faculty profiles.",
+            });
+        }
+        return facultyController.updateFacultyProfile(targetUserId, {
+            school: body.school,
+            department: body.department,
+            designation: body.designation,
+            institutionName: body.institutionName,
+        });
+    });
 }

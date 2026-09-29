@@ -14,6 +14,7 @@ import {
   logoutApi,
   fetchMeApi,
   fetchUserProfile,
+  updateFacultyProfile,
 } from "../services/api";
 import { useUserStore } from "../store/useUserStore";
 import { unifiedAnalytics } from "../services/analytics";
@@ -28,6 +29,7 @@ export function useAuth() {
 export const formatUser = (userData, token) => {
   if (!userData) return null;
   const currentToken = token || getSessionToken();
+  const identityMeta = userData.studentIdentityMetadata || {};
   return {
     uid: userData.id || userData.uid,
     id: userData.id || userData.uid,
@@ -35,8 +37,13 @@ export const formatUser = (userData, token) => {
     displayName: userData.username || userData.displayName || "Player",
     username: userData.username || userData.displayName || "Player",
     photoURL: userData.photoURL || null,
-    role: userData.role || "USER",
+    role: userData.role || (userData.userType === "FACULTY" ? "FACULTY" : "USER"),
+    userType: userData.userType || "INDIVIDUAL",
     platformCode: userData.platformCode,
+    institutionName: userData.institutionName,
+    department: userData.department || identityMeta.department,
+    school: userData.school || identityMeta.school,
+    designation: userData.designation || identityMeta.designation || (userData.userType === "FACULTY" ? "Faculty Educator" : null),
     rating: userData.rating,
     highestRank: userData.highestRank,
     getIdToken: async () => currentToken || getSessionToken(),
@@ -191,6 +198,34 @@ export function AuthProvider({ children }) {
     }
   }, [clearGlobalUser, setGlobalProfileData]);
 
+  // Update faculty academic details
+  const updateFacultyDetails = useCallback(async (details) => {
+    const res = await updateFacultyProfile(details);
+    if (res) {
+      setProfileData((prev) => ({
+        ...(prev || {}),
+        ...res,
+        school: details.school,
+        department: details.department,
+        designation: details.designation,
+      }));
+      setUser((prev) => {
+        if (!prev) return prev;
+        const updated = {
+          ...prev,
+          userType: "FACULTY",
+          school: details.school,
+          department: details.department,
+          designation: details.designation,
+        };
+        setStoredUser(updated);
+        return updated;
+      });
+      return res;
+    }
+    return null;
+  }, []);
+
   const value = {
     user,
     profileData,
@@ -199,6 +234,7 @@ export function AuthProvider({ children }) {
     loginWithGoogle,
     loginManual,
     signupManual,
+    updateFacultyDetails,
     logout,
   };
 
