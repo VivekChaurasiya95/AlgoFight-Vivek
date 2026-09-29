@@ -177,7 +177,20 @@ const Navbar = () => {
                 </button>
               </div>
             ) : (
-              <div className="auth-buttons desktop-only">
+              <div className="auth-buttons desktop-only" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <button
+                  className={`nav-bell-trigger ${isInboxOpen ? 'is-active' : ''}`}
+                  onClick={() => setIsInboxOpen((prev) => !prev)}
+                  title="Notifications & Feedback Inbox"
+                  aria-label="Notifications"
+                >
+                  <FontAwesomeIcon icon={faBell} />
+                  {unreadCount > 0 && (
+                    <span className="nav-bell-badge">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
+                </button>
                 <Link to="/login" className="nav-sign-in">Sign In</Link>
                 <Link to="/signup" className="nav-get-started">Get Started</Link>
               </div>

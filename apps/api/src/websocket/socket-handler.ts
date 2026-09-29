@@ -750,9 +750,20 @@ export class SocketHandler {
                             this.connectionManager.updatePresenceStatus(session.userId, "IN_LOBBY", roomCode);
                         }
 
+                        const savedTimer = await this.redis.get(`battle_timer_persisted:${roomCode}:${actualUserId}`);
+                        const persistedSec = (savedTimer !== null && !isNaN(Number(savedTimer))) ? parseInt(savedTimer, 10) : undefined;
+                        if (persistedSec !== undefined) {
+                            this.send(socket, "timer_restored", {
+                                roomId: roomCode,
+                                userId: actualUserId,
+                                persistedTimeRemaining: persistedSec,
+                            });
+                        }
+
                         this.connectionManager.broadcastToRoom(roomCode, "player_joined", {
                             userId: session.userId,
                             username: session.username,
+                            persistedTimeRemaining: persistedSec,
                         });
                     }
                     break;
@@ -843,14 +854,22 @@ export class SocketHandler {
                             if (room && room.hostId === hostId) {
                                 await this.battleRoomService.joinRoom(room.id, targetUserId);
 
+                                const savedTimerRaw = await this.redis.get(`battle_timer_persisted:${room.id}:${targetUserId}`)
+                                    || await this.redis.get(`battle_timer_persisted:${roomCode}:${targetUserId}`);
+                                const persistedTimeRemaining = savedTimerRaw ? parseInt(savedTimerRaw, 10) : undefined;
+
                                 this.connectionManager.sendToUser(targetUserId, "join_request_approved", {
                                     roomCode,
+                                    roomId: room.id,
                                     message: "Host approved your join request!",
+                                    persistedTimeRemaining,
+                                    battleRunning: room.status === "RUNNING",
                                 });
 
                                 this.connectionManager.broadcastToRoom(roomCode, "player_joined", {
                                     userId: targetUserId,
                                     username: targetUsername || "Player",
+                                    persistedTimeRemaining,
                                 });
                                 this.connectionManager.broadcastToRoom(roomCode, "room_updated", {
                                     roomCode,
@@ -876,13 +895,21 @@ export class SocketHandler {
                                     if (!req?.userId) continue;
                                     try {
                                         await this.battleRoomService.joinRoom(room.id, req.userId);
+                                        const savedTimerRaw = await this.redis.get(`battle_timer_persisted:${room.id}:${req.userId}`)
+                                            || await this.redis.get(`battle_timer_persisted:${roomCode}:${req.userId}`);
+                                        const persistedTimeRemaining = savedTimerRaw ? parseInt(savedTimerRaw, 10) : undefined;
+
                                         this.connectionManager.sendToUser(req.userId, "join_request_approved", {
                                             roomCode,
+                                            roomId: room.id,
                                             message: "Host approved your join request!",
+                                            persistedTimeRemaining,
+                                            battleRunning: room.status === "RUNNING",
                                         });
                                         this.connectionManager.broadcastToRoom(roomCode, "player_joined", {
                                             userId: req.userId,
                                             username: req.username || "Player",
+                                            persistedTimeRemaining,
                                         });
                                     } catch (e) {
                                         // continue admitting other students
@@ -1128,11 +1155,16 @@ export class SocketHandler {
 
                 case "leave_battle":
                 case "forfeit_battle": {
-                    const { roomId } = data;
                     const session = this.socketUsers.get(socket);
+                    const roomId = data.roomId || session?.roomId;
                     const userId = session?.userId || currentUserId.value;
                     const username = session?.username || data.username || "A player";
                     if (!roomId || !userId) break;
+
+                    if (data.timeRemaining !== undefined && !isNaN(Number(data.timeRemaining))) {
+                        const sec = Math.max(0, Math.floor(Number(data.timeRemaining)));
+                        await this.redis.set(`battle_timer_persisted:${roomId}:${userId}`, sec, "EX", 7200);
+                    }
 
                     // Immediately mark leaving player as AVAILABLE in presence
                     this.connectionManager.updatePresenceStatus(userId, "AVAILABLE");
@@ -1144,6 +1176,9 @@ export class SocketHandler {
                         if (player) {
                             player.status = "LEFT";
                             player.forfeited = true;
+                            if (data.timeRemaining !== undefined && !isNaN(Number(data.timeRemaining))) {
+                                player.persistedTimeRemaining = Math.max(0, Math.floor(Number(data.timeRemaining)));
+                            }
                         }
 
                         const activePlayers = state.players?.filter((p: any) => p.status !== "LEFT" && !p.forfeited) || [];
@@ -1157,7 +1192,8 @@ export class SocketHandler {
                             totalPlayers: state.players?.length || 0,
                         });
 
-                        if (activePlayers.length <= 1) {
+                        const isHostedRoom = Boolean(state.hostId);
+                        if (activePlayers.length <= 1 && !isHostedRoom) {
                             const winner = activePlayers[0];
                             if (winner?.userId) {
                                 this.connectionManager.updatePresenceStatus(winner.userId, "AVAILABLE");
@@ -1269,18 +1305,62 @@ export class SocketHandler {
                             this.send(socket, "error", "Cannot readmit player disqualified for anti-cheat violation.");
                             break;
                         }
+
+                        // Retrieve persisted timer (e.g. 181 seconds / 3.01 mins)
+                        const savedTimerRaw = await this.redis.get(`battle_timer_persisted:${roomId}:${targetUserId}`)
+                            || await this.redis.get(`battle_timer_persisted:${state.roomCode || roomId}:${targetUserId}`);
+                        const persistedTime = savedTimerRaw ? parseInt(savedTimerRaw, 10) : player.persistedTimeRemaining;
+
                         player.status = "ACTIVE";
-                        await this.redis.set(`battle_state:${roomId}`, JSON.stringify(state), "EX", 1800);
+                        player.forfeited = false;
+                        if (persistedTime && persistedTime > 0) {
+                            player.persistedTimeRemaining = persistedTime;
+                        }
+
+                        await this.redis.set(`battle_state:${roomId}`, JSON.stringify(state), "EX", 7200);
+
+                        // Cancel any pending disconnect forfeit timeout for this user
+                        const pendingTimeout = this.disconnectTimeouts.get(targetUserId);
+                        if (pendingTimeout) {
+                            clearTimeout(pendingTimeout);
+                            this.disconnectTimeouts.delete(targetUserId);
+                        }
 
                         this.connectionManager.broadcastToRoom(roomId, "player_readmitted", {
                             roomId,
                             targetUserId,
                             username: player.username,
+                            persistedTimeRemaining: persistedTime,
                         });
+
+                        this.connectionManager.broadcastToRoom(roomId, "battle_state_sync", state);
 
                         const targetSocket = this.connectionManager.userSockets.get(targetUserId);
                         if (targetSocket) {
-                            this.send(targetSocket, "readmitted_to_battle", { roomId });
+                            this.send(targetSocket, "readmitted_to_battle", {
+                                roomId,
+                                persistedTimeRemaining: persistedTime,
+                                problems: state.problems,
+                            });
+                        }
+                    }
+                    break;
+                }
+
+                case "sync_timer_remaining": {
+                    const session = this.socketUsers.get(socket);
+                    const activeUserId = session?.userId || currentUserId.value || data?.userId;
+                    const { roomId, timeRemaining } = data;
+                    if (roomId && activeUserId && typeof timeRemaining === "number") {
+                        await this.redis.set(`battle_timer_persisted:${roomId}:${activeUserId}`, String(timeRemaining), "EX", 7200);
+                        const rawState = await this.redis.get(`battle_state:${roomId}`);
+                        if (rawState) {
+                            const state = JSON.parse(rawState);
+                            const player = state.players?.find((p: any) => p.userId === activeUserId);
+                            if (player) {
+                                player.persistedTimeRemaining = timeRemaining;
+                                await this.redis.set(`battle_state:${roomId}`, JSON.stringify(state), "EX", 7200);
+                            }
                         }
                     }
                     break;
@@ -1426,11 +1506,27 @@ export class SocketHandler {
                 if (state.status === "RUNNING") {
                     const opponent = state.players?.find((p: any) => p.userId !== session.userId);
 
+                    // Freeze and persist this player's remaining time upon disconnection
+                    const rawTimer = await this.redis.get(`battle_timer_persisted:${session.roomId}:${session.userId}`);
+                    let persistedTime = rawTimer ? parseInt(rawTimer, 10) : undefined;
+                    if (!persistedTime && state.startTime && state.timeLimitSeconds) {
+                        const elapsed = Math.floor((Date.now() - state.startTime) / 1000);
+                        persistedTime = Math.max(0, state.timeLimitSeconds - elapsed);
+                    }
+                    const disconnectedPlayer = state.players?.find((p: any) => p.userId === session.userId);
+                    if (disconnectedPlayer && persistedTime !== undefined) {
+                        disconnectedPlayer.persistedTimeRemaining = persistedTime;
+                        disconnectedPlayer.disconnectedAt = Date.now();
+                        await this.redis.set(`battle_timer_persisted:${session.roomId}:${session.userId}`, String(persistedTime), "EX", 7200);
+                        await this.redis.set(`battle_state:${session.roomId}`, JSON.stringify(state), "EX", 7200);
+                    }
+
                     this.connectionManager.broadcastToRoom(session.roomId, "opponent_disconnected", {
                         userId: session.userId,
                         username: session.username,
                         message: `${session.username} has disconnected from the battle.`,
-                        reconnectDeadline: Date.now() + 60000
+                        reconnectDeadline: Date.now() + 60000,
+                        persistedTimeRemaining: persistedTime,
                     });
 
                     const timeout = setTimeout(async () => {

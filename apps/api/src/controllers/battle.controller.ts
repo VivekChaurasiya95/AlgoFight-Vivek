@@ -4,11 +4,13 @@ import {
     PrismaProblemRepository,
     PrismaUserRepository,
 } from "@algofight/database";
+import { createRedisClient } from "@algofight/queue";
 
 export class BattleController {
     private readonly battleRoomService: BattleRoomService;
     private readonly ratingService: RatingService;
     private readonly userRepository: PrismaUserRepository;
+    private readonly redis = createRedisClient();
 
     constructor() {
         const battleRoomRepository = new PrismaBattleRoomRepository();
@@ -82,8 +84,44 @@ export class BattleController {
         });
     }
 
-    async getRoom(idOrCode: string) {
-        return this.battleRoomService.getRoom(idOrCode);
+    async getRoom(idOrCode: string, currentUserId?: string) {
+        const room: any = await this.battleRoomService.getRoom(idOrCode);
+        if (room && currentUserId) {
+            try {
+                const saved = await this.redis.get(`battle_timer_persisted:${room.id}:${currentUserId}`)
+                    || await this.redis.get(`battle_timer_persisted:${room.roomCode}:${currentUserId}`);
+                if (saved) {
+                    room.persistedTimeRemaining = parseInt(saved, 10);
+                }
+            } catch {}
+        }
+        return room;
+    }
+
+    async persistPlayerTime(idOrCode: string, userId: string, timeRemaining: number) {
+        if (!idOrCode || !userId || typeof timeRemaining !== "number") {
+            return { success: false, message: "Invalid parameters" };
+        }
+        try {
+            const room = await this.battleRoomService.getRoom(idOrCode).catch(() => null);
+            const roomId = room?.id || idOrCode;
+            const roomCode = room?.roomCode || idOrCode;
+            await this.redis.set(`battle_timer_persisted:${roomId}:${userId}`, String(timeRemaining), "EX", 7200);
+            await this.redis.set(`battle_timer_persisted:${roomCode}:${userId}`, String(timeRemaining), "EX", 7200);
+
+            const rawState = await this.redis.get(`battle_state:${roomId}`);
+            if (rawState) {
+                const state = JSON.parse(rawState);
+                const player = state.players?.find((p: any) => p.userId === userId);
+                if (player) {
+                    player.persistedTimeRemaining = timeRemaining;
+                    await this.redis.set(`battle_state:${roomId}`, JSON.stringify(state), "EX", 7200);
+                }
+            }
+            return { success: true, persistedTimeRemaining: timeRemaining };
+        } catch (err: any) {
+            return { success: false, error: err.message };
+        }
     }
 
     async joinRoom(idOrCode: string, userId: string, authUser?: { id: string; email?: string; username?: string }) {

@@ -1,0 +1,109 @@
+/* frontend/src/components/Feedback/FeedbackInboxCard.css */
+
+.inbox-feedback-card {
+    background: rgba(15, 23, 42, 0.65);
+    border: 1px solid rgba(0, 229, 255, 0.22);
+    border-radius: 10px;
+    margin-bottom: 12px;
+    overflow: hidden;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.inbox-feedback-card:hover {
+    border-color: rgba(0, 229, 255, 0.4);
+    box-shadow: 0 4px 16px rgba(0, 229, 255, 0.08);
+}
+
+.inbox-feedback-card.is-unread {
+    border-left: 3px solid #00e5ff;
+}
+
+.inbox-feedback-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 14px;
+    cursor: pointer;
+    background: rgba(0, 229, 255, 0.03);
+    user-select: none;
+}
+
+.inbox-feedback-header:hover {
+    background: rgba(0, 229, 255, 0.06);
+}
+
+.inbox-feedback-icon-wrap {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: rgba(0, 229, 255, 0.12);
+    border: 1px solid rgba(0, 229, 255, 0.3);
+    color: #00e5ff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.95rem;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.inbox-feedback-meta {
+    flex: 1;
+    min-width: 0;
+}
+
+.inbox-feedback-tag-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+}
+
+.inbox-feedback-badge {
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    color: #00e5ff;
+    text-transform: uppercase;
+}
+
+.inbox-feedback-status {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #ffaa00;
+}
+
+.inbox-feedback-title {
+    margin: 0 0 4px;
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #f8fafc;
+}
+
+.inbox-feedback-desc {
+    margin: 0;
+    font-size: 0.78rem;
+    color: #94a3b8;
+    line-height: 1.35;
+}
+
+.inbox-feedback-toggle-btn {
+    background: none;
+    border: none;
+    color: #64748b;
+    font-size: 0.85rem;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    transition: color 0.18s ease;
+}
+
+.inbox-feedback-toggle-btn:hover {
+    color: #00e5ff;
+}
+
+.inbox-feedback-form-wrapper {
+    padding: 12px 14px 14px;
+    border-top: 1px solid rgba(148, 163, 184, 0.1);
+    background: rgba(5, 11, 20, 0.4);
+}

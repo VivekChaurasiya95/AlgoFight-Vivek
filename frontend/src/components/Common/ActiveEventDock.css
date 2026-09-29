@@ -1,0 +1,187 @@
+/* frontend/src/components/Common/ActiveEventDock.css */
+
+.af-active-event-dock {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 9995;
+    max-width: 460px;
+    width: calc(100vw - 48px);
+    background: #090f1d;
+    border: 1px solid rgba(0, 229, 255, 0.4);
+    border-radius: 12px;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6), 0 0 24px rgba(0, 229, 255, 0.2);
+    overflow: hidden;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+.dock-glow-edge {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #ffaa00 0%, #00e5ff 60%, #00ffaa 100%);
+}
+
+.dock-content-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+}
+
+/* Pulsing Ping Indicator */
+.dock-pulse-indicator {
+    position: relative;
+    width: 10px;
+    height: 10px;
+    flex-shrink: 0;
+}
+
+.dock-pulse-dot {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #00e5ff;
+}
+
+.dock-pulse-ping {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: #00e5ff;
+    opacity: 0.75;
+    animation: dock-ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+@keyframes dock-ping {
+    75%, 100% {
+        transform: scale(2.4);
+        opacity: 0;
+    }
+}
+
+.dock-icon-box {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: rgba(0, 229, 255, 0.12);
+    border: 1px solid rgba(0, 229, 255, 0.35);
+    color: #00e5ff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.95rem;
+    flex-shrink: 0;
+}
+
+.dock-meta {
+    flex: 1;
+    min-width: 0;
+    cursor: pointer;
+}
+
+.dock-title-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 2px;
+}
+
+.dock-tag {
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    color: #ffaa00;
+    text-transform: uppercase;
+}
+
+.dock-room-code {
+    font-family: monospace;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #00e5ff;
+    background: rgba(0, 229, 255, 0.1);
+    padding: 1px 6px;
+    border-radius: 4px;
+    border: 1px solid rgba(0, 229, 255, 0.25);
+}
+
+.dock-participant-pill {
+    font-size: 0.7rem;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.dock-desc-row {
+    display: flex;
+    align-items: center;
+}
+
+.dock-status-label {
+    font-size: 0.76rem;
+    color: #cbd5e1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.dock-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.dock-btn-return {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: linear-gradient(135deg, #00e5ff 0%, #00b4d8 100%);
+    border: none;
+    color: #050b14;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 0 10px rgba(0, 229, 255, 0.25);
+    transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+
+.dock-btn-return:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 0 16px rgba(0, 229, 255, 0.45);
+}
+
+.dock-btn-leave {
+    background: transparent;
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    color: #94a3b8;
+    padding: 6px 8px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.16s ease;
+}
+
+.dock-btn-leave:hover {
+    color: #ff4d4d;
+    border-color: rgba(255, 77, 77, 0.4);
+    background: rgba(255, 77, 77, 0.1);
+}
+
+@media (max-width: 640px) {
+    .af-active-event-dock {
+        bottom: 16px;
+        right: 12px;
+        left: 12px;
+        width: auto;
+    }
+}

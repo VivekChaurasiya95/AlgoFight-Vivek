@@ -26,6 +26,7 @@ import {
 import { requestJson } from "../../services/api";
 import { useAuth } from "../../contexts/AuthContext";
 import { useNotification } from "../../contexts/NotificationContext";
+import { useActiveEvent } from "../../contexts/ActiveEventContext";
 import { getWsUrl } from "../../services/socket";
 import { getSessionToken } from "../../services/authStorage";
 import RankEmblem from "../Common/gamification/RankEmblem";
@@ -35,6 +36,7 @@ export default function RoomLobby() {
     const { roomCode } = useParams();
     const { user } = useAuth();
     const { notify } = useNotification();
+    const { setActiveEvent, clearActiveEvent } = useActiveEvent();
     const navigate = useNavigate();
 
     const [room, setRoom] = useState(null);
@@ -64,6 +66,7 @@ export default function RoomLobby() {
             const roomData = data.room || data;
 
             if (roomData?.status === "CANCELLED") {
+                clearActiveEvent();
                 notify({ type: "info", title: "Lobby Closed", message: "The host left or the lobby was cancelled." });
                 navigate("/battle");
                 return;
@@ -108,14 +111,51 @@ export default function RoomLobby() {
                 setRoom(roomData);
                 setParticipants(currentParticipants);
                 return;
-            } else if (me) {
+            }
+
+            if (me) {
                 setWaitingForAdmission(false);
+                setIsReady(me.isReady);
+                if (roomData.status === "RUNNING") {
+                    const persisted = roomData.persistedTimeRemaining;
+                    if (persisted !== undefined && currentUserId) {
+                        try {
+                            localStorage.setItem(`af_persisted_time_${roomData.id || roomCode}_${currentUserId}`, String(persisted));
+                        } catch (_) {}
+                    }
+                    navigate("/battle/live", {
+                        state: {
+                            matchData: {
+                                roomId: roomData.id,
+                                roomCode: roomData.roomCode || roomCode,
+                                persistedTimeRemaining: persisted,
+                                timeLimitSeconds: persisted || (roomData.timeLimitMinutes ? roomData.timeLimitMinutes * 60 : undefined),
+                            },
+                            roomCode: roomData.roomCode || roomCode
+                        }
+                    });
+                    return;
+                }
             }
 
             setRoom(roomData);
             setParticipants(currentParticipants);
 
-            if (me) setIsReady(me.isReady);
+            if (me || amIHost) {
+                setActiveEvent({
+                    type: "LOBBY",
+                    roomCode: roomData.roomCode || roomCode,
+                    roomId: roomData.id,
+                    roomName: roomData.name || `Room ${roomCode}`,
+                    status: roomData.status || "WAITING",
+                    isHost: amIHost,
+                    participantCount: currentParticipants.length,
+                    maxParticipants: roomData.maxParticipants || 8,
+                    problemId: roomData.problemId,
+                    mode: roomData.mode,
+                    timeLimitMinutes: roomData.timeLimitMinutes,
+                });
+            }
         } catch (err) {
             if (!isBackgroundSync) {
                 notify({ type: "error", title: "Lobby Error", message: err.message || "Failed to load lobby." });
@@ -181,12 +221,59 @@ export default function RoomLobby() {
                         notify({
                             type: "success",
                             title: "Access Granted!",
-                            message: "The host admitted you into the lobby."
+                            message: "The host admitted you into the room."
                         });
-                        loadRoom(true);
+                        const persisted = payload?.persistedTimeRemaining;
+                        if (persisted !== undefined && currentUserId) {
+                            try {
+                                localStorage.setItem(`af_persisted_time_${room?.id || roomCode}_${currentUserId}`, String(persisted));
+                            } catch (_) {}
+                        }
+                        if (payload?.battleRunning || room?.status === "RUNNING") {
+                            navigate("/battle/live", {
+                                state: {
+                                    matchData: {
+                                        roomId: payload?.roomId || room?.id,
+                                        roomCode: payload?.roomCode || roomCode,
+                                        persistedTimeRemaining: persisted,
+                                        timeLimitSeconds: persisted || (room?.timeLimitMinutes ? room.timeLimitMinutes * 60 : undefined),
+                                    },
+                                    roomCode: payload?.roomCode || roomCode
+                                }
+                            });
+                        } else {
+                            loadRoom(true);
+                        }
+                    }
+
+                    if (evt === "readmitted_to_battle") {
+                        setWaitingForAdmission(false);
+                        notify({
+                            type: "success",
+                            title: "Re-admitted to Battle!",
+                            message: payload?.message || "The host has re-admitted you to the battle."
+                        });
+                        const persisted = payload?.persistedTimeRemaining;
+                        if (persisted !== undefined && currentUserId) {
+                            try {
+                                localStorage.setItem(`af_persisted_time_${room?.id || roomCode}_${currentUserId}`, String(persisted));
+                            } catch (_) {}
+                        }
+                        navigate("/battle/live", {
+                            state: {
+                                matchData: {
+                                    roomId: payload?.roomId || room?.id,
+                                    roomCode: payload?.roomCode || roomCode,
+                                    persistedTimeRemaining: persisted,
+                                    timeLimitSeconds: persisted || (room?.timeLimitMinutes ? room.timeLimitMinutes * 60 : undefined),
+                                },
+                                roomCode: payload?.roomCode || roomCode
+                            }
+                        });
                     }
 
                     if (evt === "join_request_rejected") {
+                        clearActiveEvent();
                         notify({
                             type: "error",
                             title: "Access Declined",
@@ -196,6 +283,7 @@ export default function RoomLobby() {
                     }
 
                     if (evt === "kicked_from_room") {
+                        clearActiveEvent();
                         notify({
                             type: "error",
                             title: "Removed from Lobby",
@@ -252,6 +340,14 @@ export default function RoomLobby() {
                     }
 
                     if (evt === "battle_started" || evt === "match_found") {
+                        setActiveEvent({
+                            type: "BATTLE",
+                            roomCode: payload?.roomCode || roomCode,
+                            roomId: payload?.roomId || room?.id,
+                            status: "RUNNING",
+                            isHost,
+                            participantCount: participants.length,
+                        });
                         setStarting(true);
                         setCountdown(3);
 
@@ -289,6 +385,7 @@ export default function RoomLobby() {
     // Leave Lobby
     const handleLeaveLobby = async () => {
         try {
+            clearActiveEvent();
             if (socketRef.current?.readyState === WebSocket.OPEN) {
                 socketRef.current.send(JSON.stringify({
                     action: "leave_room_channel",

@@ -16,6 +16,7 @@ import {
 import { getSocket } from '../../services/socket';
 import { useNotificationInbox } from '../../contexts/NotificationInboxContext';
 import SystemBroadcastCard from '../Common/broadcasts/SystemBroadcastCard.jsx';
+import FeedbackInboxCard from '../Feedback/FeedbackInboxCard.jsx';
 import './InboxDropdown.css';
 
 function formatTimeAgo(timestamp) {
@@ -93,6 +94,7 @@ export default function InboxDropdown({ isOpen, onClose }) {
 
     const filteredNotifications = notifications.filter((item) => {
         if (filter === 'UNREAD') return !item.read;
+        if (filter === 'FEEDBACK') return item.type === 'FEEDBACK' || item.metadata?.isFeedback;
         if (filter === 'SYSTEM') return item.type === 'SYSTEM' || item.metadata?.isBroadcast;
         if (filter === 'CHALLENGES') return item.type && item.type.startsWith('CHALLENGE');
         if (filter === 'BATTLES') return item.type && item.type.startsWith('BATTLE');
@@ -167,6 +169,12 @@ export default function InboxDropdown({ isOpen, onClose }) {
                             Unread ({unreadCount})
                         </button>
                         <button
+                            className={`inbox-filter-chip ${filter === 'FEEDBACK' ? 'active' : ''}`}
+                            onClick={() => setFilter('FEEDBACK')}
+                        >
+                            Feedback
+                        </button>
+                        <button
                             className={`inbox-filter-chip ${filter === 'SYSTEM' ? 'active' : ''}`}
                             onClick={() => setFilter('SYSTEM')}
                         >
@@ -195,6 +203,18 @@ export default function InboxDropdown({ isOpen, onClose }) {
                             </div>
                         ) : (
                             filteredNotifications.map((item) => {
+                                if (item.type === 'FEEDBACK' || item.metadata?.isFeedback) {
+                                    return (
+                                        <FeedbackInboxCard
+                                            key={item.id}
+                                            item={item}
+                                            onCompleted={() => {
+                                                markAsRead(item.id);
+                                            }}
+                                        />
+                                    );
+                                }
+
                                 const isBroadcast = item.type === 'SYSTEM' || item.metadata?.isBroadcast;
 
                                 if (isBroadcast) {

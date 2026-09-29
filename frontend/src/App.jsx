@@ -9,6 +9,9 @@ import ProtectedRoute from './components/Common/routing/ProtectedRoute.jsx';
 import AdminRoute from './components/Common/routing/AdminRoute.jsx';
 import FacultyRoute from './components/Common/routing/FacultyRoute.jsx';
 import SystemBroadcastBanner from './components/Common/broadcasts/SystemBroadcastBanner.jsx';
+import FeedbackNotificationPrompt from './components/Feedback/FeedbackNotificationPrompt.jsx';
+import ActiveEventDock from './components/Common/ActiveEventDock.jsx';
+import ActiveEventCountdownModal from './components/Common/ActiveEventCountdownModal.jsx';
 
 // 🚀 Code-split secondary route components with React.lazy
 const LandingPage = lazy(() => import('./components/LandingPage/LandingPage.jsx'));
@@ -101,6 +104,9 @@ function App() {
   return (
     <>
       <SystemBroadcastBanner />
+      <FeedbackNotificationPrompt />
+      <ActiveEventDock />
+      <ActiveEventCountdownModal />
       <AnimatePresence mode="wait">
         <Routes location={location} key={location.pathname}>
           {/* ================= Auth Routes ================= */}
