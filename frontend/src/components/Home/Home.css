@@ -510,23 +510,23 @@ body::before {
 /* ================= 3D ANIMATED CHARACTER HERO VIDEO ================= */
 .hero-video-container {
   width: 100%;
-  max-width: 660px;
-  height: 375px;
+  max-width: 800px;
+  height: 460px;
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 2px auto 8px;
+  margin: 4px auto 10px;
   overflow: visible;
 }
 
 .hero-video-glow {
   position: absolute;
-  width: 580px;
-  height: 310px;
+  width: 720px;
+  height: 390px;
   border-radius: 50%;
-  background: radial-gradient(ellipse at 50% 70%, rgba(147, 51, 234, 0.48) 0%, rgba(59, 130, 246, 0.22) 42%, transparent 75%);
-  filter: blur(48px);
+  background: radial-gradient(ellipse at 50% 68%, rgba(147, 51, 234, 0.52) 0%, rgba(59, 130, 246, 0.26) 42%, transparent 75%);
+  filter: blur(52px);
   pointer-events: none;
   z-index: 1;
 }
@@ -539,17 +539,19 @@ body::before {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 20px;
+  border-radius: 24px;
   overflow: hidden;
   /* Invisible feathered edge mask blending seamlessly with the black background */
-  mask-image: radial-gradient(ellipse 95% 88% at 50% 55%, black 62%, rgba(0, 0, 0, 0.65) 80%, transparent 100%);
-  -webkit-mask-image: radial-gradient(ellipse 95% 88% at 50% 55%, black 62%, rgba(0, 0, 0, 0.65) 80%, transparent 100%);
+  mask-image: radial-gradient(ellipse 96% 90% at 50% 55%, black 66%, rgba(0, 0, 0, 0.65) 84%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 96% 90% at 50% 55%, black 66%, rgba(0, 0, 0, 0.65) 84%, transparent 100%);
 }
 
 .hero-video-character {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  transform: scale(1.18);
+  transform-origin: center 58%;
   outline: none;
   border: none;
   pointer-events: none !important;
