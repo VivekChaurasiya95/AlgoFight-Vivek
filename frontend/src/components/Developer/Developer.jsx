@@ -2,17 +2,11 @@ import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  faBolt,
   faCodeBranch,
   faCodeMerge,
   faLaptopCode,
-  faShieldHalved,
-  faTerminal,
   faServer,
-  faMicrochip,
-  faNetworkWired,
   faGraduationCap,
-  faChalkboardUser,
   faEnvelope,
   faCopy,
   faCheck,
@@ -31,41 +25,78 @@ const teamMembers = [
   {
     name: "Arin Gupta",
     role: "Full Stack Architect & Systems Lead",
+    categoryBadge: "CORE ARCHITECTURE & SYSTEMS ENGINEERING",
+    tagChip: "Core Architect",
+    institution: "Madhav Institute of Technology & Science (Deemed to be University), Gwalior",
     bio: "Architects the core application edge, real-time distributed state machines, and cryptographic admission gateways. Obsessed with sub-millisecond execution, tamper-proof user trust contexts, and engineering a fluid, high-octane 1v1 battle experience.",
     pic: arinPic,
     stack: "Distributed Systems & Core Edge",
     skills: ["Distributed State Machines", "Logical User Gateways", "Elastic Telemetry Spine", "Realtime Arenas"],
     icon: faCodeMerge,
-    tone: "cyan",
+    headerIcon: faCodeBranch,
+    tone: "tone-cyan",
     linkedin: "https://www.linkedin.com/in/arin-gupta-2b94b032a/",
     github: "https://github.com/arin-gupta06",
     imgStyle: { objectPosition: "center 15%" },
   },
   {
-    name: "Krish Dargar",
-    role: "Frontend & UI/UX Systems Architect",
-    bio: "Crafts the cybernetic design language, glassmorphic interfaces, and micro-animations. Translates complex algorithmic mechanics into lightning-fast, intuitive, and visually stunning web applications that coders love to use.",
-    pic: krishPic,
-    stack: "UI/UX & Design Systems",
-    skills: ["Cyber Glassmorphic UI", "React.js & Framer Motion", "WhatsApp Media Previews", "Responsive Layouts"],
-    icon: faLaptopCode,
-    tone: "pink",
-    linkedin: "https://www.linkedin.com/in/krish-dargar-101774324/",
-    github: "https://github.com/KD2303"
-  },
-  {
     name: "Vivek Chaurasiya",
     role: "Backend & Sandbox Infrastructure Lead",
+    categoryBadge: "INFRASTRUCTURE & RUNTIME ENGINES",
+    tagChip: "Infrastructure Lead",
+    institution: "Madhav Institute of Technology & Science (Deemed to be University), Gwalior",
     bio: "Engineers database architecture, Prisma query optimization, asynchronous job queues, and isolated code evaluation sandboxes. Ensures the backend executes arbitrary code with strict isolation, low latency, and infinite horizontal scalability.",
     pic: vivekPic,
     stack: "Backend & Sandbox Engines",
     skills: ["PostgreSQL & Prisma", "Elastic BullMQ Queues", "Piston Multi-Runtime Fleet", "System Scalability"],
     icon: faServer,
-    tone: "cyan",
+    headerIcon: faServer,
+    tone: "tone-emerald",
     linkedin: "https://www.linkedin.com/in/vivek-chaurasiya-722037315",
     github: "https://github.com/VivekChaurasiya95",
+    imgStyle: { objectPosition: "center 20%" },
+  },
+  {
+    name: "Krish Dargar",
+    role: "Frontend & UI/UX Systems Architect",
+    categoryBadge: "DESIGN SYSTEMS & CREATIVE DIRECTION",
+    tagChip: "UI/UX Architect",
+    institution: "Madhav Institute of Technology & Science (Deemed to be University), Gwalior",
+    bio: "Crafts the cybernetic design language, glassmorphic interfaces, and micro-animations. Translates complex algorithmic mechanics into lightning-fast, intuitive, and visually stunning web applications that coders love to use.",
+    pic: krishPic,
+    stack: "UI/UX & Design Systems",
+    skills: ["Cyber Glassmorphic UI", "React.js & Framer Motion", "WhatsApp Media Previews", "Responsive Layouts"],
+    icon: faLaptopCode,
+    headerIcon: faLaptopCode,
+    tone: "tone-magenta",
+    linkedin: "https://www.linkedin.com/in/krish-dargar-101774324/",
+    github: "https://github.com/KD2303",
+    imgStyle: { objectPosition: "center 15%" },
   },
 ];
+
+const mentor = {
+  name: "Mr. Atul Chauhan",
+  role: "Faculty Mentor & Technical Advisor",
+  categoryBadge: "INSTITUTIONAL MENTORSHIP & TECHNICAL GUIDANCE",
+  tagChip: "Programmer of MITS DU",
+  institution: "Madhav Institute of Technology & Science (Deemed to be University), Gwalior",
+  bio: "Providing distinguished institutional mentorship, systems guidance, and architectural advisory for AlgoFight at MITS DU. Inspires and steers student engineers to build high-throughput real-time platforms, develop disciplined algorithmic problem-solving capabilities, and adhere to industry-standard software engineering benchmarks.",
+  pic: atulPic,
+  stack: "Programmer of MITS DU",
+  skills: [
+    "Programmer of MITS DU",
+    "Institutional Guidance",
+    "Systems Engineering",
+    "Pedagogical Advisory",
+    "Competitive Programming Steering",
+  ],
+  icon: faCodeBranch,
+  headerIcon: faGraduationCap,
+  tone: "tone-amber",
+  email: "atul@mitsgwalior.in",
+  imgStyle: { objectPosition: "center 15%" },
+};
 
 const developerStats = [
   { label: "Core Architects", value: "3" },
@@ -74,28 +105,6 @@ const developerStats = [
   { label: "P99 Latency", value: "< 6ms" },
 ];
 
-const principles = [
-  {
-    icon: faShieldHalved,
-    title: "Cryptographic Edge Gateway",
-    copy: "Every request is vetted at the application edge with HMAC-SHA256 attestations, anti-abuse IP jails, and multi-dimensional token-bucket rate limiters.",
-  },
-  {
-    icon: faBolt,
-    title: "Deterministic State Machines",
-    copy: "Real-time duel lifecycles strictly enforce zero-race mathematical transitions from matchmaking countdowns to live code execution.",
-  },
-  {
-    icon: faMicrochip,
-    title: "Elastic Multi-Runtime Sandboxes",
-    copy: "Submissions are dynamically segregated into Light and Heavy workload lanes with asymmetric worker concurrency, automated container scaling, and zero host leakage.",
-  },
-  {
-    icon: faNetworkWired,
-    title: "Linux Host Telemetry & Reliability",
-    copy: "Engineered with 1Hz live SSE telemetry streams, real-time saturation observers, and fault-tolerant process shields to guarantee 99.99% uptime.",
-  },
-];
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -126,6 +135,7 @@ function Developer() {
   return (
     <BackgroundPaths>
       <div className="developer-page">
+        {/* Hero Section */}
         <motion.section
           className="developer-hero"
           initial={{ opacity: 0, y: 20 }}
@@ -153,137 +163,170 @@ function Developer() {
           </div>
         </motion.section>
 
+        {/* Developer Cards Section - Matching 2nd Image Layout with Custom Color Themes */}
         <motion.section
           className="developer-team-grid"
           variants={containerVariants}
           initial="hidden"
           animate="visible"
         >
-          {teamMembers.map((member, index) => (
+          {teamMembers.map((member) => (
             <motion.article
               key={member.name}
               variants={childVariants}
-              className={`developer-member-card ${member.tone} ${index % 2 === 1 ? "reverse" : ""}`}
+              className={`dev-profile-card dev-column-card ${member.tone}`}
             >
-              <div className="developer-avatar-wrap">
-                <div className="developer-avatar-glow" />
-                {member.pic ? (
-                   <div className="developer-avatar-container">
-                     <img src={member.pic} alt={member.name} className="developer-avatar-img" style={member.imgStyle} />
-                   </div>
-                ) : (
-                   <div className="developer-avatar">{member.name.charAt(0)}</div>
-                )}
-                <div className="developer-icon-badge">
-                  <FontAwesomeIcon icon={member.icon} />
-                </div>
+              {/* Top-Left Category Badge */}
+              <div className="card-header-badge">
+                <FontAwesomeIcon icon={member.headerIcon} />
+                <span>{member.categoryBadge}</span>
               </div>
 
-              <div className="developer-member-content">
-                <div className="developer-member-head">
-                  <h2>{member.name}</h2>
-                  <span className="developer-chip">{member.stack}</span>
+              <div className="card-inner">
+                {/* Circular Avatar with Radiant Halo & Tag Chip */}
+                <div className="card-avatar-wrap">
+                  <div className="card-avatar-glow" />
+                  <div className="card-avatar-img-box">
+                    <img
+                      src={member.pic}
+                      alt={member.name}
+                      className="card-avatar-img"
+                      style={member.imgStyle}
+                    />
+                  </div>
+                  <div className="card-tag-chip">
+                    <span>{member.tagChip}</span>
+                  </div>
                 </div>
 
-                <h3>
-                  <FontAwesomeIcon icon={faCodeMerge} />
-                  {member.role}
-                </h3>
+                {/* Content Section */}
+                <div className="card-content">
+                  <div className="card-title-row">
+                    <div>
+                      <h2 className="card-name">{member.name}</h2>
+                      <div className="card-role-badge">
+                        <FontAwesomeIcon icon={member.icon} />
+                        <span>{member.role}</span>
+                      </div>
+                    </div>
+                    <div className="card-tag-pill">
+                      {member.stack}
+                    </div>
+                  </div>
 
-                <p>{member.bio}</p>
+                  <p className="card-institution">
+                    {member.institution}
+                  </p>
 
-                <div className="developer-skill-list">
-                  {member.skills.map((skill) => (
-                    <span key={skill}>{skill}</span>
-                  ))}
-                </div>
+                  <p className="card-bio">{member.bio}</p>
 
-                <div className="developer-social-links">
-                  {member.linkedin !== "#" && (
-                    <a href={member.linkedin} target="_blank" rel="noreferrer" className={`social-btn ${member.tone}`}>
-                      <FontAwesomeIcon icon={faLinkedin} /> LinkedIn
-                    </a>
-                  )}
-                  {member.github !== "#" && (
-                    <a href={member.github} target="_blank" rel="noreferrer" className={`social-btn ${member.tone}`}>
-                      <FontAwesomeIcon icon={faGithub} /> GitHub
-                    </a>
-                  )}
+                  <div className="card-skills-list">
+                    {member.skills.map((skill) => (
+                      <span key={skill}>{skill}</span>
+                    ))}
+                  </div>
+
+                  <div className="card-contact-actions">
+                    {member.linkedin && (
+                      <a
+                        href={member.linkedin}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="card-primary-btn"
+                        title={`${member.name} on LinkedIn`}
+                      >
+                        <FontAwesomeIcon icon={faLinkedin} />
+                        <span>LinkedIn</span>
+                      </a>
+                    )}
+                    {member.github && (
+                      <a
+                        href={member.github}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="card-secondary-btn"
+                        title={`${member.name} on GitHub`}
+                      >
+                        <FontAwesomeIcon icon={faGithub} />
+                        <span>GitHub</span>
+                      </a>
+                    )}
+                  </div>
                 </div>
               </div>
             </motion.article>
           ))}
         </motion.section>
 
-        {/* Faculty Mentor Section */}
+        {/* Faculty Mentor Section - Golden Amber Theme */}
         <motion.section
-          className="faculty-mentor-panel"
+          className={`dev-profile-card ${mentor.tone} faculty-mentor-card`}
           initial={{ opacity: 0, y: 24 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.25 }}
           transition={{ duration: 0.45, ease: "easeOut" }}
         >
-          <div className="mentor-header-badge">
-            <FontAwesomeIcon icon={faGraduationCap} />
-            <span>INSTITUTIONAL MENTORSHIP & TECHNICAL GUIDANCE</span>
+          {/* Top-Left Category Badge */}
+          <div className="card-header-badge">
+            <FontAwesomeIcon icon={mentor.headerIcon} />
+            <span>{mentor.categoryBadge}</span>
           </div>
 
-          <div className="mentor-card-inner">
-            <div className="mentor-avatar-wrap">
-              <div className="mentor-avatar-glow" />
-              <div className="mentor-avatar-img-box">
+          <div className="card-inner">
+            {/* Circular Avatar with Radiant Halo & Tag Chip */}
+            <div className="card-avatar-wrap">
+              <div className="card-avatar-glow" />
+              <div className="card-avatar-img-box">
                 <img
-                  src={atulPic}
-                  alt="Mr. Atul Chauhan"
-                  className="mentor-avatar-img"
+                  src={mentor.pic}
+                  alt={mentor.name}
+                  className="card-avatar-img"
+                  style={mentor.imgStyle}
                 />
               </div>
-              <div className="mentor-tag-chip">
-                <span>Programmer of MITS DU</span>
+              <div className="card-tag-chip">
+                <span>{mentor.tagChip}</span>
               </div>
             </div>
 
-            <div className="mentor-content">
-              <div className="mentor-title-row">
+            {/* Content Section */}
+            <div className="card-content">
+              <div className="card-title-row">
                 <div>
-                  <h2 className="mentor-name">Mr. Atul Chauhan</h2>
-                  <div className="mentor-role-badge">
-                    <FontAwesomeIcon icon={faCodeBranch} />
-                    <span>Faculty Mentor & Technical Advisor</span>
+                  <h2 className="card-name">{mentor.name}</h2>
+                  <div className="card-role-badge">
+                    <FontAwesomeIcon icon={mentor.icon} />
+                    <span>{mentor.role}</span>
                   </div>
                 </div>
-                <div className="mentor-tag-pill">
-                  Programmer of MITS DU
+                <div className="card-tag-pill">
+                  {mentor.stack}
                 </div>
               </div>
 
-              <p className="mentor-institution">
-                Madhav Institute of Technology &amp; Science (Deemed to be University), Gwalior
+              <p className="card-institution">
+                {mentor.institution}
               </p>
 
-              <p className="mentor-bio">
-                Providing distinguished institutional mentorship, systems guidance, and architectural advisory for AlgoFight at MITS DU. Inspires and steers student engineers to build high-throughput real-time platforms, develop disciplined algorithmic problem-solving capabilities, and adhere to industry-standard software engineering benchmarks.
-              </p>
+              <p className="card-bio">{mentor.bio}</p>
 
-              <div className="mentor-skills-list">
-                <span>Programmer of MITS DU</span>
-                <span>Institutional Guidance</span>
-                <span>Systems Engineering</span>
-                <span>Pedagogical Advisory</span>
-                <span>Competitive Programming Steering</span>
+              <div className="card-skills-list">
+                {mentor.skills.map((skill) => (
+                  <span key={skill}>{skill}</span>
+                ))}
               </div>
 
-              <div className="mentor-contact-actions">
+              <div className="card-contact-actions">
                 <a
-                  href="mailto:atul@mitsgwalior.in"
-                  className="mentor-email-btn"
-                  title="Send email to Mr. Atul Chauhan"
+                  href={`mailto:${mentor.email}`}
+                  className="card-primary-btn"
+                  title={`Send email to ${mentor.name}`}
                 >
                   <FontAwesomeIcon icon={faEnvelope} />
-                  <span>atul@mitsgwalior.in</span>
+                  <span>{mentor.email}</span>
                 </a>
                 <button
-                  className="mentor-copy-btn"
+                  className="card-secondary-btn"
                   onClick={handleCopyMentorEmail}
                   title="Copy email address"
                 >
@@ -295,30 +338,7 @@ function Developer() {
           </div>
         </motion.section>
 
-        <motion.section
-          className="developer-principles-panel"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.3 }}
-          transition={{ duration: 0.45, ease: "easeOut" }}
-        >
-          <div className="developer-panel-header">
-            <h2>Platform Architecture & Engineering DNA</h2>
-            <span className="developer-chip">Production Grade</span>
-          </div>
 
-          <div className="developer-principles-grid">
-            {principles.map((item) => (
-              <article key={item.title} className="developer-principle-card">
-                <span className="developer-principle-icon">
-                  <FontAwesomeIcon icon={item.icon} />
-                </span>
-                <h3>{item.title}</h3>
-                <p>{item.copy}</p>
-              </article>
-            ))}
-          </div>
-        </motion.section>
       </div>
       <Footer />
     </BackgroundPaths>

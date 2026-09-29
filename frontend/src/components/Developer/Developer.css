@@ -13,10 +13,8 @@
 }
 
 .developer-hero,
-.developer-member-card,
-.developer-principles-panel {
+.dev-profile-card {
   border-radius: 28px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(18, 20, 28, 0.55);
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(20px);
@@ -26,6 +24,31 @@
 .developer-hero {
   padding: 48px 40px;
   margin-bottom: 48px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(0, 229, 255, 0.08);
+  border: 1px solid rgba(0, 229, 255, 0.25);
+  color: #00e5ff;
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 20px;
+}
+
+.badge-pulse-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #00e5ff;
+  box-shadow: 0 0 8px #00e5ff;
 }
 
 .developer-hero h1 {
@@ -36,6 +59,20 @@
   line-height: 1.08;
   letter-spacing: -0.02em;
   color: #ffffff;
+}
+
+.text-cyan-gradient {
+  background: linear-gradient(135deg, #00e5ff 0%, #38bdf8 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.text-purple {
+  background: linear-gradient(135deg, #c084fc 0%, #a855f7 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .developer-hero p {
@@ -56,7 +93,7 @@
 .developer-stat-card {
   padding: 22px 20px;
   border-radius: 16px;
-  border-color: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   background: linear-gradient(145deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.015));
 }
 
@@ -77,447 +114,197 @@
   font-weight: 600;
 }
 
+/* ==========================================================================
+   UNIFIED PROFILE CARD ARCHITECTURE (Matching Mentor Image 2 Layout)
+   ========================================================================== */
+
 .developer-team-grid {
   display: grid;
-  gap: 28px;
-  margin-bottom: 56px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+  margin-bottom: 36px;
+  align-items: stretch;
 }
 
-.developer-member-card {
+.dev-profile-card {
   position: relative;
-  display: flex;
-  gap: 32px;
-  align-items: center;
-  padding: 36px 32px;
-}
-
-.developer-member-card.reverse {
-  flex-direction: row-reverse;
-}
-
-.developer-member-card::before,
-.developer-member-card::after {
-  content: '';
-  position: absolute;
-  width: 24px;
-  height: 24px;
-  transition: all 0.24s ease;
-}
-
-.developer-member-card::before {
-  top: -1px;
-  left: -1px;
-  border-top: 2px solid transparent;
-  border-left: 2px solid transparent;
-  border-top-left-radius: 22px;
-}
-
-.developer-member-card::after {
-  bottom: -1px;
-  right: -1px;
-  border-bottom: 2px solid transparent;
-  border-right: 2px solid transparent;
-  border-bottom-right-radius: 22px;
-}
-
-.developer-member-card.cyan::before,
-.developer-member-card.cyan::after {
-  border-color: rgba(0, 229, 255, 0.75);
-}
-
-.developer-member-card.pink::before,
-.developer-member-card.pink::after {
-  border-color: rgba(255, 106, 168, 0.75);
-}
-
-.developer-member-card:hover::before,
-.developer-member-card:hover::after {
-  width: 34px;
-  height: 34px;
-}
-
-.developer-avatar-wrap {
-  width: 170px;
-  height: 170px;
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.developer-avatar-glow {
-  position: absolute;
-  inset: 18px;
-  border-radius: 50%;
-  filter: blur(26px);
-  opacity: 0.5;
-}
-
-.developer-member-card.cyan .developer-avatar-glow {
-  background: rgba(0, 229, 255, 0.9);
-}
-
-.developer-member-card.pink .developer-avatar-glow {
-  background: rgba(255, 106, 168, 0.95);
-}
-
-.developer-avatar {
-  width: 138px;
-  height: 138px;
-  border-radius: 24px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: linear-gradient(145deg, rgba(0, 229, 255, 0.13), rgba(255, 110, 168, 0.1));
-  box-shadow: inset 0 0 28px rgba(0, 0, 0, 0.45);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: 2.9rem;
-  font-weight: 800;
-  color: #f3f8ff;
-  z-index: 1;
-}
-
-.developer-avatar-container {
-  width: 138px;
-  height: 138px;
-  border-radius: 24px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-  z-index: 1;
-  position: relative;
+  border-radius: 28px;
+  padding: 36px 36px;
+  background: rgba(14, 17, 26, 0.72);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   overflow: hidden;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  box-sizing: border-box;
 }
 
-.developer-avatar-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.developer-icon-badge {
-  position: absolute;
-  right: 10px;
-  bottom: 8px;
-  width: 38px;
-  height: 38px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  background: rgba(0, 0, 0, 0.65);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2;
-  font-size: 1.1rem;
-}
-
-.developer-member-card.cyan .developer-icon-badge {
-  color: #00e5ff;
-}
-
-.developer-member-card.pink .developer-icon-badge {
-  color: #ff8dc0;
-}
-
-.developer-member-content {
-  min-width: 0;
-  flex: 1;
-}
-
-.developer-member-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 10px;
-}
-
-.developer-member-head h2 {
-  margin: 0;
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: clamp(1.5rem, 2.6vw, 2.1rem);
-  line-height: 1.1;
-  letter-spacing: -0.01em;
-  color: #f4f9ff;
-}
-
-.developer-chip {
-  border-radius: 999px;
-  border: 1px solid rgba(0, 229, 255, 0.35);
-  background: rgba(0, 229, 255, 0.08);
-  color: #00e5ff;
-  padding: 6px 14px;
-  font-size: 0.74rem;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.developer-member-content h3 {
-  margin: 0 0 14px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-family: 'Inter', sans-serif;
-  font-size: 0.86rem;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: #00e5ff;
-}
-
-.developer-member-card.pink .developer-member-content h3 {
-  color: #ff9ac7;
-}
-
-.developer-member-content p {
-  margin: 0 0 18px;
-  color: #9ca9bf;
-  font-size: 0.98rem;
-  line-height: 1.7;
-}
-
-.developer-skill-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.developer-skill-list span {
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.13);
-  padding: 6px 14px;
-  font-size: 0.76rem;
-  color: #c4cddd;
-  background: rgba(255, 255, 255, 0.03);
-}
-
-.developer-social-links {
-  display: flex;
-  gap: 16px;
-  margin-top: 24px;
-}
-
-.developer-social-links .social-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  padding: 10px 20px;
-  border-radius: 10px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.88rem;
-  font-weight: 700;
-  color: #fff;
-  text-decoration: none;
-  transition: all 0.2s ease;
-}
-
-.developer-social-links .social-btn.cyan {
-  border-color: rgba(0, 229, 255, 0.3);
-}
-
-.developer-social-links .social-btn.cyan:hover {
-  background: rgba(0, 229, 255, 0.15);
-  border-color: #00e5ff;
-  color: #00e5ff;
-  box-shadow: 0 0 20px rgba(0, 229, 255, 0.3);
-  transform: translateY(-2px);
-}
-
-.developer-social-links .social-btn.pink {
-  border-color: rgba(255, 42, 122, 0.3);
-}
-
-.developer-social-links .social-btn.pink:hover {
-  background: rgba(255, 42, 122, 0.15);
-  border-color: #ff2a7a;
-  color: #ff2a7a;
-  box-shadow: 0 0 20px rgba(255, 42, 122, 0.3);
-  transform: translateY(-2px);
-}
-
-/* Principles Panel */
-.developer-principles-panel {
-  padding: 44px 40px;
-}
-
-.developer-panel-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 28px;
-}
-
-.developer-panel-header h2 {
-  margin: 0;
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: 1.45rem;
-  color: #eef7ff;
-}
-
-.developer-principles-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 20px;
-}
-
-.developer-principle-card {
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  background: rgba(255, 255, 255, 0.02);
-  padding: 26px 22px;
-  transition: all 0.2s ease;
-}
-
-.developer-principle-card:hover {
-  border-color: rgba(0, 229, 255, 0.4);
-  background: rgba(0, 229, 255, 0.04);
+.dev-profile-card:hover {
   transform: translateY(-3px);
 }
 
-.developer-principle-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: #00e5ff;
-  background: rgba(0, 229, 255, 0.12);
-  border: 1px solid rgba(0, 229, 255, 0.4);
+/* 3-Column Vertical Developer Cards */
+.dev-column-card {
+  display: flex;
+  flex-direction: column;
+  padding: 30px 24px 26px;
+  height: 100%;
+}
+
+.dev-column-card .card-header-badge {
+  align-self: center;
   margin-bottom: 16px;
-  font-size: 1.15rem;
+  text-align: center;
+  font-size: 0.68rem;
+  padding: 5px 12px;
 }
 
-.developer-principle-card h3 {
-  margin: 0 0 10px;
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: 1.08rem;
-  color: #f3f8ff;
+.dev-column-card .card-inner {
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 16px;
+  margin-top: 0;
+  flex: 1;
+  display: flex;
 }
 
-.developer-principle-card p {
-  margin: 0;
-  font-size: 0.9rem;
-  line-height: 1.65;
-  color: #8e9bb2;
+.dev-column-card .card-avatar-wrap {
+  width: auto;
+  flex-shrink: 0;
 }
 
-@media (max-width: 1100px) {
-  .developer-stat-grid,
-  .developer-principles-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+.dev-column-card .card-avatar-glow {
+  width: 125px;
+  height: 125px;
+  filter: blur(22px);
 }
 
-@media (max-width: 900px) {
-  .developer-member-card,
-  .developer-member-card.reverse {
-    flex-direction: column;
-    text-align: center;
-    padding: 28px 20px;
-  }
-
-  .developer-member-head {
-    flex-direction: column;
-  }
-
-  .developer-member-content h3,
-  .developer-skill-list {
-    justify-content: center;
-  }
-
-  .developer-social-links {
-    justify-content: center;
-  }
-
-  .developer-avatar-wrap {
-    width: 140px;
-    height: 140px;
-  }
-
-  .developer-avatar,
-  .developer-avatar-img {
-    width: 120px;
-    height: 120px;
-  }
+.dev-column-card .card-avatar-img-box {
+  width: 125px;
+  height: 125px;
 }
 
-@media (max-width: 640px) {
-  .developer-page {
-    padding: 44px 4% 80px;
-  }
-
-  .developer-hero,
-  .developer-principles-panel {
-    padding: 26px 20px;
-  }
-
-  .developer-stat-grid,
-  .developer-principles-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .developer-panel-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
+.dev-column-card .card-tag-chip {
+  margin-top: 10px;
+  font-size: 0.72rem;
+  padding: 3px 12px;
 }
 
-/* ===== FACULTY MENTOR SECTION ===== */
-.faculty-mentor-panel {
-  border-radius: 28px;
-  border: 1px solid rgba(255, 191, 73, 0.28);
-  background: linear-gradient(145deg, rgba(255, 191, 73, 0.04), rgba(18, 20, 28, 0.7));
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 35px rgba(255, 191, 73, 0.08);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  padding: 38px 40px;
-  margin-bottom: 56px;
-  position: relative;
-  overflow: hidden;
+.dev-column-card .card-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  width: 100%;
 }
 
-.faculty-mentor-panel::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, #ffd576 0%, #f59e0b 50%, #c084fc 100%);
+.dev-column-card .card-title-row {
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  width: 100%;
 }
 
-.mentor-header-badge {
+.dev-column-card .card-name {
+  font-size: clamp(1.4rem, 1.7vw, 1.7rem);
+  text-align: center;
+  letter-spacing: 0.02em;
+  margin-bottom: 2px;
+}
+
+.dev-column-card .card-role-badge {
+  font-size: 0.84rem;
+  justify-content: center;
+  text-align: center;
+}
+
+.dev-column-card .card-tag-pill {
+  font-size: 0.72rem;
+  padding: 4px 12px;
+  margin-top: 4px;
+}
+
+.dev-column-card .card-institution {
+  font-size: 0.82rem;
+  margin-bottom: 12px;
+  text-align: center;
+  line-height: 1.45;
+}
+
+.dev-column-card .card-bio {
+  font-size: 0.88rem;
+  line-height: 1.62;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.dev-column-card .card-skills-list {
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 20px;
+}
+
+.dev-column-card .card-skills-list span {
+  font-size: 0.72rem;
+  padding: 4px 10px;
+}
+
+.dev-column-card .card-contact-actions {
+  margin-top: auto;
+  width: 100%;
+  justify-content: center;
+  gap: 8px;
+}
+
+.dev-column-card .card-primary-btn,
+.dev-column-card .card-secondary-btn {
+  flex: 1;
+  justify-content: center;
+  font-size: 0.82rem;
+  padding: 9px 12px;
+}
+
+/* Faculty Mentor Horizontal Banner Card */
+.faculty-mentor-card {
+  padding: 36px 36px;
+  margin-bottom: 0;
+}
+
+.faculty-mentor-card .card-inner {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 36px;
+}
+
+/* Top-Left Category Badge */
+.card-header-badge {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 14px;
+  padding: 6px 16px;
   border-radius: 999px;
-  background: rgba(255, 191, 73, 0.12);
-  border: 1px solid rgba(255, 191, 73, 0.32);
-  color: #ffd576;
   font-size: 0.74rem;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
-.mentor-card-inner {
+/* Main Inner Container: Avatar + Content */
+.card-inner {
   display: flex;
   gap: 36px;
   align-items: center;
-  margin-top: 14px;
+  margin-top: 10px;
 }
 
-.mentor-avatar-wrap {
+/* Circular Avatar Wrap with Glowing Halo */
+.card-avatar-wrap {
   width: 170px;
-  height: 170px;
   position: relative;
   display: inline-flex;
   flex-direction: column;
@@ -526,32 +313,35 @@
   flex-shrink: 0;
 }
 
-.mentor-avatar-glow {
+.card-avatar-glow {
   position: absolute;
-  inset: 18px;
-  border-radius: 50%;
-  filter: blur(26px);
-  opacity: 0.55;
-  background: rgba(255, 191, 73, 0.8);
-}
-
-.mentor-avatar-icon-box,
-.mentor-avatar-img-box {
+  top: 6px;
   width: 140px;
   height: 140px;
   border-radius: 50%;
-  background: linear-gradient(145deg, rgba(255, 191, 73, 0.2), rgba(168, 85, 247, 0.15));
-  border: 2px solid rgba(255, 191, 73, 0.6);
+  filter: blur(28px);
+  opacity: 0.55;
+  transition: opacity 0.3s ease;
+}
+
+.dev-profile-card:hover .card-avatar-glow {
+  opacity: 0.8;
+}
+
+.card-avatar-img-box {
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 28px rgba(255, 191, 73, 0.35);
   position: relative;
   z-index: 1;
   overflow: hidden;
+  background: rgba(10, 14, 22, 0.8);
 }
 
-.mentor-avatar-img {
+.card-avatar-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -559,34 +349,31 @@
   transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.mentor-card-inner:hover .mentor-avatar-img {
+.dev-profile-card:hover .card-avatar-img {
   transform: scale(1.06);
 }
 
-.mentor-icon {
-  font-size: 3.2rem;
-  color: #ffd576;
-}
-
-.mentor-tag-chip {
-  margin-top: 10px;
-  font-size: 0.72rem;
+/* Sub-Avatar Tag Chip */
+.card-tag-chip {
+  margin-top: 12px;
+  font-size: 0.74rem;
   font-weight: 800;
-  color: #ffd576;
-  background: rgba(255, 191, 73, 0.15);
-  border: 1px solid rgba(255, 191, 73, 0.35);
-  padding: 3px 10px;
+  padding: 4px 14px;
   border-radius: 999px;
   white-space: nowrap;
   letter-spacing: 0.04em;
+  position: relative;
+  z-index: 2;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
-.mentor-content {
+/* Content Column */
+.card-content {
   flex: 1;
   min-width: 0;
 }
 
-.mentor-title-row {
+.card-title-row {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
@@ -595,134 +382,406 @@
   flex-wrap: wrap;
 }
 
-.mentor-name {
+.card-name {
   margin: 0 0 4px;
   font-family: 'Space Grotesk', sans-serif;
-  font-size: clamp(1.8rem, 2.8vw, 2.3rem);
+  font-size: clamp(1.8rem, 2.8vw, 2.35rem);
   font-weight: 800;
   color: #ffffff;
   letter-spacing: -0.01em;
+  line-height: 1.15;
 }
 
-.mentor-role-badge {
+.card-role-badge {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  color: #ffd576;
-  font-size: 0.95rem;
+  font-size: 0.96rem;
   font-weight: 700;
 }
 
-.mentor-tag-pill {
-  padding: 6px 14px;
+.card-tag-pill {
+  padding: 6px 16px;
   border-radius: 999px;
-  background: linear-gradient(135deg, rgba(255, 191, 73, 0.18), rgba(245, 158, 11, 0.08));
-  border: 1px solid rgba(255, 191, 73, 0.4);
-  color: #ffd576;
   font-size: 0.82rem;
   font-weight: 800;
   letter-spacing: 0.04em;
-  box-shadow: 0 0 16px rgba(255, 191, 73, 0.15);
+  white-space: nowrap;
 }
 
-.mentor-institution {
+.card-institution {
   color: #38bdf8;
   font-size: 0.92rem;
   font-weight: 600;
   margin: 0 0 12px;
 }
 
-.mentor-bio {
+.card-bio {
   color: #94a3b8;
   font-size: 1.02rem;
   line-height: 1.7;
   margin: 0 0 18px;
 }
 
-.mentor-skills-list {
+.card-skills-list {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 22px;
 }
 
-.mentor-skills-list span {
+.card-skills-list span {
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 5px 12px;
+  padding: 5px 14px;
   font-size: 0.78rem;
   font-weight: 600;
   color: #e2e8f0;
   background: rgba(255, 255, 255, 0.04);
+  transition: all 0.2s ease;
 }
 
-.mentor-contact-actions {
+.card-skills-list span:hover {
+  background: rgba(255, 255, 255, 0.09);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.card-contact-actions {
   display: flex;
   gap: 12px;
   align-items: center;
   flex-wrap: wrap;
 }
 
-.mentor-email-btn {
+/* Primary Filled Action Button */
+.card-primary-btn {
   display: inline-flex;
   align-items: center;
   gap: 9px;
-  padding: 10px 20px;
+  padding: 10px 22px;
   border-radius: 12px;
-  background: linear-gradient(135deg, rgba(255, 191, 73, 0.95), rgba(245, 158, 11, 0.9));
-  color: #181102;
   font-weight: 800;
   font-size: 0.9rem;
   text-decoration: none;
-  box-shadow: 0 0 20px rgba(255, 191, 73, 0.35);
+  cursor: pointer;
   transition: all 0.2s ease;
+  border: none;
 }
 
-.mentor-email-btn:hover {
+.card-primary-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 0 28px rgba(255, 191, 73, 0.55);
-  background: linear-gradient(135deg, #ffd576, #f59e0b);
-  color: #000;
 }
 
-.mentor-copy-btn {
+/* Secondary Glass Action Button */
+.card-secondary-btn {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 18px;
+  padding: 10px 20px;
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.16);
   color: #e2e8f0;
   font-weight: 700;
   font-size: 0.88rem;
+  text-decoration: none;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
-.mentor-copy-btn:hover {
+.card-secondary-btn:hover {
   background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(255, 255, 255, 0.3);
-  color: #fff;
-  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.35);
+  color: #ffffff;
+  transform: translateY(-2px);
+}
+
+/* ==========================================================================
+   COLOR THEMES: DISTINCT PALETTE PER DEVELOPER
+   ========================================================================== */
+
+/* 1. ARIN GUPTA: ELECTRIC CYAN THEME */
+.dev-profile-card.tone-cyan {
+  border: 1px solid rgba(0, 229, 255, 0.35);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 35px rgba(0, 229, 255, 0.09);
+}
+
+.dev-profile-card.tone-cyan:hover {
+  border-color: rgba(0, 229, 255, 0.55);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7), 0 0 45px rgba(0, 229, 255, 0.18);
+}
+
+.dev-profile-card.tone-cyan .card-header-badge {
+  background: rgba(0, 229, 255, 0.12);
+  border: 1px solid rgba(0, 229, 255, 0.32);
+  color: #00e5ff;
+}
+
+.dev-profile-card.tone-cyan .card-avatar-glow {
+  background: rgba(0, 229, 255, 0.85);
+}
+
+.dev-profile-card.tone-cyan .card-avatar-img-box {
+  border: 2px solid rgba(0, 229, 255, 0.7);
+  box-shadow: 0 0 28px rgba(0, 229, 255, 0.38);
+}
+
+.dev-profile-card.tone-cyan .card-tag-chip {
+  color: #00e5ff;
+  background: rgba(0, 229, 255, 0.15);
+  border: 1px solid rgba(0, 229, 255, 0.4);
+}
+
+.dev-profile-card.tone-cyan .card-role-badge {
+  color: #00e5ff;
+}
+
+.dev-profile-card.tone-cyan .card-tag-pill {
+  background: linear-gradient(135deg, rgba(0, 229, 255, 0.18), rgba(0, 180, 216, 0.08));
+  border: 1px solid rgba(0, 229, 255, 0.4);
+  color: #00e5ff;
+  box-shadow: 0 0 16px rgba(0, 229, 255, 0.18);
+}
+
+.dev-profile-card.tone-cyan .card-primary-btn {
+  background: linear-gradient(135deg, #00e5ff, #00b4d8);
+  color: #041421;
+  box-shadow: 0 0 20px rgba(0, 229, 255, 0.38);
+}
+
+.dev-profile-card.tone-cyan .card-primary-btn:hover {
+  background: linear-gradient(135deg, #38bdf8, #00e5ff);
+  box-shadow: 0 0 28px rgba(0, 229, 255, 0.58);
+  color: #000000;
+}
+
+/* 2. KRISH DARGAR: NEON MAGENTA / PINK THEME */
+.dev-profile-card.tone-magenta {
+  border: 1px solid rgba(255, 42, 122, 0.35);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 35px rgba(255, 42, 122, 0.09);
+}
+
+.dev-profile-card.tone-magenta:hover {
+  border-color: rgba(255, 42, 122, 0.55);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7), 0 0 45px rgba(255, 42, 122, 0.18);
+}
+
+.dev-profile-card.tone-magenta .card-header-badge {
+  background: rgba(255, 42, 122, 0.12);
+  border: 1px solid rgba(255, 42, 122, 0.32);
+  color: #ff8db9;
+}
+
+.dev-profile-card.tone-magenta .card-avatar-glow {
+  background: rgba(255, 42, 122, 0.85);
+}
+
+.dev-profile-card.tone-magenta .card-avatar-img-box {
+  border: 2px solid rgba(255, 42, 122, 0.7);
+  box-shadow: 0 0 28px rgba(255, 42, 122, 0.38);
+}
+
+.dev-profile-card.tone-magenta .card-tag-chip {
+  color: #ff8db9;
+  background: rgba(255, 42, 122, 0.15);
+  border: 1px solid rgba(255, 42, 122, 0.4);
+}
+
+.dev-profile-card.tone-magenta .card-role-badge {
+  color: #ff8db9;
+}
+
+.dev-profile-card.tone-magenta .card-tag-pill {
+  background: linear-gradient(135deg, rgba(255, 42, 122, 0.18), rgba(244, 63, 94, 0.08));
+  border: 1px solid rgba(255, 42, 122, 0.4);
+  color: #ff8db9;
+  box-shadow: 0 0 16px rgba(255, 42, 122, 0.18);
+}
+
+.dev-profile-card.tone-magenta .card-primary-btn {
+  background: linear-gradient(135deg, #ff2a7a, #f43f5e);
+  color: #ffffff;
+  box-shadow: 0 0 20px rgba(255, 42, 122, 0.38);
+}
+
+.dev-profile-card.tone-magenta .card-primary-btn:hover {
+  background: linear-gradient(135deg, #fb7185, #ff2a7a);
+  box-shadow: 0 0 28px rgba(255, 42, 122, 0.58);
+  color: #ffffff;
+}
+
+/* 3. VIVEK CHAURASIYA: NEON EMERALD / JADE THEME */
+.dev-profile-card.tone-emerald {
+  border: 1px solid rgba(0, 245, 155, 0.35);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 35px rgba(0, 245, 155, 0.09);
+}
+
+.dev-profile-card.tone-emerald:hover {
+  border-color: rgba(0, 245, 155, 0.55);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7), 0 0 45px rgba(0, 245, 155, 0.18);
+}
+
+.dev-profile-card.tone-emerald .card-header-badge {
+  background: rgba(0, 245, 155, 0.12);
+  border: 1px solid rgba(0, 245, 155, 0.32);
+  color: #00f59b;
+}
+
+.dev-profile-card.tone-emerald .card-avatar-glow {
+  background: rgba(0, 245, 155, 0.85);
+}
+
+.dev-profile-card.tone-emerald .card-avatar-img-box {
+  border: 2px solid rgba(0, 245, 155, 0.7);
+  box-shadow: 0 0 28px rgba(0, 245, 155, 0.38);
+}
+
+.dev-profile-card.tone-emerald .card-tag-chip {
+  color: #00f59b;
+  background: rgba(0, 245, 155, 0.15);
+  border: 1px solid rgba(0, 245, 155, 0.4);
+}
+
+.dev-profile-card.tone-emerald .card-role-badge {
+  color: #00f59b;
+}
+
+.dev-profile-card.tone-emerald .card-tag-pill {
+  background: linear-gradient(135deg, rgba(0, 245, 155, 0.18), rgba(16, 185, 129, 0.08));
+  border: 1px solid rgba(0, 245, 155, 0.4);
+  color: #00f59b;
+  box-shadow: 0 0 16px rgba(0, 245, 155, 0.18);
+}
+
+.dev-profile-card.tone-emerald .card-primary-btn {
+  background: linear-gradient(135deg, #00f59b, #10b981);
+  color: #021a11;
+  box-shadow: 0 0 20px rgba(0, 245, 155, 0.38);
+}
+
+.dev-profile-card.tone-emerald .card-primary-btn:hover {
+  background: linear-gradient(135deg, #34d399, #00f59b);
+  box-shadow: 0 0 28px rgba(0, 245, 155, 0.58);
+  color: #000000;
+}
+
+/* 4. MR. ATUL CHAUHAN: ROYAL GOLD / AMBER THEME */
+.dev-profile-card.tone-amber {
+  border: 1px solid rgba(255, 191, 73, 0.35);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 35px rgba(255, 191, 73, 0.09);
+  margin-bottom: 56px;
+}
+
+.dev-profile-card.tone-amber:hover {
+  border-color: rgba(255, 191, 73, 0.55);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7), 0 0 45px rgba(255, 191, 73, 0.18);
+}
+
+.dev-profile-card.tone-amber .card-header-badge {
+  background: rgba(255, 191, 73, 0.12);
+  border: 1px solid rgba(255, 191, 73, 0.32);
+  color: #ffd576;
+}
+
+.dev-profile-card.tone-amber .card-avatar-glow {
+  background: rgba(255, 191, 73, 0.8);
+}
+
+.dev-profile-card.tone-amber .card-avatar-img-box {
+  border: 2px solid rgba(255, 191, 73, 0.6);
+  box-shadow: 0 0 28px rgba(255, 191, 73, 0.35);
+}
+
+.dev-profile-card.tone-amber .card-tag-chip {
+  color: #ffd576;
+  background: rgba(255, 191, 73, 0.15);
+  border: 1px solid rgba(255, 191, 73, 0.35);
+}
+
+.dev-profile-card.tone-amber .card-role-badge {
+  color: #ffd576;
+}
+
+.dev-profile-card.tone-amber .card-tag-pill {
+  background: linear-gradient(135deg, rgba(255, 191, 73, 0.18), rgba(245, 158, 11, 0.08));
+  border: 1px solid rgba(255, 191, 73, 0.4);
+  color: #ffd576;
+  box-shadow: 0 0 16px rgba(255, 191, 73, 0.15);
+}
+
+.dev-profile-card.tone-amber .card-primary-btn {
+  background: linear-gradient(135deg, #ffd576, #f59e0b);
+  color: #181102;
+  box-shadow: 0 0 20px rgba(255, 191, 73, 0.35);
+}
+
+.dev-profile-card.tone-amber .card-primary-btn:hover {
+  background: linear-gradient(135deg, #fde047, #f59e0b);
+  box-shadow: 0 0 28px rgba(255, 191, 73, 0.55);
+  color: #000000;
+}
+
+
+
+/* ==========================================================================
+   RESPONSIVE BEHAVIOR
+   ========================================================================== */
+
+@media (max-width: 1080px) {
+  .developer-team-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 900px) {
-  .mentor-card-inner {
+  .developer-hero {
+    padding: 32px 24px;
+  }
+
+  .developer-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .faculty-mentor-card {
+    padding: 28px 22px;
+  }
+
+  .faculty-mentor-card .card-inner {
     flex-direction: column;
     text-align: center;
     gap: 24px;
   }
 
-  .mentor-title-row {
+  .faculty-mentor-card .card-title-row {
     flex-direction: column;
     align-items: center;
     gap: 10px;
   }
 
-  .mentor-skills-list,
-  .mentor-contact-actions {
+  .faculty-mentor-card .card-skills-list,
+  .faculty-mentor-card .card-contact-actions {
     justify-content: center;
   }
 }
 
+@media (max-width: 720px) {
+  .developer-team-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 580px) {
+  .developer-stat-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .card-avatar-wrap {
+    width: 140px;
+  }
+
+  .card-avatar-img-box {
+    width: 120px;
+    height: 120px;
+  }
+}

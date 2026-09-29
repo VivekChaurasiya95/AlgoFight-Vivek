@@ -26,6 +26,7 @@ COPY apps/api/package.json ./apps/api/
 COPY apps/worker/package.json ./apps/worker/
 COPY apps/websocket/package.json ./apps/websocket/
 COPY apps/scheduler/package.json ./apps/scheduler/
+COPY frontend/package.json ./frontend/
 
 COPY packages/application/package.json ./packages/application/
 COPY packages/config/package.json ./packages/config/
