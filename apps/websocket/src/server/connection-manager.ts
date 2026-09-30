@@ -10,6 +10,7 @@ export interface UserPresence {
     platformCode?: string;
     userType?: string;
     institutionName?: string;
+    photoURL?: string;
     status: PlayerPresenceStatus;
     roomId?: string;
     connectedAt: number;

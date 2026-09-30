@@ -322,6 +322,8 @@ export class SocketHandler {
                     const platformCode = user?.platformCode || "";
                     const userType = user?.userType || "INDIVIDUAL";
                     const institutionName = user?.institutionName || undefined;
+                    const userMeta = (user?.studentIdentityMetadata as any) || {};
+                    const photoURL = (user as any)?.photoURL || userMeta.photoURL || data.photoURL || undefined;
 
                     this.connectionManager.registerUser(userId, socket, {
                         username: user?.username || username,
@@ -329,6 +331,7 @@ export class SocketHandler {
                         platformCode,
                         userType,
                         institutionName,
+                        photoURL,
                         status: "AVAILABLE",
                     });
 

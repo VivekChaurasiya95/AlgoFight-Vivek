@@ -15,6 +15,7 @@ export async function userRoutes(app: FastifyInstance) {
             email: req.user?.email || body.email,
             username: req.user?.username || body.username,
             displayName: body.displayName,
+            photoURL: body.photoURL,
             githubUrl: body.githubUrl,
             linkedinUrl: body.linkedinUrl,
             userType: body.userType,
