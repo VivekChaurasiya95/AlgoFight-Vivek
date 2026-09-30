@@ -370,6 +370,13 @@
 .arena-modes-col {
   display: flex;
   flex-direction: column;
+  min-width: 0;
+}
+
+.arena-players-tab-wrap {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .modes-grid-4.compact-modes-grid {

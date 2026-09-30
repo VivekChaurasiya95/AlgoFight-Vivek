@@ -398,46 +398,58 @@ export default function AvailablePlayers({ onPlayerCountChange }) {
         <div className="ap-container">
             {/* Top Compact Live Stats Bar */}
             <div className="ap-stats-row">
-                <div className="ap-stat-card tone-cyan">
-                    <div className="ap-stat-icon-wrap">
-                        <FontAwesomeIcon icon={faBolt} />
+                <div className="dash-card ap-stat-card">
+                    <div className="dash-card-header">
+                        <div className="dash-card-title-group">
+                            <div className="dash-icon-box icon-cyan">
+                                <FontAwesomeIcon icon={faUsers} />
+                            </div>
+                            <span className="dash-card-title">Online</span>
+                        </div>
+                        <span className="dash-pill-tag tag-cyan">REALTIME</span>
                     </div>
-                    <div className="ap-stat-info">
-                        <div className="ap-stat-number">{onlineCount}</div>
-                        <div className="ap-stat-label">Active Combatants Online</div>
-                    </div>
+                    <div className="dash-stat-big text-cyan-stat">{onlineCount}</div>
+                    <div className="dash-card-subtext">Active Combatants Online</div>
                 </div>
 
-                <div className="ap-stat-card tone-gold">
-                    <div className="ap-stat-icon-wrap">
-                        <FontAwesomeIcon icon={faCrosshairs} />
+                <div className="dash-card ap-stat-card">
+                    <div className="dash-card-header">
+                        <div className="dash-card-title-group">
+                            <div className="dash-icon-box icon-trophy">
+                                <FontAwesomeIcon icon={faBolt} />
+                            </div>
+                            <span className="dash-card-title">Ready 1v1</span>
+                        </div>
+                        <span className="dash-pill-tag tag-gold">AVAILABLE</span>
                     </div>
-                    <div className="ap-stat-info">
-                        <div className="ap-stat-number">{availableCount}</div>
-                        <div className="ap-stat-label">Ready for 1v1 Duel</div>
-                    </div>
+                    <div className="dash-stat-big text-gold">{availableCount}</div>
+                    <div className="dash-card-subtext">Ready for Instant Duel</div>
                 </div>
 
-                <div className="ap-stat-card tone-pink">
-                    <div className="ap-stat-icon-wrap">
-                        <FontAwesomeIcon icon={faFire} />
+                <div className="dash-card ap-stat-card">
+                    <div className="dash-card-header">
+                        <div className="dash-card-title-group">
+                            <div className="dash-icon-box icon-pink">
+                                <FontAwesomeIcon icon={faFire} />
+                            </div>
+                            <span className="dash-card-title">In Combat</span>
+                        </div>
+                        <span className="dash-pill-tag tag-pink">DUELING</span>
                     </div>
-                    <div className="ap-stat-info">
-                        <div className="ap-stat-number">{battlingCount}</div>
-                        <div className="ap-stat-label">In Live Battles</div>
-                    </div>
+                    <div className="dash-stat-big text-pink-stat">{battlingCount}</div>
+                    <div className="dash-card-subtext">Engaged in Live Battles</div>
                 </div>
             </div>
 
             {/* Filter & Search Bar */}
-            <div className="ap-toolbar">
+            <div className="dash-card ap-toolbar">
                 {/* Search Input */}
                 <div className="ap-search-box">
                     <FontAwesomeIcon icon={faMagnifyingGlass} className="ap-search-icon" />
                     <input
                         type="text"
                         className="ap-search-input"
-                        placeholder="Search online players by name, code (AF-...), institute..."
+                        placeholder="Search combatants by name, code (AF-...), institute..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                     />
@@ -446,32 +458,40 @@ export default function AvailablePlayers({ onPlayerCountChange }) {
                 {/* Status Filter Tabs */}
                 <div className="ap-filters-group">
                     <button
-                        className={`ap-tab-btn ${statusFilter === "ALL" ? "active" : ""}`}
+                        className={`arena-pill-tab ap-tab-btn ${statusFilter === "ALL" ? "active" : ""}`}
                         onClick={() => setStatusFilter("ALL")}
                     >
-                        🟢 All Online <span className="ap-count-pill">{onlineCount}</span>
+                        <span className="online-pulse-dot" />
+                        <span>All Online</span>
+                        <span className="ap-count-pill">{onlineCount}</span>
                     </button>
 
                     <button
-                        className={`ap-tab-btn ${statusFilter === "AVAILABLE" ? "active" : ""}`}
+                        className={`arena-pill-tab ap-tab-btn ${statusFilter === "AVAILABLE" ? "active" : ""}`}
                         onClick={() => setStatusFilter("AVAILABLE")}
                     >
-                        ⚡ Available <span className="ap-count-pill">{availableCount}</span>
+                        <FontAwesomeIcon icon={faBolt} className="text-cyan" />
+                        <span>Available</span>
+                        <span className="ap-count-pill">{availableCount}</span>
                     </button>
 
                     <button
-                        className={`ap-tab-btn ${statusFilter === "IN_BATTLE" ? "active" : ""}`}
+                        className={`arena-pill-tab ap-tab-btn ${statusFilter === "IN_BATTLE" ? "active" : ""}`}
                         onClick={() => setStatusFilter("IN_BATTLE")}
                     >
-                        ⚔️ In Duel <span className="ap-count-pill">{battlingCount}</span>
+                        <FontAwesomeIcon icon={faFire} className="text-pink" />
+                        <span>In Duel</span>
+                        <span className="ap-count-pill">{battlingCount}</span>
                     </button>
 
                     {inLobbyCount > 0 && (
                         <button
-                            className={`ap-tab-btn ${statusFilter === "IN_LOBBY" ? "active" : ""}`}
+                            className={`arena-pill-tab ap-tab-btn ${statusFilter === "IN_LOBBY" ? "active" : ""}`}
                             onClick={() => setStatusFilter("IN_LOBBY")}
                         >
-                            ⏳ In Lobby <span className="ap-count-pill">{inLobbyCount}</span>
+                            <FontAwesomeIcon icon={faHourglassHalf} className="text-gold" />
+                            <span>In Lobby</span>
+                            <span className="ap-count-pill">{inLobbyCount}</span>
                         </button>
                     )}
 
@@ -480,6 +500,7 @@ export default function AvailablePlayers({ onPlayerCountChange }) {
                         className="ap-sort-select"
                         value={sortBy}
                         onChange={(e) => setSortBy(e.target.value)}
+                        aria-label="Sort combatants"
                     >
                         <option value="rating">Highest Rating</option>
                         <option value="wins">Most Wins</option>
@@ -495,7 +516,17 @@ export default function AvailablePlayers({ onPlayerCountChange }) {
             </div>
 
             {/* High-Density Tabular Format */}
-            <div className="ap-table-container">
+            <div className="dash-card ap-table-container">
+                <div className="dash-card-header ap-table-header-bar">
+                    <div className="dash-card-title-group">
+                        <div className="dash-icon-box icon-purple">
+                            <FontAwesomeIcon icon={faShieldHalved} />
+                        </div>
+                        <span className="dash-card-title">Combatant Directory</span>
+                    </div>
+                    <span className="dash-pill-tag tag-purple">{filteredPlayers.length} COMBATANTS</span>
+                </div>
+
                 <div className="ap-table-responsive">
                     <table className="ap-table">
                         <thead>
@@ -626,14 +657,14 @@ export default function AvailablePlayers({ onPlayerCountChange }) {
                                                 </button>
                                             ) : isAvailable ? (
                                                 <button
-                                                    className="ap-btn-table-challenge"
+                                                    className="btn-hero-compete ap-btn-table-challenge"
                                                     onClick={(e) => {
                                                         e.stopPropagation();
                                                         handleSendChallenge(player);
                                                     }}
                                                     title={`Send direct 1v1 duel challenge to ${player.username}`}
                                                 >
-                                                    <FontAwesomeIcon icon={faBolt} /> Challenge 1v1
+                                                    <FontAwesomeIcon icon={faBolt} /> <span>Challenge 1v1</span>
                                                 </button>
                                             ) : isInBattle ? (
                                                 <span className="ap-status-tag-in-battle">
@@ -748,10 +779,10 @@ export default function AvailablePlayers({ onPlayerCountChange }) {
                             </p>
 
                             {incomingChallenge.config && (
-                                <div style={{ display: "flex", justifyContent: "center", gap: "12px", margin: "10px 0", fontSize: "0.8rem", color: "#00e5ff", background: "rgba(0, 229, 255, 0.08)", padding: "6px 12px", borderRadius: "8px", border: "1px solid rgba(0, 229, 255, 0.25)" }}>
-                                    <span>⏱️ {incomingChallenge.config.timeLimitMinutes || 15} Mins</span>
-                                    <span>🎯 {incomingChallenge.config.difficulty || "MEDIUM"}</span>
-                                    <span>📝 {incomingChallenge.config.problemCount || 1} Question{(incomingChallenge.config.problemCount || 1) > 1 ? "s" : ""}</span>
+                                <div className="ap-challenge-specs-row">
+                                    <span className="mode-chip ap-spec-chip">⏱️ {incomingChallenge.config.timeLimitMinutes || 15} Mins</span>
+                                    <span className="mode-chip ap-spec-chip">🎯 {incomingChallenge.config.difficulty || "MEDIUM"}</span>
+                                    <span className="mode-chip ap-spec-chip">📝 {incomingChallenge.config.problemCount || 1} Question{(incomingChallenge.config.problemCount || 1) > 1 ? "s" : ""}</span>
                                 </div>
                             )}
 

@@ -20,7 +20,9 @@ import {
   faBolt,
   faChevronLeft,
   faChevronRight,
-  faRightFromBracket
+  faRightFromBracket,
+  faDatabase,
+  faNetworkWired
 } from "@fortawesome/free-solid-svg-icons";
 
 import { useNotification } from "../../contexts/NotificationContext.jsx";
@@ -80,23 +82,58 @@ const SIDEBAR_SECTIONS = [
   {
     groupTitle: "INFRASTRUCTURE",
     items: [
-      { id: "overview", icon: faServer, title: "Platform Fleet" },
-      { id: "sandbox", icon: faCubes, title: "Elastic Sandbox" },
-      { id: "linux_telemetry", icon: faDesktop, title: "Linux Host Live" },
+      {
+        id: "overview",
+        icon: faServer,
+        title: "Platform Fleet",
+        desc: "Live operational health, latency benchmarks, and distributed service network topology."
+      },
+      {
+        id: "sandbox",
+        icon: faCubes,
+        title: "Elastic Sandbox",
+        desc: "Asymmetric BullMQ execution lanes, worker pool depths, and dynamic fleet auto-scaling."
+      },
+      {
+        id: "linux_telemetry",
+        icon: faDesktop,
+        title: "Linux Host Live",
+        desc: "FastAPI host telemetry streaming, CPU/RAM stress loads, and live process diagnostics."
+      },
     ],
   },
   {
     groupTitle: "OPERATIONS",
     items: [
-      { id: "users", icon: faUsers, title: "Users & Batches" },
-      { id: "broadcasts", icon: faBullhorn, title: "System Broadcasts" },
+      {
+        id: "users",
+        icon: faUsers,
+        title: "Users & Batches",
+        desc: "Combatant registry directory, institutional sub-batch distribution, and Elo rating records."
+      },
+      {
+        id: "broadcasts",
+        icon: faBullhorn,
+        title: "System Broadcasts",
+        desc: "Interactive global announcements, alert dispatching, and time-bound push notifications."
+      },
     ],
   },
   {
     groupTitle: "SECURITY & INSIGHTS",
     items: [
-      { id: "analytics", icon: faChartColumn, title: "Data Analytics" },
-      { id: "audit_trail", icon: faShieldHalved, title: "Audit Stream" },
+      {
+        id: "analytics",
+        icon: faChartColumn,
+        title: "Data Analytics",
+        desc: "Platform throughput metrics, error telemetry distributions, and geographic ingress maps."
+      },
+      {
+        id: "audit_trail",
+        icon: faShieldHalved,
+        title: "Audit Stream",
+        desc: "Cryptographic event audit trail, administrative actions, and real-time security telemetry."
+      },
     ],
   },
 ];
@@ -714,11 +751,18 @@ export default function ControlHub() {
             initial={{ opacity: 0, scale: 0.96 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.25 }}
-            className="lock-terminal glass-panel"
+            className="lock-terminal dash-card"
           >
-            <div className="lock-terminal-badge">
-              <span className="badge-pulse-dot" />
-              <span>RESTRICTED ACCESS</span>
+            <div className="hero-kicker-tag arena-kicker lock-kicker">
+              <span className="kicker-word word-glow-cyan">/// RESTRICTED ACCESS</span>
+              <span className="kicker-slash">/</span>
+              <span className="kicker-cross">+</span>
+              <span>CLEARANCE LEVEL 5</span>
+            </div>
+            <div className="lock-icon-crest">
+              <div className="dash-icon-box icon-cyan lock-icon-box">
+                <FontAwesomeIcon icon={faShieldHalved} />
+              </div>
             </div>
             <h2>SuperAdmin Clearance</h2>
             <p>
@@ -916,9 +960,14 @@ export default function ControlHub() {
         {/* Main Dashboard Content Area */}
         <main className="admin-main-content">
           {/* Top Platform Telemetry HUD */}
-          <div className="admin-telemetry-hud glass-panel">
+          <div className="admin-telemetry-hud dash-card">
             <div className="hud-metric-item">
-              <span className="hud-metric-label">API Gateway SLA</span>
+              <div className="hud-metric-header">
+                <div className="dash-icon-box icon-cyan">
+                  <FontAwesomeIcon icon={faServer} />
+                </div>
+                <span className="hud-metric-label">API Gateway SLA</span>
+              </div>
               <div className="hud-metric-val">
                 <strong className="cyan-text">
                   {metrics?.services?.apiGateway?.avgLatency || "<1ms"}
@@ -928,7 +977,12 @@ export default function ControlHub() {
             </div>
 
             <div className="hud-metric-item">
-              <span className="hud-metric-label">Cluster Sockets & Rooms</span>
+              <div className="hud-metric-header">
+                <div className="dash-icon-box icon-blue">
+                  <FontAwesomeIcon icon={faNetworkWired} />
+                </div>
+                <span className="hud-metric-label">Cluster Sockets</span>
+              </div>
               <div className="hud-metric-val">
                 <strong className="green-text">
                   {metrics?.services?.websocketGateway?.activeSockets ?? 0} Sockets
@@ -938,7 +992,12 @@ export default function ControlHub() {
             </div>
 
             <div className="hud-metric-item">
-              <span className="hud-metric-label">PostgreSQL & Redis</span>
+              <div className="hud-metric-header">
+                <div className="dash-icon-box icon-purple">
+                  <FontAwesomeIcon icon={faDatabase} />
+                </div>
+                <span className="hud-metric-label">PostgreSQL & Redis</span>
+              </div>
               <div className="hud-metric-val">
                 <strong className="purple-text">
                   {metrics?.services?.database?.status || "ONLINE"}
@@ -948,30 +1007,46 @@ export default function ControlHub() {
             </div>
 
             <div className="hud-metric-item">
-              <span className="hud-metric-label">Clearance & Security</span>
+              <div className="hud-metric-header">
+                <div className="dash-icon-box icon-trophy">
+                  <FontAwesomeIcon icon={faShieldHalved} />
+                </div>
+                <span className="hud-metric-label">Clearance & Security</span>
+              </div>
               <div className="hud-metric-val">
                 <strong className="gold-text">Level 5 Master</strong>
-                <span className="hud-metric-sub">SuperAdmin Clearance</span>
+                <span className="hud-metric-sub">Root Clearance</span>
               </div>
             </div>
           </div>
 
           {/* View Header */}
-          <div className="main-view-header glass-panel">
-            <div>
-              <div className="view-preheading">ADMINISTRATION CONSOLE</div>
-              <h1 className="view-title">
+          <div className="main-view-header arena-compact-header">
+            <div className="arena-header-left">
+              <div className="hero-kicker-tag arena-kicker">
+                <span className="kicker-word word-glow-cyan">/// SUPERADMIN CONSOLE</span>
+                <span className="kicker-slash">/</span>
+                <span className="kicker-cross">+</span>
+                <span>{currentItem?.title?.toUpperCase()}</span>
+              </div>
+              <h1 className="view-title arena-header-title">
                 {currentItem?.icon && (
                   <FontAwesomeIcon icon={currentItem.icon} className="view-title-icon" />
                 )}{" "}
                 {currentItem?.title}
               </h1>
-              <p className="view-subtitle">{currentItem?.desc}</p>
+              <p className="view-subtitle arena-header-subtext">{currentItem?.desc}</p>
             </div>
-            <div className="view-actions">
-              <span className="live-status-chip">
-                <span className="pulse-indicator online" /> TELEMETRY SYNCHRONIZED ({secondsSinceSync}s)
-              </span>
+            <div className="arena-header-right">
+              <div className="telemetry-bar arena-telemetry-bar">
+                <span className="live-status-pill">
+                  <span className="live-pulse-node" /> LIVE
+                </span>
+                <span className="telemetry-divider">|</span>
+                <span>SYNC: {secondsSinceSync}s</span>
+                <span className="telemetry-divider">|</span>
+                <span className="text-cyan">ROOT CLEARANCE</span>
+              </div>
             </div>
           </div>
 

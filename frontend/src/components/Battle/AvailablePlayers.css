@@ -2,95 +2,29 @@
 
 .ap-container {
     width: 100%;
-    margin-top: 1.5rem;
+    margin-top: 0;
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 14px;
 }
 
 /* ================= Top Real-Time Stats Bar ================= */
 .ap-stats-row {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 1rem;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+}
+
+@media (max-width: 768px) {
+    .ap-stats-row {
+        grid-template-columns: 1fr;
+    }
 }
 
 .ap-stat-card {
-    background: rgba(10, 14, 23, 0.78);
-    backdrop-filter: blur(18px);
-    -webkit-backdrop-filter: blur(18px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 18px;
-    padding: 16px 20px;
-    display: flex;
-    align-items: center;
-    gap: 1.2rem;
-    position: relative;
-    overflow: hidden;
-    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.06);
-    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease, box-shadow 0.25s ease;
-}
-
-.ap-stat-card:hover {
-    transform: translateY(-2px);
-    border-color: rgba(0, 229, 255, 0.35);
-    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.65), 0 0 18px rgba(0, 229, 255, 0.1);
-}
-
-.ap-stat-card::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 2px;
-    background: linear-gradient(90deg, transparent, var(--stat-accent, #00e5ff), transparent);
-}
-
-.ap-stat-card.tone-gold {
-    --stat-accent: #ffd700;
-}
-
-.ap-stat-card.tone-cyan {
-    --stat-accent: #00e5ff;
-}
-
-.ap-stat-card.tone-pink {
-    --stat-accent: #ff007f;
-}
-
-.ap-stat-icon-wrap {
-    width: 48px;
-    height: 48px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.35rem;
-    background: rgba(255, 255, 255, 0.04);
-    color: var(--stat-accent, #00e5ff);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.ap-stat-info {
+    padding: 14px 18px;
     display: flex;
     flex-direction: column;
-}
-
-.ap-stat-number {
-    font-size: 1.65rem;
-    font-weight: 800;
-    color: #fff;
-    font-family: monospace, inherit;
-    line-height: 1.1;
-}
-
-.ap-stat-label {
-    font-size: 0.78rem;
-    color: #8fa0b5;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    margin-top: 0.2rem;
 }
 
 /* ================= Live Pulse Badge ================= */
@@ -138,153 +72,139 @@
 
 /* ================= Filter & Search Bar ================= */
 .ap-toolbar {
-    background: rgba(10, 14, 23, 0.78);
-    backdrop-filter: blur(18px);
-    -webkit-backdrop-filter: blur(18px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 18px;
-    padding: 1rem 1.25rem;
+    padding: 10px 14px;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    gap: 1rem;
-    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    gap: 12px;
 }
 
 .ap-search-box {
     position: relative;
     flex: 1;
-    min-width: 260px;
-    max-width: 420px;
+    min-width: 220px;
+    max-width: 360px;
 }
 
 .ap-search-icon {
     position: absolute;
-    left: 1rem;
+    left: 0.9rem;
     top: 50%;
     transform: translateY(-50%);
-    color: #61758a;
-    font-size: 0.9rem;
+    color: #64748b;
+    font-size: 0.82rem;
+    pointer-events: none;
 }
 
 .ap-search-input {
     width: 100%;
-    padding: 0.65rem 1rem 0.65rem 2.6rem;
-    background: rgba(8, 12, 20, 0.8);
-    border: 1px solid rgba(0, 229, 255, 0.16);
-    border-radius: 8px;
+    padding: 7px 12px 7px 2.3rem;
+    background: rgba(8, 12, 20, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 999px;
     color: #fff;
-    font-size: 0.88rem;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.82rem;
     outline: none;
     transition: all 0.2s ease;
+    box-sizing: border-box;
 }
 
 .ap-search-input:focus {
     border-color: #00e5ff;
-    box-shadow: 0 0 12px rgba(0, 229, 255, 0.2);
+    box-shadow: 0 0 12px rgba(0, 229, 255, 0.22);
     background: rgba(8, 12, 20, 0.95);
 }
 
 .ap-search-input::placeholder {
-    color: #55687d;
+    color: #64748b;
 }
 
 .ap-filters-group {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 0.5rem;
+    gap: 6px;
 }
 
 .ap-tab-btn {
-    padding: 0.55rem 1rem;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 8px;
-    color: #9ab0c5;
-    font-size: 0.82rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    gap: 0.45rem;
-}
-
-.ap-tab-btn:hover {
-    background: rgba(0, 229, 255, 0.08);
-    color: #fff;
-    border-color: rgba(0, 229, 255, 0.25);
-}
-
-.ap-tab-btn.active {
-    background: linear-gradient(135deg, rgba(0, 229, 255, 0.2), rgba(0, 150, 255, 0.12));
-    color: #00e5ff;
-    border-color: #00e5ff;
-    box-shadow: 0 0 12px rgba(0, 229, 255, 0.18);
+    padding: 5px 12px;
+    font-size: 0.78rem;
 }
 
 .ap-count-pill {
-    padding: 0.12rem 0.45rem;
-    border-radius: 12px;
-    background: rgba(0, 0, 0, 0.4);
-    font-size: 0.72rem;
-    font-weight: 700;
-    color: #fff;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.1);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    font-weight: 800;
+    color: #94a3b8;
 }
 
 .ap-tab-btn.active .ap-count-pill {
-    background: #00e5ff;
-    color: #000;
+    background: rgba(0, 229, 255, 0.25);
+    color: #00e5ff;
 }
 
 .ap-sort-select {
-    padding: 0.55rem 0.9rem;
+    padding: 6px 12px;
     background: rgba(8, 12, 20, 0.85);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 999px;
     color: #cbd5e1;
-    font-size: 0.82rem;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 600;
     outline: none;
     cursor: pointer;
-    transition: border-color 0.2s;
+    transition: all 0.2s ease;
 }
 
 .ap-sort-select:hover,
 .ap-sort-select:focus {
     border-color: #00e5ff;
+    color: #fff;
+}
+
+.ap-sort-select option {
+    background: #0b101b;
+    color: #fff;
 }
 
 .ap-refresh-btn {
-    padding: 0.55rem 0.85rem;
-    background: rgba(255, 255, 255, 0.04);
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
-    color: #9ab0c5;
+    color: #94a3b8;
     cursor: pointer;
     transition: all 0.2s ease;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
+    font-size: 0.8rem;
 }
 
 .ap-refresh-btn:hover {
     background: rgba(0, 229, 255, 0.15);
     color: #00e5ff;
-    border-color: #00e5ff;
+    border-color: rgba(0, 229, 255, 0.4);
+    box-shadow: 0 0 10px rgba(0, 229, 255, 0.25);
 }
 
 /* ================= High-Density Tabular Format ================= */
 .ap-table-container {
-    width: 100%;
-    background: rgba(10, 14, 23, 0.78);
-    backdrop-filter: blur(18px);
-    -webkit-backdrop-filter: blur(18px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 18px;
+    padding: 0;
     overflow: hidden;
-    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.ap-table-header-bar {
+    padding: 12px 18px 10px;
+    margin-bottom: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .ap-table-responsive {
@@ -301,14 +221,15 @@
 }
 
 .ap-table thead th {
-    background: rgba(8, 12, 20, 0.75);
-    padding: 0.95rem 1.25rem;
+    background: rgba(8, 12, 20, 0.85);
+    padding: 10px 16px;
+    font-family: 'Space Grotesk', sans-serif;
     font-size: 0.72rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    color: #8da0b6;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    color: #94a3b8;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
     white-space: nowrap;
 }
 
@@ -598,37 +519,24 @@
 
 /* Col 5: Actions */
 .ap-btn-table-challenge {
-    padding: 0.45rem 1rem;
-    background: linear-gradient(135deg, rgba(0, 229, 255, 0.9), rgba(0, 140, 255, 0.9));
-    border: none;
-    border-radius: 7px;
-    color: #000;
-    font-weight: 800;
-    font-size: 0.78rem;
-    letter-spacing: 0.03em;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    transition: all 0.2s ease;
-    box-shadow: 0 0 12px rgba(0, 229, 255, 0.3);
+    padding: 5px 14px;
+    font-size: 0.76rem;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    border-radius: 999px;
     white-space: nowrap;
 }
 
-.ap-btn-table-challenge:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 0 18px rgba(0, 229, 255, 0.6);
-    background: linear-gradient(135deg, #00e5ff, #00b0ff);
-}
-
 .ap-btn-table-self {
-    padding: 0.45rem 0.9rem;
-    background: rgba(255, 215, 0, 0.08);
-    border: 1px solid rgba(255, 215, 0, 0.3);
-    border-radius: 7px;
+    padding: 5px 12px;
+    background: rgba(255, 213, 0, 0.08);
+    border: 1px solid rgba(255, 213, 0, 0.3);
+    border-radius: 999px;
     color: #ffd700;
+    font-family: 'Space Grotesk', sans-serif;
     font-weight: 700;
-    font-size: 0.78rem;
+    font-size: 0.76rem;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
@@ -638,7 +546,7 @@
 }
 
 .ap-btn-table-self:hover {
-    background: rgba(255, 215, 0, 0.18);
+    background: rgba(255, 213, 0, 0.18);
     border-color: #ffd700;
 }
 
@@ -938,4 +846,25 @@
     .ap-filters-group {
         justify-content: space-between;
     }
+}
+
+/* Challenge Specs in Modal */
+.ap-challenge-specs-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin: 12px 0;
+    flex-wrap: wrap;
+}
+
+.ap-spec-chip {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.74rem;
+    font-weight: 600;
+    color: #00e5ff;
+    background: rgba(0, 229, 255, 0.08);
+    border: 1px solid rgba(0, 229, 255, 0.25);
+    padding: 4px 10px;
+    border-radius: 999px;
 }

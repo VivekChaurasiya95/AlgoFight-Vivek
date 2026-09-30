@@ -195,11 +195,10 @@ export default function BattleArena({ defaultTab }) {
             </motion.div>
           ) : (
             <>
-              {/* ================= TAB 1: MODES WITH SIDE-BY-SIDE STATS DOSSIER ================= */}
-              {activeTab === "modes" && (
-                <div className="arena-main-layout">
-                  {/* Left Column: Player Combat Dossier (Compact Stats) */}
-                  <aside className="arena-stats-sidebar">
+              {/* ================= UNIFIED 2-COLUMN MAIN LAYOUT ================= */}
+              <div className="arena-main-layout">
+                {/* Left Column: Player Combat Dossier (Persistent across both tabs) */}
+                <aside className="arena-stats-sidebar">
                     {/* Card 1: Global Rating with ELO Graph */}
                     <motion.div
                       className="dash-card arena-sidebar-card rating-card"
@@ -340,9 +339,18 @@ export default function BattleArena({ defaultTab }) {
                     </motion.div>
                   </aside>
 
-                  {/* Right Column: 4 Combat Modes in a Clean 2x2 Grid */}
+                  {/* Right Column: Dynamic Combat Modes or Combatants Directory */}
                   <main className="arena-modes-col">
-                    <div className="modes-grid-4 compact-modes-grid">
+                    <AnimatePresence mode="wait">
+                      {activeTab === "modes" ? (
+                        <motion.div
+                          key="modes"
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -6 }}
+                          transition={{ duration: 0.2 }}
+                          className="modes-grid-4 compact-modes-grid"
+                        >
                       {/* Mode 1: Quick 1v1 Ranked Match */}
                       <motion.div
                         className="dash-card arena-mode-card featured-mode-card"
@@ -498,21 +506,22 @@ export default function BattleArena({ defaultTab }) {
                           <span>Spar with AlgoBot</span>
                         </button>
                       </motion.div>
-                    </div>
+                        </motion.div>
+                      ) : (
+                        <motion.div
+                          key="players"
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -6 }}
+                          transition={{ duration: 0.2 }}
+                          className="arena-players-tab-wrap"
+                        >
+                          <AvailablePlayers onPlayerCountChange={setOnlineCount} />
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </main>
                 </div>
-              )}
-
-              {/* ================= TAB 2: AVAILABLE PLAYERS DIRECTORY ================= */}
-              {activeTab === "players" && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="arena-players-fullwidth"
-                >
-                  <AvailablePlayers onPlayerCountChange={setOnlineCount} />
-                </motion.div>
               )}
             </>
           )}

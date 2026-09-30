@@ -28,7 +28,10 @@ import {
   faChevronLeft,
   faChevronRight,
   faExpand,
-  faCompress
+  faCompress,
+  faPaperPlane,
+  faSpinner,
+  faCheck,
 } from "@fortawesome/free-solid-svg-icons";
 import {
   SUPPORTED_LANGUAGES,
@@ -84,9 +87,10 @@ const PostBattleSummaryModal = ({ battleResult, liveState, problems, ratingUpdat
   return (
     <div className="modal-overlay">
       <motion.div
-        className="modal-content-hud"
-        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+        className="modal-content-hud summary-modal-content"
+        initial={{ opacity: 0, scale: 0.92, y: 16 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
       >
         <div className="modal-header">
           <div className="modal-title-group">
@@ -95,20 +99,32 @@ const PostBattleSummaryModal = ({ battleResult, liveState, problems, ratingUpdat
             </span>
             <h2>Battle Summary</h2>
           </div>
-          <button className="modal-close-btn" onClick={onClose}>
+          <button className="modal-close-btn" onClick={onClose} aria-label="Close summary">
             <FontAwesomeIcon icon={faTimes} />
           </button>
         </div>
 
         <div className="modal-body summary-body">
           <p className="summary-reason">{battleResult.message}</p>
+
+          {(() => {
+            const mePlayer = sortedPlayers.find((p) => p.userId === myUserId);
+            const mySwitches = mePlayer?.tabSwitches || 0;
+            return (
+              <div className={`summary-tab-switches-badge ${mySwitches > 0 ? 'has-switches' : ''}`}>
+                <FontAwesomeIcon icon={faShieldHalved} />
+                <span>Your Total Tab Switches: <strong>{mySwitches}</strong></span>
+              </div>
+            );
+          })()}
           
           <div className="summary-leaderboard">
-            <h3>Final Leaderboard</h3>
+            <h3 className="summary-section-title">Final Leaderboard</h3>
             <div className="leaderboard-grid">
               <div className="lb-header">Player</div>
               <div className="lb-header">Points</div>
               <div className="lb-header">Status</div>
+              <div className="lb-header">Tab Switches</div>
               <div className="lb-header">Rating</div>
               {sortedPlayers.map((p, i) => {
                 const ratingChange = ratingUpdates?.[p.userId]?.ratingDelta;
@@ -120,6 +136,7 @@ const PostBattleSummaryModal = ({ battleResult, liveState, problems, ratingUpdat
                   (p.username === battleResult.winner) ||
                   (ratingChange !== undefined && ratingChange > 0 && (sortedPlayers.length <= 2 || i === 0));
 
+                const isThisPlayerDisqualified = p.disqualified || p.status === "DISQUALIFIED";
                 const isThisPlayerForfeited = 
                   p.forfeited || 
                   p.status === "LEFT" || 
@@ -128,33 +145,40 @@ const PostBattleSummaryModal = ({ battleResult, liveState, problems, ratingUpdat
                 
                 return (
                   <React.Fragment key={p.userId || i}>
-                    <div className="lb-cell" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      {isThisPlayerWinner && <FontAwesomeIcon icon={faTrophy} style={{ color: "gold" }} />}
+                    <div className="lb-cell lb-player-cell">
+                      {isThisPlayerWinner && <FontAwesomeIcon icon={faTrophy} className="summary-trophy-icon" />}
                       <RankEmblem rating={newRating || p.rating || 0} size={22} glow={false} />
-                      <span style={{ fontWeight: isThisPlayerWinner ? '600' : 'normal' }}>
-                        {p.username} {p.userId === myUserId ? <span style={{ opacity: 0.7, fontSize: '0.85em' }}>(You)</span> : null}
+                      <span className={`summary-player-name ${isThisPlayerWinner ? 'is-winner' : ''}`}>
+                        {p.username} {p.userId === myUserId ? <span className="summary-you-tag">(You)</span> : null}
                       </span>
                     </div>
-                    <div className="lb-cell">{p.points || 0}</div>
+                    <div className="lb-cell lb-points-cell">{p.points || 0}</div>
                     <div className="lb-cell">
-                      {isThisPlayerForfeited ? (
-                        <span style={{ color: '#ef4444', fontWeight: 'bold' }}>Forfeited</span>
+                      {isThisPlayerDisqualified ? (
+                        <span className="summary-status-disqualified">Disqualified</span>
+                      ) : isThisPlayerForfeited ? (
+                        <span className="summary-status-forfeit">Forfeited</span>
                       ) : p.solvedCount === problems.length ? (
-                        <span style={{ color: '#4ade80', fontWeight: '600' }}>Completed</span>
+                        <span className="summary-status-complete">Completed</span>
                       ) : (
-                        <span style={{ color: '#94a3b8' }}>Incomplete</span>
+                        <span className="summary-status-incomplete">Incomplete</span>
                       )}
                     </div>
-                    <div className="lb-cell">
+                    <div className="lb-cell lb-switches-cell">
+                      <span className={`summary-switches-count ${(p.tabSwitches || 0) > 0 ? 'has-switches' : ''}`}>
+                        {p.tabSwitches || 0}
+                      </span>
+                    </div>
+                    <div className="lb-cell lb-rating-cell">
                       {newRating !== undefined ? (
                         <span>
                           {newRating} 
-                          <span style={{ color: ratingChange > 0 ? '#4ade80' : ratingChange < 0 ? '#ef4444' : '#94a3b8', marginLeft: '6px', fontSize: '0.85em', fontWeight: 'bold' }}>
+                          <span className={`summary-delta-tag ${ratingChange > 0 ? 'delta-pos' : ratingChange < 0 ? 'delta-neg' : 'delta-zero'}`}>
                             ({ratingChange > 0 ? '+' : ''}{ratingChange})
                           </span>
                         </span>
                       ) : (
-                        <span style={{ opacity: 0.5 }}>--</span>
+                        <span className="summary-muted-dash">--</span>
                       )}
                     </div>
                   </React.Fragment>
@@ -163,33 +187,28 @@ const PostBattleSummaryModal = ({ battleResult, liveState, problems, ratingUpdat
             </div>
           </div>
 
-          <div className="summary-matrix" style={{ marginTop: '20px' }}>
-            <h3>Per-Question Breakdown</h3>
-            <div className="matrix-grid" style={{ 
-               display: 'grid', 
-               gridTemplateColumns: `1.5fr repeat(${problems.length}, 1fr)`,
-               gap: '10px',
-               marginTop: '10px'
-            }}>
-              <div className="mx-header" style={{ fontWeight: 'bold' }}>Player</div>
+          <div className="summary-matrix">
+            <h3 className="summary-section-title">Per-Question Breakdown</h3>
+            <div 
+              className="matrix-grid" 
+              style={{ gridTemplateColumns: `1.5fr repeat(${problems.length}, 1fr)` }}
+            >
+              <div className="mx-header">Player</div>
               {problems.map((_, i) => (
-                <div key={i} className="mx-header" style={{ fontWeight: 'bold', textAlign: 'center' }}>Q{i + 1}</div>
+                <div key={i} className="mx-header mx-header-center">Q{i + 1}</div>
               ))}
               {sortedPlayers.map((p) => (
                 <React.Fragment key={p.userId}>
-                  <div className="mx-cell" style={{ fontWeight: p.userId === myUserId ? '600' : 'normal' }}>
+                  <div className={`mx-cell mx-player-cell ${p.userId === myUserId ? 'is-me' : ''}`}>
                     {p.username} {p.userId === myUserId ? "(You)" : ""}
                   </div>
                   {problems.map((prob) => {
                      const solvedData = p.solvedProblems?.find(sp => sp.problemId === prob.id);
                      return (
-                        <div key={prob.id} className="mx-cell" style={{ 
-                           textAlign: 'center',
-                           color: solvedData ? '#4ade80' : '#ef4444',
-                           background: 'rgba(255,255,255,0.05)',
-                           borderRadius: '4px',
-                           padding: '4px'
-                        }}>
+                        <div 
+                          key={prob.id} 
+                          className={`mx-cell mx-result-cell ${solvedData ? 'solved' : 'unsolved'}`}
+                        >
                           {solvedData ? `✓ ${solvedData.timeString}` : "✗ --"}
                         </div>
                      );
@@ -200,8 +219,10 @@ const PostBattleSummaryModal = ({ battleResult, liveState, problems, ratingUpdat
           </div>
         </div>
 
-        <div className="modal-actions" style={{ marginTop: '30px', display: 'flex', justifyContent: 'flex-end' }}>
-          <button className="livebattle-leave-btn" onClick={onClose}>Return to Arena</button>
+        <div className="modal-actions summary-modal-actions">
+          <button className="livebattle-return-btn" onClick={onClose}>
+            Return to Arena
+          </button>
         </div>
       </motion.div>
     </div>
@@ -213,6 +234,7 @@ export default function LiveBattle() {
   const location = useLocation();
   const { roomCode: paramRoomCode } = useParams();
   const { user } = useAuth();
+  const username = user?.displayName || user?.email?.split("@")[0] || "Player";
   const { notify } = useNotification();
   const { setActiveEvent, clearActiveEvent } = useActiveEvent();
 
@@ -270,6 +292,9 @@ export default function LiveBattle() {
   const [isSubmitPanelOpen, setIsSubmitPanelOpen] = useState(true);
   const [searchElapsed, setSearchElapsed] = useState(0);
   const [searchWindow, setSearchWindow] = useState("±50 ELO");
+  const [isSelfDisqualified, setIsSelfDisqualified] = useState(false);
+  const [reentryStatus, setReentryStatus] = useState("idle"); // "idle" | "pending" | "approved" | "rejected"
+  const [incomingPardonRequest, setIncomingPardonRequest] = useState(null);
 
   // Sync active battle session so user can roam and return
   useEffect(() => {
@@ -282,10 +307,12 @@ export default function LiveBattle() {
           roomCode: targetId,
           status: "RUNNING",
           timeLimitSeconds: timeLeft,
+          isDisqualified: isSelfDisqualified,
+          tabSwitches: 0,
         });
       }
     }
-  }, [status, roomId, initialRoomCode, paramRoomCode, setActiveEvent]);
+  }, [status, roomId, initialRoomCode, paramRoomCode, timeLeft, isSelfDisqualified, setActiveEvent]);
 
   // Fullscreen Mode State & Auto-Trigger
   const [isFullscreen, setIsFullscreen] = useState(!!document.fullscreenElement);
@@ -399,8 +426,39 @@ export default function LiveBattle() {
     };
   }, [isDraggingLeft, isDraggingRight]);
 
+  const currentTargetRoomId = roomId || initialMatch?.roomId || initialMatch?.roomCode || initialRoomCode || paramRoomCode;
+
   // Anti-Cheat Hook
-  const { isBlurred, violations } = useAntiCheat(status === "matched");
+  const { isBlurred, violations, tabSwitches, isDisqualified, setIsDisqualified, resetViolations } = useAntiCheat(
+    status === "matched" && !isSelfDisqualified,
+    {
+      roomId: currentTargetRoomId,
+      onTabSwitch: (count) => {
+        setActiveEvent((prev) => (prev ? { ...prev, tabSwitches: count } : prev));
+      },
+      onDisqualified: (count) => {
+        setIsSelfDisqualified(true);
+        notify({
+          type: "error",
+          title: "Anti-Cheat Disqualification",
+          message: `Disqualified for ${count} tab switches. Code editor and submissions locked. Re-entry requires host approval.`,
+          duration: 7000,
+        });
+        setActiveEvent((prev) => (prev ? { ...prev, isDisqualified: true, tabSwitches: count } : prev));
+      },
+    }
+  );
+
+  // Synchronize anti-cheat status from liveState if server marks player disqualified
+  useEffect(() => {
+    const myPlayer = liveState?.players?.find((p) => p.userId === user?.uid || p.username === username);
+    if (myPlayer?.disqualified || myPlayer?.status === "DISQUALIFIED") {
+      if (!isSelfDisqualified) {
+        setIsSelfDisqualified(true);
+        setIsDisqualified(true);
+      }
+    }
+  }, [liveState, user?.uid, username, isSelfDisqualified, setIsDisqualified]);
 
   // Search Timer Interval when queued
   useEffect(() => {
@@ -417,16 +475,6 @@ export default function LiveBattle() {
       if (interval) clearInterval(interval);
     };
   }, [status]);
-
-  useEffect(() => {
-    if (violations >= 3 && status !== "finished") {
-        notify({ type: "error", title: "Disqualified", message: "You have been disqualified for multiple anti-cheat violations.", duration: 5000 });
-        setStatus("finished");
-        setTimeout(() => {
-            navigate("/battle");
-        }, 3000);
-    }
-  }, [violations, status, navigate, notify]);
 
   const problem = problems[activeProblemIndex] || null;
 
@@ -542,7 +590,6 @@ export default function LiveBattle() {
   const [running, setRunning] = useState(false);
   const [runMode, setRunMode] = useState("idle");
   const socketRef = useRef(null);
-  const username = user?.displayName || user?.email || "Player";
 
   const sampleCases = Array.isArray(problem?.testCases) ? problem.testCases.slice(0, 2) : [];
 
@@ -1049,6 +1096,63 @@ export default function LiveBattle() {
         });
       });
 
+      socket.on("anti_cheat_disqualified", (data) => {
+        if (data?.targetUserId === user?.uid || !data?.targetUserId) {
+          setIsSelfDisqualified(true);
+          setIsDisqualified(true);
+          notify({
+            type: "error",
+            title: "Anti-Cheat Disqualification",
+            message: data?.reason || "Disqualified for anti-cheat violations. Request host approval to re-enter.",
+            duration: 7000,
+          });
+          setActiveEvent((prev) => (prev ? { ...prev, isDisqualified: true, tabSwitches: data?.tabSwitches || 3 } : prev));
+        }
+      });
+
+      socket.on("anticheat_pardon_requested", (data) => {
+        setIncomingPardonRequest(data);
+        notify({
+          type: "warning",
+          title: "Re-Entry Requested",
+          message: `${data.username || "A player"} was disqualified for anti-cheat (${data.tabSwitches || 3} tab switches) and is asking for pardon.`,
+          duration: 8000,
+        });
+      });
+
+      socket.on("anticheat_reentry_approved", (data) => {
+        if (data?.targetUserId === user?.uid || !data?.targetUserId) {
+          setIsSelfDisqualified(false);
+          setIsDisqualified(false);
+          resetViolations();
+          setReentryStatus("approved");
+          notify({
+            type: "success",
+            title: "Re-Entry Approved!",
+            message: "The host has approved your re-entry. You may resume coding and submitting!",
+            duration: 5000,
+          });
+          setActiveEvent((prev) => (prev ? { ...prev, isDisqualified: false } : prev));
+          setTimeout(() => setReentryStatus("idle"), 3000);
+        }
+      });
+
+      socket.on("anticheat_reentry_rejected", (data) => {
+        if (data?.targetUserId === user?.uid || !data?.targetUserId) {
+          setReentryStatus("rejected");
+          notify({
+            type: "error",
+            title: "Request Declined",
+            message: data?.reason || "The host declined your re-entry request.",
+            duration: 6000,
+          });
+        }
+      });
+
+      socket.on("anticheat_reentry_pending", () => {
+        setReentryStatus("pending");
+      });
+
       socket.on("disconnect", () => {
         setSyncStatus("degraded");
       });
@@ -1082,12 +1186,70 @@ export default function LiveBattle() {
         socketRef.current.off("player_readmitted");
         socketRef.current.off("timer_restored");
         socketRef.current.off("readmitted_to_battle");
+        socketRef.current.off("anti_cheat_disqualified");
+        socketRef.current.off("anticheat_pardon_requested");
+        socketRef.current.off("anticheat_reentry_approved");
+        socketRef.current.off("anticheat_reentry_rejected");
+        socketRef.current.off("anticheat_reentry_pending");
         socketRef.current.off("disconnect");
       }
       
       if (slowNotificationTimer.current) clearTimeout(slowNotificationTimer.current);
     };
   }, [notify, user?.uid, username, roomId, initialMatch, initialRoomCode, paramRoomCode]);
+
+  const handleSendReentryRequest = () => {
+    const targetId = roomId || initialMatch?.roomId || initialMatch?.roomCode || initialRoomCode || paramRoomCode;
+    if (socketRef.current && targetId) {
+      socketRef.current.emit("request_anticheat_reentry", {
+        roomId: targetId,
+        userId: user?.uid,
+        username,
+        tabSwitches: tabSwitches || violations || 3,
+      });
+      setReentryStatus("pending");
+      notify({
+        type: "info",
+        title: "Request Sent",
+        message: "Sent re-entry request to host. Awaiting approval...",
+        duration: 4000,
+      });
+    }
+  };
+
+  const handleApprovePardon = (req) => {
+    const targetId = roomId || initialMatch?.roomId || initialMatch?.roomCode || initialRoomCode || paramRoomCode;
+    if (socketRef.current && targetId && req?.userId) {
+      socketRef.current.emit("approve_anticheat_reentry", {
+        roomId: targetId,
+        targetUserId: req.userId,
+      });
+      setIncomingPardonRequest(null);
+      notify({
+        type: "success",
+        title: "Pardon Approved",
+        message: `Approved re-entry for ${req.username || "player"}.`,
+        duration: 3500,
+      });
+    }
+  };
+
+  const handleDeclinePardon = (req) => {
+    const targetId = roomId || initialMatch?.roomId || initialMatch?.roomCode || initialRoomCode || paramRoomCode;
+    if (socketRef.current && targetId && req?.userId) {
+      socketRef.current.emit("reject_anticheat_reentry", {
+        roomId: targetId,
+        targetUserId: req.userId,
+      });
+      setIncomingPardonRequest(null);
+      notify({
+        type: "info",
+        title: "Request Declined",
+        message: `Declined re-entry for ${req.username || "player"}.`,
+        duration: 3000,
+      });
+    }
+  };
 
   const onTestCode = () => {
     if (!roomId || !socketRef.current) return;
@@ -1157,56 +1319,27 @@ export default function LiveBattle() {
             {status === "connecting" ? "Establishing Secure Uplink..." : `Finding Opponent (${formatTime(searchElapsed)} / 00:25)`}
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', flexWrap: 'wrap', margin: '4px 0 16px' }}>
-            <span className="livebattle-chip" style={{ borderColor: 'rgba(0, 229, 255, 0.4)', color: '#00e5ff', background: 'rgba(0, 229, 255, 0.08)' }}>
+          <div className="livebattle-wait-chips">
+            <span className="livebattle-chip chip-bracket">
               🎯 Bracket: {searchWindow}
             </span>
-            <span className="livebattle-chip" style={{ borderColor: 'rgba(124, 255, 193, 0.3)', color: '#7cffc1' }}>
+            <span className="livebattle-chip chip-pool">
               ⚡ Global Redis Pool Active
             </span>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', margin: '10px 0 20px', flexWrap: 'wrap' }}>
+          <div className="livebattle-wait-actions">
             <button
+              type="button"
+              className="livebattle-bot-cta-btn"
               onClick={handlePlayVsBot}
-              style={{
-                background: 'linear-gradient(135deg, rgba(255, 170, 0, 0.22), rgba(255, 102, 0, 0.12))',
-                border: '1px solid rgba(255, 170, 0, 0.5)',
-                color: '#ffbe3b',
-                fontWeight: 700,
-                fontSize: '0.85rem',
-                letterSpacing: '0.04em',
-                padding: '9px 18px',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                transition: 'all 0.2s ease',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'linear-gradient(135deg, rgba(255, 170, 0, 0.36), rgba(255, 102, 0, 0.24))';
-                e.currentTarget.style.boxShadow = '0 0 14px rgba(255, 170, 0, 0.35)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'linear-gradient(135deg, rgba(255, 170, 0, 0.22), rgba(255, 102, 0, 0.12))';
-                e.currentTarget.style.boxShadow = 'none';
-              }}
             >
               <span>⚡ Play vs AlgoBot Now (Skip Wait)</span>
             </button>
             <button
+              type="button"
+              className="livebattle-cancel-cta-btn"
               onClick={handleCancelQueue}
-              style={{
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.18)',
-                color: '#d0dded',
-                fontSize: '0.82rem',
-                fontWeight: 600,
-                padding: '9px 16px',
-                borderRadius: '8px',
-                cursor: 'pointer',
-              }}
             >
               Cancel
             </button>
@@ -1239,6 +1372,36 @@ export default function LiveBattle() {
   return (
     <BackgroundPaths>
       <div className={`livebattle-page ${isFullscreen ? "is-fullscreen-mode" : ""}`}>
+        <AnimatePresence>
+          {incomingPardonRequest && (
+            <motion.div
+              initial={{ opacity: 0, y: -20, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -20, scale: 0.96 }}
+              className="host-pardon-floating-banner"
+            >
+              <div className="pardon-banner-content">
+                <div className="pardon-icon">
+                  <FontAwesomeIcon icon={faShieldHalved} />
+                </div>
+                <div className="pardon-text">
+                  <strong>Pardon Request: {incomingPardonRequest.username || "A Player"}</strong>
+                  <span>
+                    Disqualified for {incomingPardonRequest.tabSwitches || 3} tab switches. Approve re-entry to the battle?
+                  </span>
+                </div>
+                <div className="pardon-btn-group">
+                  <button className="pardon-btn approve" onClick={() => handleApprovePardon(incomingPardonRequest)}>
+                    <FontAwesomeIcon icon={faCheck} /> Approve Re-Entry
+                  </button>
+                  <button className="pardon-btn decline" onClick={() => handleDeclinePardon(incomingPardonRequest)}>
+                    <FontAwesomeIcon icon={faTimes} /> Decline
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
         {showSummary && (
            <PostBattleSummaryModal 
              battleResult={battleResult} 
@@ -1299,15 +1462,33 @@ export default function LiveBattle() {
                         <div className="player-name-row">
                           <span className="player-username">{p.username}</span>
                           {isMe && <span className="you-badge">YOU</span>}
-                          {hasLeft && <span className="left-badge">LEFT</span>}
+                          {p.disqualified && (
+                            <span className="disqualified-badge">
+                              DISQUALIFIED ({p.tabSwitches || 3})
+                            </span>
+                          )}
+                          {hasLeft && !p.disqualified && <span className="left-badge">LEFT</span>}
                           {isWinner && <span className="winner-badge"><FontAwesomeIcon icon={faTrophy} /> WIN</span>}
                           {/* Issue 4: Host participant controls */}
                           {((liveState?.hostId && liveState.hostId === user?.uid) || (initialMatch?.hostId && initialMatch.hostId === user?.uid)) && !isMe && (
-                            hasLeft ? (
+                            p.disqualified ? (
+                              <button
+                                type="button"
+                                className="host-btn pardon-btn"
+                                onClick={() => {
+                                  const targetId = roomId || initialMatch?.roomId || initialMatch?.roomCode || initialRoomCode || paramRoomCode;
+                                  if (socketRef.current && targetId) {
+                                    socketRef.current.emit("approve_anticheat_reentry", { roomId: targetId, targetUserId: p.userId });
+                                    notify({ type: "info", title: "Host Action", message: `Pardoned ${p.username}. Re-admitted to match.` });
+                                  }
+                                }}
+                              >
+                                Pardon
+                              </button>
+                            ) : hasLeft ? (
                               <button
                                 type="button"
                                 className="host-btn readmit-btn"
-                                style={{ marginLeft: "8px", fontSize: "0.68rem", padding: "1px 6px", background: "rgba(0, 229, 255, 0.15)", border: "1px solid #00e5ff", color: "#00e5ff", borderRadius: "4px", cursor: "pointer" }}
                                 onClick={() => {
                                   const targetId = roomId || initialMatch?.roomId || initialMatch?.roomCode || initialRoomCode || paramRoomCode;
                                   if (socketRef.current && targetId) {
@@ -1322,7 +1503,6 @@ export default function LiveBattle() {
                               <button
                                 type="button"
                                 className="host-btn kick-btn"
-                                style={{ marginLeft: "8px", fontSize: "0.68rem", padding: "1px 6px", background: "rgba(255, 77, 77, 0.15)", border: "1px solid #ff4d4d", color: "#ff4d4d", borderRadius: "4px", cursor: "pointer" }}
                                 onClick={() => {
                                   const targetId = roomId || initialMatch?.roomId || initialMatch?.roomCode || initialRoomCode || paramRoomCode;
                                   if (socketRef.current && targetId) {
@@ -1443,13 +1623,46 @@ export default function LiveBattle() {
             </div>
           </div>
 
-          <div className="code-editor-wrapper">
+          <div className="code-editor-wrapper" style={{ position: "relative" }}>
+            {isSelfDisqualified && (
+              <div className="live-disqualified-overlay">
+                <div className="live-disqualified-card">
+                  <div className="disqualified-icon">
+                    <FontAwesomeIcon icon={faShieldHalved} />
+                  </div>
+                  <h3>Disqualified for Anti-Cheat Violation</h3>
+                  <p>
+                    You have accumulated {tabSwitches || 3} tab switches. Code editing and submissions are locked.
+                  </p>
+                  <div className="disqualified-actions">
+                    {reentryStatus === "pending" ? (
+                      <div className="status-pill pending">
+                        <FontAwesomeIcon icon={faSpinner} spin /> Request Sent — Waiting for Host Approval...
+                      </div>
+                    ) : reentryStatus === "rejected" ? (
+                      <div className="rejected-flow">
+                        <div className="status-pill rejected">
+                          <FontAwesomeIcon icon={faTimes} /> Host Declined Re-Entry Request
+                        </div>
+                        <button className="request-pardon-btn" onClick={handleSendReentryRequest}>
+                          <FontAwesomeIcon icon={faPaperPlane} /> Retry Re-Entry Request
+                        </button>
+                      </div>
+                    ) : (
+                      <button className="request-pardon-btn" onClick={handleSendReentryRequest}>
+                        <FontAwesomeIcon icon={faPaperPlane} /> Send Re-Entry Request to Host
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
             <textarea
               className="livebattle-code-editor"
               value={code}
               onChange={(e) => handleCodeChange(e.target.value)}
               spellCheck="false"
-              disabled={status === "finished"}
+              disabled={status === "finished" || isSelfDisqualified}
               style={{ 
                   filter: isBlurred ? 'blur(8px)' : 'none',
                   transition: 'filter 0.3s'
@@ -1519,7 +1732,7 @@ export default function LiveBattle() {
               <button
                 className="livebattle-action-btn test-btn"
                 onClick={onTestCode}
-                disabled={running || status === "finished"}
+                disabled={running || status === "finished" || isSelfDisqualified}
               >
                 <FontAwesomeIcon icon={faFlask} />
                 {running && runMode === "test" ? "Testing..." : "Test (Sample)"}
@@ -1528,7 +1741,7 @@ export default function LiveBattle() {
               <button
                 className="livebattle-action-btn submit-btn"
                 onClick={onSubmitCode}
-                disabled={running || status === "finished"}
+                disabled={running || status === "finished" || isSelfDisqualified}
               >
                 <FontAwesomeIcon icon={faForward} />
                 {running && runMode === "submit" ? "Submitting..." : "Submit (All)"}
@@ -1536,7 +1749,6 @@ export default function LiveBattle() {
               
               <button
                 className="livebattle-action-btn detail-btn"
-                style={{ background: 'rgba(255,255,255,0.1)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)' }}
                 onClick={() => setShowDetailedAnalysis(true)}
                 disabled={!lastResult || running}
               >
