@@ -740,6 +740,11 @@ export class SocketHandler {
                     const { roomCode, userId, username } = data;
                     if (roomCode) {
                         const actualUserId = userId || currentUserId.value || "guest";
+                        const lobbyTimeoutKey = `lobby:${roomCode}:${actualUserId}`;
+                        if (this.disconnectTimeouts.has(lobbyTimeoutKey)) {
+                            clearTimeout(this.disconnectTimeouts.get(lobbyTimeoutKey));
+                            this.disconnectTimeouts.delete(lobbyTimeoutKey);
+                        }
                         
                         if (this.disconnectTimeouts.has(actualUserId)) {
                             clearTimeout(this.disconnectTimeouts.get(actualUserId));
@@ -787,9 +792,10 @@ export class SocketHandler {
                     const { roomCode, userId, username } = data;
                     if (roomCode) {
                         const actualUserId = userId || currentUserId.value;
+                        let leaveResult: { wasHost: boolean; remainingCount: number; newHostId?: string } | undefined;
                         if (actualUserId) {
                             try {
-                                await this.battleRoomService.leaveRoom(roomCode, actualUserId);
+                                leaveResult = await this.battleRoomService.leaveRoom(roomCode, actualUserId);
                             } catch {
                                 // Non-blocking if already left
                             }
@@ -805,11 +811,13 @@ export class SocketHandler {
                         this.connectionManager.broadcastToRoom(roomCode, "player_left", {
                             userId: actualUserId,
                             username: username || "Player",
+                            newHostId: leaveResult?.newHostId,
                         });
                         this.connectionManager.broadcastToRoom(roomCode, "room_updated", {
                             roomCode,
                             action: "player_left",
                             userId: actualUserId,
+                            newHostId: leaveResult?.newHostId,
                         });
                     }
                     break;
@@ -1561,23 +1569,42 @@ export class SocketHandler {
                 }
             } else {
                 // Check if in a waiting lobby room
-                try {
-                    const room = await this.battleRoomRepo.getRoomByCode(session.roomId)
-                        || await this.battleRoomRepo.getRoomById(session.roomId);
-                    if (room && room.status === "WAITING") {
-                        await this.battleRoomService.leaveRoom(room.id, session.userId);
-                        this.connectionManager.broadcastToRoom(session.roomId, "player_left", {
-                            userId: session.userId,
-                            username: session.username,
-                        });
-                        this.connectionManager.broadcastToRoom(session.roomId, "room_updated", {
-                            roomCode: room.roomCode,
-                            action: "player_left",
-                            userId: session.userId,
-                        });
+                const roomId = session.roomId;
+                const userId = session.userId;
+                const username = session.username;
+
+                // If user is still connected via another active socket, do not trigger lobby departure
+                const isStillConnected = userId && this.connectionManager.isUserConnected(userId);
+
+                if (!isStillConnected && roomId && userId) {
+                    const lobbyTimeoutKey = `lobby:${roomId}:${userId}`;
+                    if (!this.disconnectTimeouts.has(lobbyTimeoutKey)) {
+                        const timeout = setTimeout(async () => {
+                            this.disconnectTimeouts.delete(lobbyTimeoutKey);
+                            try {
+                                const room = await this.battleRoomRepo.getRoomByCode(roomId)
+                                    || await this.battleRoomRepo.getRoomById(roomId);
+                                if (room && room.status === "WAITING") {
+                                    const leaveResult = await this.battleRoomService.leaveRoom(room.id, userId);
+                                    this.connectionManager.broadcastToRoom(roomId, "player_left", {
+                                        userId,
+                                        username,
+                                        newHostId: leaveResult?.newHostId,
+                                    });
+                                    this.connectionManager.broadcastToRoom(roomId, "room_updated", {
+                                        roomCode: room.roomCode,
+                                        action: "player_left",
+                                        userId,
+                                        newHostId: leaveResult?.newHostId,
+                                    });
+                                }
+                            } catch {
+                                // Non-fatal cleanup error
+                            }
+                        }, 15000); // 15-second grace period for lobby reconnection/refresh
+
+                        this.disconnectTimeouts.set(lobbyTimeoutKey, timeout);
                     }
-                } catch {
-                    // Non-fatal cleanup error
                 }
             }
             this.connectionManager.leaveRoom(session.roomId, socket);

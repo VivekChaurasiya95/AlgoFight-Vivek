@@ -54,10 +54,16 @@ export default function RoomLobby() {
 
     const socketRef = useRef(null);
     const hasAttemptedAutoJoin = useRef(false);
+    const hasHandledExitRef = useRef(false);
 
     const currentUserId = user?.uid || user?.email || "Guest";
     const currentUsername = user?.displayName || user?.email?.split("@")[0] || "Player";
     const isHost = room?.hostId === currentUserId || room?.host?.id === currentUserId;
+    const isHostRef = useRef(isHost);
+
+    useEffect(() => {
+        isHostRef.current = isHost;
+    }, [isHost]);
 
     const loadRoom = async (isBackgroundSync = false) => {
         try {
@@ -66,9 +72,12 @@ export default function RoomLobby() {
             const roomData = data.room || data;
 
             if (roomData?.status === "CANCELLED") {
-                clearActiveEvent();
-                notify({ type: "info", title: "Lobby Closed", message: "The host left or the lobby was cancelled." });
-                navigate("/battle");
+                if (!hasHandledExitRef.current) {
+                    hasHandledExitRef.current = true;
+                    clearActiveEvent();
+                    notify({ type: "info", title: "Lobby Closed", message: "All participants left or the lobby was closed." });
+                    navigate("/battle");
+                }
                 return;
             }
 
@@ -203,7 +212,7 @@ export default function RoomLobby() {
                     const { event: evt, payload } = message;
 
                     if (evt === "join_request_received") {
-                        if (isHost && payload) {
+                        if (isHostRef.current && payload) {
                             setJoinRequests((prev) => [
                                 ...prev.filter((r) => r.userId !== payload.userId),
                                 payload,
@@ -300,7 +309,7 @@ export default function RoomLobby() {
                                 message: `${payload?.targetUsername || "A player"} was removed by the host.`
                             });
                             // Store in removedParticipants so host has 1-click button to let them back in
-                            if (isHost && payload?.targetUserId) {
+                            if (isHostRef.current && payload?.targetUserId) {
                                 setRemovedParticipants((prev) => [
                                     ...prev.filter((p) => p.userId !== payload.targetUserId),
                                     { userId: payload.targetUserId, username: payload.targetUsername || "Player" }
@@ -318,11 +327,26 @@ export default function RoomLobby() {
                                 message: `${payload.username} has left the lobby.`
                             });
                             // Store in removedParticipants so host can re-admit them
-                            if (isHost && payload?.userId) {
+                            if (isHostRef.current && payload?.userId) {
                                 setRemovedParticipants((prev) => [
                                     ...prev.filter((p) => p.userId !== payload.userId),
                                     { userId: payload.userId, username: payload.username || "Player" }
                                 ]);
+                            }
+                        }
+                        if (payload?.newHostId) {
+                            if (payload.newHostId === currentUserId) {
+                                notify({
+                                    type: "info",
+                                    title: "Promoted to Host",
+                                    message: "The previous host left. You are now the room host!",
+                                });
+                            } else {
+                                notify({
+                                    type: "info",
+                                    title: "Host Migrated",
+                                    message: "Host privileges were transferred to the next combatant.",
+                                });
                             }
                         }
                         loadRoom(true);
@@ -336,6 +360,15 @@ export default function RoomLobby() {
                                 message: `${payload.username} joined the lobby.`
                             });
                         }
+                        if (payload?.newHostId) {
+                            if (payload.newHostId === currentUserId) {
+                                notify({
+                                    type: "info",
+                                    title: "Promoted to Host",
+                                    message: "The previous host left. You are now the room host!",
+                                });
+                            }
+                        }
                         loadRoom(true);
                     }
 
@@ -345,7 +378,7 @@ export default function RoomLobby() {
                             roomCode: payload?.roomCode || roomCode,
                             roomId: payload?.roomId || room?.id,
                             status: "RUNNING",
-                            isHost,
+                            isHost: isHostRef.current,
                             participantCount: participants.length,
                         });
                         setStarting(true);
@@ -374,7 +407,7 @@ export default function RoomLobby() {
                 ws.close();
             }
         };
-    }, [roomCode, currentUserId, currentUsername, isHost]);
+    }, [roomCode, currentUserId, currentUsername]);
 
     // Copy Room Code to Clipboard
     const copyCode = () => {

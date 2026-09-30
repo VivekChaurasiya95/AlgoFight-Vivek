@@ -17,7 +17,7 @@ export interface BattleRoomRepository {
     getRoomById(roomId: string): Promise<BattleRoomEntity | null>;
     getRoomByCode(roomCode: string): Promise<BattleRoomEntity | null>;
     joinRoom(roomId: string, userId: string): Promise<BattleRoomEntity>;
-    leaveRoom(roomId: string, userId: string): Promise<{ wasHost: boolean; remainingCount: number }>;
+    leaveRoom(roomId: string, userId: string): Promise<{ wasHost: boolean; remainingCount: number; newHostId?: string }>;
     setPlayerReady(roomId: string, userId: string, isReady: boolean): Promise<BattleRoomEntity>;
     startBattle(roomId: string): Promise<BattleRoomEntity>;
     finishBattle(roomId: string): Promise<BattleRoomEntity>;

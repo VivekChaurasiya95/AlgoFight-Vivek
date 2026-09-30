@@ -174,7 +174,7 @@ export class PrismaBattleRoomRepository implements BattleRoomRepository {
         return this.mapToEntity(room);
     }
 
-    async leaveRoom(roomId: string, userId: string): Promise<{ wasHost: boolean; remainingCount: number }> {
+    async leaveRoom(roomId: string, userId: string): Promise<{ wasHost: boolean; remainingCount: number; newHostId?: string }> {
         return prisma.$transaction(async (tx: any) => {
             const room = await tx.battleRoom.findUniqueOrThrow({
                 where: { id: roomId },
@@ -189,12 +189,30 @@ export class PrismaBattleRoomRepository implements BattleRoomRepository {
 
             const remaining = await tx.battleParticipant.findMany({
                 where: { roomId },
+                orderBy: { joinedAt: "asc" },
             });
 
-            if (remaining.length === 0 || wasHost) {
+            let newHostId: string | undefined = undefined;
+
+            if (remaining.length === 0) {
+                // Only cancel the room if NO participants remain in the room
                 await tx.battleRoom.update({
                     where: { id: roomId },
                     data: { status: "CANCELLED" },
+                });
+            } else if (wasHost) {
+                // Host left, but room has other participants: persist room & migrate host to the next earliest participant
+                newHostId = remaining[0].userId;
+                const nextStatus = room.status === "RUNNING" ? "RUNNING" : (
+                    remaining.length >= 2 && remaining.every((p: any) => p.isReady) ? "READY" : "WAITING"
+                );
+
+                await tx.battleRoom.update({
+                    where: { id: roomId },
+                    data: {
+                        hostId: newHostId,
+                        status: nextStatus,
+                    },
                 });
             } else if (room.status === "READY") {
                 const allReady = remaining.length >= 2 && remaining.every((p: any) => p.isReady);
@@ -209,6 +227,7 @@ export class PrismaBattleRoomRepository implements BattleRoomRepository {
             return {
                 wasHost,
                 remainingCount: remaining.length,
+                newHostId,
             };
         });
     }

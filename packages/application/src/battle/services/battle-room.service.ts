@@ -109,7 +109,7 @@ export class BattleRoomService {
         return this.battleRoomRepository.joinRoom(room.id, userId);
     }
 
-    async leaveRoom(roomIdOrCode: string, userId: string): Promise<{ wasHost: boolean; remainingCount: number }> {
+    async leaveRoom(roomIdOrCode: string, userId: string): Promise<{ wasHost: boolean; remainingCount: number; newHostId?: string }> {
         const room = await this.getRoom(roomIdOrCode);
         return this.battleRoomRepository.leaveRoom(room.id, userId);
     }

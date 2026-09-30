@@ -157,6 +157,12 @@ export class ConnectionManager {
         }
     }
 
+    // Check if user has an active open WebSocket
+    isUserConnected(userId: string): boolean {
+        const socket = this.userSockets.get(userId);
+        return Boolean(socket && socket.readyState === WebSocket.OPEN);
+    }
+
     // Resolve any socket matching userId, presence username, or platformCode
     private getSocketByIdentifier(identifier: string): { userId: string; socket: WebSocket } | null {
         if (!identifier) return null;
