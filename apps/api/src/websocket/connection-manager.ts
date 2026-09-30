@@ -10,6 +10,7 @@ export interface UserPresence {
     platformCode?: string;
     userType?: string;
     institutionName?: string;
+    photoURL?: string;
     status: PlayerPresenceStatus;
     roomId?: string;
     connectedAt: number;
@@ -194,6 +195,12 @@ export class ConnectionManager {
                 this.roomSockets.delete(roomId);
             }
         }
+    }
+
+    // Check if user has an active open WebSocket
+    isUserConnected(userId: string): boolean {
+        const socket = this.userSockets.get(userId);
+        return Boolean(socket && socket.readyState === WebSocket.OPEN);
     }
 
     // Resolve any socket matching userId, presence username, or platformCode

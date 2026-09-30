@@ -109,9 +109,23 @@ export class AuthController {
                     department: institutionalData.department || null,
                     batchYear: institutionalData.batchYear || null,
                     platformCode,
+                    studentIdentityMetadata: googleUser.picture ? { photoURL: googleUser.picture } : undefined,
                 },
             });
             logger.info({ userId: user.id, username: user.username, department: user.department, userType }, "Created new user via Google authentication");
+        } else if (googleUser.picture) {
+            const existingMeta = (user.studentIdentityMetadata as any) || {};
+            if (existingMeta.photoURL !== googleUser.picture) {
+                user = await prisma.user.update({
+                    where: { id: user.id },
+                    data: {
+                        studentIdentityMetadata: {
+                            ...existingMeta,
+                            photoURL: googleUser.picture,
+                        },
+                    },
+                });
+            }
         }
 
         const isAdmin = isAdminEmail(user.email);

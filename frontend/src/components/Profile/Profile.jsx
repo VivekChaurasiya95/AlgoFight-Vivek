@@ -55,7 +55,26 @@ function Profile() {
     const [challengeTimeRemaining, setChallengeTimeRemaining] = useState(30);
 
     const targetUserId = userId || user?.email || user?.uid;
-    const isOwnProfile = !userId || userId === user?.uid || userId === user?.email || (profile && userId === profile?.id);
+    const isOwnProfile = Boolean(
+        user && (
+            !userId ||
+            userId === 'me' ||
+            userId === user.uid ||
+            userId === user.id ||
+            userId === user.email ||
+            (user.platformCode && userId === user.platformCode) ||
+            (profile && (
+                profile.id === user.uid ||
+                profile.id === user.id ||
+                profile.email === user.email ||
+                (user.platformCode && profile.platformCode === user.platformCode)
+            ))
+        )
+    );
+
+    useEffect(() => {
+        setAvatarError(false);
+    }, [userId, targetUserId]);
 
     const handleSaveFacultyDetails = async (data) => {
         try {
@@ -276,11 +295,12 @@ function Profile() {
 
     const displayName = profile?.username || profile?.displayName || (isOwnProfile ? (user?.displayName || user?.email) : 'Competitor');
     const email = isOwnProfile ? (profile?.email || user?.email || '') : (profile?.platformCode || profile?.email || '');
-    const photoURL = profile?.photoURL || (isOwnProfile ? user?.photoURL : '');
+    const targetPhoto = profile?.photoURL || profile?.avatarUrl || profile?.avatar || profile?.picture || null;
+    const photoURL = isOwnProfile ? (user?.photoURL || targetPhoto || '') : (targetPhoto || '');
 
     // Dynamic institutional academic fallback calculation if email is institutional
     const academicFallback = useMemo(() => {
-        const studentEmail = (email || user?.email || "").toLowerCase().trim();
+        const studentEmail = (email || (isOwnProfile ? user?.email : profile?.email) || "").toLowerCase().trim();
         if (!studentEmail.endsWith("@mitsgwl.ac.in")) return null;
 
         const match = studentEmail.match(/^(\d{2})([a-z]+)/i);
@@ -585,12 +605,14 @@ function Profile() {
                                 {photoURL && !avatarError ? (
                                     <img
                                         src={photoURL}
-                                        alt="Profile avatar"
+                                        alt={`${displayName}'s avatar`}
                                         className="profile-avatar-image"
                                         onError={() => setAvatarError(true)}
                                     />
                                 ) : (
-                                    <FontAwesomeIcon icon={faUser} />
+                                    <span className="profile-avatar-initial">
+                                        {(displayName || "P")[0].toUpperCase()}
+                                    </span>
                                 )}
                             </div>
 
@@ -604,11 +626,11 @@ function Profile() {
                                 </div>
                                 <h1 className="profile-display-name">{displayName}</h1>
                             <p className="profile-email-label">{email || (isFacultyProfile ? 'Faculty Member' : 'Competitor')}</p>
-                            {(profile?.platformCode || user?.platformCode) && (
+                            {(profile?.platformCode || (isOwnProfile ? user?.platformCode : null)) && (
                                 <div
                                     className="profile-code-badge"
                                     onClick={() => {
-                                        const codeToCopy = profile?.platformCode || user?.platformCode;
+                                        const codeToCopy = profile?.platformCode || (isOwnProfile ? user?.platformCode : null);
                                         if (codeToCopy) {
                                             navigator.clipboard.writeText(codeToCopy);
                                             notify({
@@ -621,7 +643,7 @@ function Profile() {
                                     }}
                                     title="Click to copy Platform Code"
                                 >
-                                    <span>{profile?.platformCode || user?.platformCode}</span>
+                                    <span>{profile?.platformCode || (isOwnProfile ? user?.platformCode : null)}</span>
                                     <FontAwesomeIcon icon={faCopy} className="profile-code-copy-icon" />
                                 </div>
                             )}

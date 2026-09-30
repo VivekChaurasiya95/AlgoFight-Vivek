@@ -223,7 +223,7 @@ export class BattleController {
     async leaveRoom(roomId: string, userId: string) {
         const resolvedUserId = await this.resolveUserId(userId);
         const result = await this.battleRoomService.leaveRoom(roomId, resolvedUserId);
-        if (result.remainingCount === 0 || result.wasHost) {
+        if (result.remainingCount === 0) {
             try {
                 const room = await this.battleRoomService.getRoom(roomId).catch(() => null);
                 const code = room?.roomCode || roomId;
@@ -232,6 +232,21 @@ export class BattleController {
                     event: "PUBLIC_CHALLENGE_REMOVED",
                     roomCode: code,
                 }));
+            } catch {}
+        } else if (result.wasHost && result.newHostId) {
+            try {
+                const room = await this.battleRoomService.getRoom(roomId).catch(() => null);
+                const code = room?.roomCode || roomId;
+                const newHostUser = await this.userRepository.getUserById(result.newHostId);
+                const existing = await this.redis.hget("public_battle_rooms", code);
+                if (existing) {
+                    const parsed = JSON.parse(existing);
+                    parsed.hostId = result.newHostId;
+                    parsed.hostUsername = newHostUser?.username || "Arena Host";
+                    parsed.hostRating = newHostUser?.rating ?? 1200;
+                    parsed.currentPlayers = result.remainingCount;
+                    await this.redis.hset("public_battle_rooms", code, JSON.stringify(parsed));
+                }
             } catch {}
         }
         return result;

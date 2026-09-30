@@ -8,6 +8,7 @@ export interface SyncUserPayload {
     email: string;
     username?: string;
     displayName?: string;
+    photoURL?: string;
     githubUrl?: string;
     linkedinUrl?: string;
     userType?: "STUDENT" | "FACULTY" | "INDIVIDUAL";
@@ -141,12 +142,13 @@ export class UserController {
             }
         }
 
-        if (payload.school || payload.designation) {
+        if (payload.school || payload.designation || payload.photoURL) {
             studentIdentityMetadata = {
                 ...(typeof studentIdentityMetadata === 'object' && studentIdentityMetadata !== null ? studentIdentityMetadata : {}),
                 ...(payload.school ? { school: payload.school.trim() } : {}),
                 ...(payload.designation ? { designation: payload.designation.trim() } : {}),
                 ...(department ? { department: department.trim() } : {}),
+                ...(payload.photoURL ? { photoURL: payload.photoURL } : {}),
             };
         }
 
@@ -184,6 +186,7 @@ export class UserController {
             ...user,
             school: user.school || syncMeta.school || null,
             designation: user.designation || syncMeta.designation || (user.userType === "FACULTY" ? "Faculty Educator" : null),
+            photoURL: (user as any).photoURL || syncMeta.photoURL || payload.photoURL || null,
             academicProfile,
             matchesWon: user.wins,
             matchesPlayed: user.wins + user.losses,
@@ -279,6 +282,7 @@ export class UserController {
             ...user,
             school: user.school || userMeta.school || null,
             designation: user.designation || userMeta.designation || (user.userType === "FACULTY" ? "Faculty Educator" : null),
+            photoURL: (user as any).photoURL || userMeta.photoURL || null,
             academicProfile,
             matchesWon: user.wins,
             matchesPlayed: user.wins + user.losses,
@@ -292,6 +296,7 @@ export class UserController {
         return users.map((u) => {
             const matchesPlayed = u.wins + u.losses;
             const winRate = matchesPlayed > 0 ? Math.round((u.wins / matchesPlayed) * 100) : 0;
+            const userMeta = (u.studentIdentityMetadata as any) || {};
             return {
                 id: u.id,
                 username: u.username,
@@ -306,6 +311,7 @@ export class UserController {
                 matchesWon: u.wins,
                 matchesPlayed,
                 winRate,
+                photoURL: (u as any).photoURL || userMeta.photoURL || null,
                 status: "OFFLINE",
                 createdAt: u.createdAt,
             };
@@ -314,14 +320,18 @@ export class UserController {
 
     async getLeaderboard() {
         const users = await this.userRepository.getTopUsers(50);
-        return users.map((u, index) => ({
-            rank: index + 1,
-            user: u.username,
-            score: u.rating,
-            wins: u.wins,
-            losses: u.losses,
-            trend: "same",
-        }));
+        return users.map((u, index) => {
+            const userMeta = (u.studentIdentityMetadata as any) || {};
+            return {
+                rank: index + 1,
+                user: u.username,
+                score: u.rating,
+                wins: u.wins,
+                losses: u.losses,
+                photoURL: (u as any).photoURL || userMeta.photoURL || null,
+                trend: "same",
+            };
+        });
     }
 
     async getPlatformStats() {

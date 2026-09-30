@@ -299,7 +299,7 @@ export default function CreateRoomModal({ isOpen, onClose }) {
                           <button
                             key={diff}
                             type="button"
-                            className={`pill-btn ${difficulty === diff ? "active" : ""}`}
+                            className={`pill-btn pill-diff-${diff.toLowerCase()} ${difficulty === diff ? "active" : ""}`}
                             onClick={() => setDifficulty(diff)}
                           >
                             {diff}
@@ -339,7 +339,7 @@ export default function CreateRoomModal({ isOpen, onClose }) {
                   <label style={{ fontSize: "0.82rem", fontWeight: 700, color: "#8fa1bc" }}>
                     SELECTED PROBLEM TAGS:
                   </label>
-                  <span style={{ fontSize: "0.78rem", color: "#00e5ff" }}>
+                  <span className="form-group-value-badge">
                     {selectedProblems.length} of 10 maximum
                   </span>
                 </div>
@@ -441,22 +441,21 @@ export default function CreateRoomModal({ isOpen, onClose }) {
             )}
 
             {/* Public Room Arena Broadcast Toggle */}
-            <div className="form-group-hud public-broadcast-toggle-box" style={{ marginTop: "16px", padding: "12px 14px", borderRadius: "10px", background: "rgba(0, 229, 255, 0.05)", border: "1px solid rgba(0, 229, 255, 0.22)" }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
-                <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
-                  <label style={{ fontSize: "0.86rem", fontWeight: 700, color: "#f1f5f9", display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", margin: 0 }} onClick={() => setIsPublic(prev => !prev)}>
-                    <FontAwesomeIcon icon={faBullhorn} style={{ color: isPublic ? "#00e5ff" : "#64748b" }} />
+            <div className="form-group-hud public-broadcast-toggle-box">
+              <div className="broadcast-toggle-header">
+                <div className="broadcast-toggle-info">
+                  <label className="broadcast-toggle-label" onClick={() => setIsPublic((prev) => !prev)}>
+                    <FontAwesomeIcon icon={faBullhorn} className="broadcast-toggle-icon" />
                     <span>Broadcast Public Challenge to Arena</span>
                   </label>
-                  <span style={{ fontSize: "0.72rem", color: "#8fa1bc" }}>
-                    Display on Home Screen "Battle Dispatch" & flash live notification to active coders
+                  <span className="broadcast-toggle-subtext">
+                    Display on Home Screen "Battle Dispatch" &amp; flash live notification to active coders
                   </span>
                 </div>
                 <button
                   type="button"
-                  className={`pill-btn ${isPublic ? "active" : ""}`}
-                  style={{ padding: "5px 14px", minWidth: "75px", fontWeight: 800, fontSize: "0.76rem" }}
-                  onClick={() => setIsPublic(prev => !prev)}
+                  className={`broadcast-toggle-pill ${isPublic ? "active" : ""}`}
+                  onClick={() => setIsPublic((prev) => !prev)}
                 >
                   {isPublic ? "PUBLIC" : "PRIVATE"}
                 </button>

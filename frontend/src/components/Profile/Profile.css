@@ -80,6 +80,19 @@
   object-fit: cover;
 }
 
+.profile-avatar-initial {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 800;
+  font-size: 2.2rem;
+  color: #00e5ff;
+  line-height: 1;
+  text-transform: uppercase;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .profile-identity-copy {
   min-width: 0;
   flex: 1;

@@ -254,6 +254,7 @@ export default function AvailablePlayers({ onPlayerCountChange }) {
                 winRate: dbData?.winRate ?? (dbData?.wins && (dbData.wins + (dbData.losses || 0)) > 0
                     ? Math.round((dbData.wins / (dbData.wins + dbData.losses)) * 100)
                     : 0),
+                photoURL: pres.photoURL || dbData?.photoURL || (isMe ? user?.photoURL : null),
                 status: pres.status || "AVAILABLE",
                 isMe,
             });
@@ -272,6 +273,7 @@ export default function AvailablePlayers({ onPlayerCountChange }) {
                 matchesWon: dbMe?.matchesWon ?? dbMe?.wins ?? 0,
                 matchesPlayed: dbMe?.matchesPlayed ?? ((dbMe?.wins || 0) + (dbMe?.losses || 0)),
                 winRate: dbMe?.winRate ?? 0,
+                photoURL: dbMe?.photoURL || user?.photoURL || null,
                 status: "AVAILABLE",
                 isMe: true,
             });
@@ -523,9 +525,17 @@ export default function AvailablePlayers({ onPlayerCountChange }) {
                                         <td className="td-player">
                                             <div className="ap-table-player-cell">
                                                 <div className="ap-table-avatar-wrap">
-                                                    <div className="ap-table-avatar">
-                                                        {(player.username || "P")[0].toUpperCase()}
-                                                    </div>
+                                                    {player.photoURL ? (
+                                                        <img
+                                                            src={player.photoURL}
+                                                            alt={player.username}
+                                                            className="ap-table-avatar-img"
+                                                        />
+                                                    ) : (
+                                                        <div className="ap-table-avatar">
+                                                            {(player.username || "P")[0].toUpperCase()}
+                                                        </div>
+                                                    )}
                                                     <span className={`ap-status-indicator ${player.status.toLowerCase()}`} />
                                                 </div>
 
