@@ -12,10 +12,12 @@ export default function GoogleAuthButton({
   onSuccess,
   onError,
   loading = false,
+  onFallbackToManual,
 }) {
   const containerRef = useRef(null);
   const [gisRendered, setGisRendered] = useState(false);
   const { notify } = useNotification();
+  const lastClickRef = useRef(0);
 
   const label = mode === "signup" ? "Sign up with Google" : "Sign in with Google";
 
@@ -33,6 +35,8 @@ export default function GoogleAuthButton({
       return;
     }
 
+    let isMounted = true;
+
     const init = async () => {
       try {
         await initializeGoogleSignIn(
@@ -40,7 +44,7 @@ export default function GoogleAuthButton({
           (err) => onErrorRef.current?.(err)
         );
 
-        if (containerRef.current) {
+        if (containerRef.current && isMounted) {
           renderGoogleButton(
             containerRef.current,
             {
@@ -50,14 +54,29 @@ export default function GoogleAuthButton({
               width: 380,
             },
             () => {
-              notify({
-                type: "warning",
-                title: "Google OAuth Setup",
-                message: "Please configure VITE_GOOGLE_CLIENT_ID in frontend/.env",
-              });
+              if (import.meta.env.DEV) {
+                notify({
+                  type: "warning",
+                  title: "Google OAuth Setup",
+                  message: "Please configure VITE_GOOGLE_CLIENT_ID in frontend/.env",
+                });
+              } else {
+                notify({
+                  type: "info",
+                  title: "Google Sign-In Unavailable",
+                  message: "Google Sign-In is unavailable. Please sign in with Email & Password.",
+                });
+              }
+              onFallbackToManual?.();
             }
           );
-          setGisRendered(true);
+
+          // Verify that Google GIS actually injected iframe content before switching
+          setTimeout(() => {
+            if (isMounted && containerRef.current && containerRef.current.children.length > 0) {
+              setGisRendered(true);
+            }
+          }, 150);
         }
       } catch (e) {
         console.warn("GIS button setup error:", e);
@@ -65,25 +84,73 @@ export default function GoogleAuthButton({
     };
 
     init();
-  }, [mode, notify]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [mode, notify, onFallbackToManual]);
 
   const handleManualClick = () => {
+    const now = Date.now();
+    if (now - lastClickRef.current < 1200) return; // Debounce rapid clicks
+    lastClickRef.current = now;
+
     if (!GOOGLE_CLIENT_ID) {
-      notify({
-        type: "warning",
-        title: "Google OAuth Setup Required",
-        message: "Please define VITE_GOOGLE_CLIENT_ID in frontend/.env with your Google Cloud Client ID.",
-        duration: 5000,
-      });
+      if (import.meta.env.DEV) {
+        notify({
+          type: "warning",
+          title: "Google OAuth Setup Required",
+          message: "Please define VITE_GOOGLE_CLIENT_ID in frontend/.env with your Google Cloud Client ID.",
+          duration: 5000,
+        });
+      } else {
+        notify({
+          type: "info",
+          title: "Google Sign-In Unavailable",
+          message: "Google Sign-In is temporarily unavailable. Please use Email & Password below.",
+          duration: 5000,
+        });
+      }
+      onFallbackToManual?.();
       return;
     }
 
     if (window.google?.accounts?.id) {
-      window.google.accounts.id.prompt((notification) => {
-        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-          console.warn("One-tap dismissed or not displayed");
-        }
+      try {
+        window.google.accounts.id.prompt((notification) => {
+          if (notification.isNotDisplayed()) {
+            const reason = notification.getNotDisplayedReason?.() || "";
+            console.warn("Google One-Tap not displayed:", reason);
+            notify({
+              type: "info",
+              title: "Google One-Tap Unavailable",
+              message: "Google prompt is unavailable for this session. Please use Email & Password.",
+              duration: 5000,
+            });
+            onFallbackToManual?.();
+          } else if (notification.isSkippedMoment()) {
+            const reason = notification.getSkippedReason?.() || "";
+            console.warn("Google One-Tap skipped:", reason);
+          }
+        });
+      } catch (err) {
+        console.warn("Error triggering Google prompt:", err);
+        notify({
+          type: "warning",
+          title: "Google Sign-In",
+          message: "Unable to open Google prompt. Please sign in with Email & Password.",
+          duration: 4000,
+        });
+        onFallbackToManual?.();
+      }
+    } else {
+      notify({
+        type: "warning",
+        title: "Google Sign-In",
+        message: "Google Identity Services is loading or blocked by your browser. Please use Email & Password.",
+        duration: 4000,
       });
+      onFallbackToManual?.();
     }
   };
 

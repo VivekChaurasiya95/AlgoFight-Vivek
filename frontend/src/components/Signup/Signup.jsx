@@ -6,10 +6,11 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useNotification } from "../../contexts/NotificationContext.jsx";
 import GoogleAuthButton from "../Common/GoogleAuthButton.jsx";
 import FacultyDetailsModal from "../Faculty/FacultyDetailsModal.jsx";
+import { isGoogleAuthAvailable } from "../../services/googleAuth";
 
 function Signup() {
   const [accountRole, setAccountRole] = useState("STUDENT"); // "STUDENT" | "FACULTY"
-  const [authMethod, setAuthMethod] = useState("google"); // "google" | "manual"
+  const [authMethod, setAuthMethod] = useState(() => isGoogleAuthAvailable() ? "google" : "manual");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -276,6 +277,7 @@ function Signup() {
                   onSuccess={handleGoogleSuccess}
                   onError={handleGoogleError}
                   loading={loading}
+                  onFallbackToManual={() => setAuthMethod("manual")}
                 />
               </motion.div>
             ) : (

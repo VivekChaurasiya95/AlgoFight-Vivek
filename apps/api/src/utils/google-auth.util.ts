@@ -77,7 +77,8 @@ class GoogleTokenVerifier {
             return null;
         }
 
-        const googleClientId = (process.env.GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID || "").trim();
+        const defaultClientId = "611350784550-vjjj8kl7qs0tg0n8o55o7ri7fee2197v.apps.googleusercontent.com";
+        const googleClientId = (process.env.GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID || defaultClientId).trim();
 
         const parts = token.split(".");
         if (parts.length !== 3) {

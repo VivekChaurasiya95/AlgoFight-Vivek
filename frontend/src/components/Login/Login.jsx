@@ -5,9 +5,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import { useNotification } from "../../contexts/NotificationContext.jsx";
 import GoogleAuthButton from "../Common/GoogleAuthButton.jsx";
+import { isGoogleAuthAvailable } from "../../services/googleAuth";
 
 function Login() {
-  const [authMethod, setAuthMethod] = useState("google"); // "google" | "manual"
+  const [authMethod, setAuthMethod] = useState(() => isGoogleAuthAvailable() ? "google" : "manual");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [emailError, setEmailError] = useState("");
@@ -159,6 +160,7 @@ function Login() {
                   onSuccess={handleGoogleSuccess}
                   onError={handleGoogleError}
                   loading={loading}
+                  onFallbackToManual={() => setAuthMethod("manual")}
                 />
               </motion.div>
             ) : (

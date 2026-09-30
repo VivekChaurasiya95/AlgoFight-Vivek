@@ -42,7 +42,13 @@ export function NotificationProvider({ children }) {
 
       // Safely schedule state update to prevent "Cannot update a component while rendering a different component"
       setTimeout(() => {
-        setNotifications((prev) => [...prev, next].slice(-MAX_VISIBLE_NOTIFICATIONS));
+        setNotifications((prev) => {
+          const isDuplicate = prev.some(
+            (p) => p.title === next.title && p.message === next.message
+          );
+          if (isDuplicate) return prev;
+          return [...prev, next].slice(-MAX_VISIBLE_NOTIFICATIONS);
+        });
       }, 0);
 
       if (duration > 0) {

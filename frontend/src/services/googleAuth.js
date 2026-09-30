@@ -1,5 +1,6 @@
 // frontend/src/services/googleAuth.js
-const RAW_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
+const DEFAULT_CLIENT_ID = "611350784550-vjjj8kl7qs0tg0n8o55o7ri7fee2197v.apps.googleusercontent.com";
+const RAW_CLIENT_ID = (import.meta.env.VITE_GOOGLE_CLIENT_ID || DEFAULT_CLIENT_ID || "").trim();
 const IS_VALID_CLIENT_ID =
   Boolean(RAW_CLIENT_ID) &&
   !RAW_CLIENT_ID.includes("YOUR_CLIENT_ID") &&
@@ -138,8 +139,8 @@ export function renderGoogleButton(containerElement, options = {}, onMissingClie
     btn.onclick = () => {
       if (typeof onMissingClientId === "function") {
         onMissingClientId();
-      } else {
-        alert("Google Sign-In configuration required: Please add VITE_GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com to frontend/.env");
+      } else if (import.meta.env.DEV) {
+        console.warn("Google Sign-In configuration required: Please add VITE_GOOGLE_CLIENT_ID to frontend/.env");
       }
     };
 
