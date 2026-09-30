@@ -32,6 +32,7 @@ export default function ResultPopup({ result, onClose }) {
             <div className="result-stats">
               <div>Score: <strong>{stats.score ?? "-"}</strong></div>
               <div>Time: <strong>{stats.time ?? "-"}</strong></div>
+              <div>Tab Switches: <strong style={{ color: (stats.tabSwitches ?? 0) > 0 ? '#f59e0b' : '#e9f5ff' }}>{stats.tabSwitches ?? 0}</strong></div>
             </div>
           )}
         </div>

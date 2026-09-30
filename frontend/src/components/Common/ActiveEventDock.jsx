@@ -15,7 +15,7 @@ import { useActiveEvent } from "../../contexts/ActiveEventContext";
 import "./ActiveEventDock.css";
 
 export default function ActiveEventDock() {
-    const { activeEvent, returnToEvent, leaveActiveEvent } = useActiveEvent();
+    const { activeEvent, returnToEvent, leaveActiveEvent, openRejoinModal } = useActiveEvent();
     const location = useLocation();
 
     if (!activeEvent) return null;
@@ -29,7 +29,10 @@ export default function ActiveEventDock() {
 
     if (isCurrentRoute) return null;
 
+    const isDisqualified = Boolean(activeEvent.isDisqualified);
+
     const getIcon = () => {
+        if (isDisqualified) return faShieldHalved;
         switch (activeEvent.type) {
             case "BATTLE":
                 return faBolt;
@@ -41,6 +44,9 @@ export default function ActiveEventDock() {
     };
 
     const getStatusText = () => {
+        if (isDisqualified) {
+            return `Pardon Required • ${activeEvent.tabSwitches || 3} Tab Switches`;
+        }
         if (activeEvent.type === "BATTLE") {
             return "Live Match in Progress";
         }
@@ -52,10 +58,18 @@ export default function ActiveEventDock() {
             : "Waiting for Host to Start";
     };
 
+    const handleMetaClick = () => {
+        if (isDisqualified) {
+            openRejoinModal();
+        } else {
+            returnToEvent();
+        }
+    };
+
     return (
         <AnimatePresence>
             <motion.aside
-                className="af-active-event-dock"
+                className={`af-active-event-dock ${isDisqualified ? "dock-disqualified" : ""}`}
                 initial={{ opacity: 0, y: 35, scale: 0.94 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 35, scale: 0.94 }}
@@ -77,10 +91,14 @@ export default function ActiveEventDock() {
                     </div>
 
                     {/* Meta info */}
-                    <div className="dock-meta" onClick={returnToEvent}>
+                    <div className="dock-meta" onClick={handleMetaClick}>
                         <div className="dock-title-row">
-                            <span className="dock-tag">
-                                {activeEvent.type === "BATTLE" ? "ARENA MATCH" : "ACTIVE LOBBY"}
+                            <span className={`dock-tag ${isDisqualified ? "dock-tag-danger" : ""}`}>
+                                {isDisqualified
+                                    ? "DISQUALIFIED"
+                                    : activeEvent.type === "BATTLE"
+                                    ? "ARENA MATCH"
+                                    : "ACTIVE LOBBY"}
                             </span>
                             {activeEvent.roomCode && (
                                 <span className="dock-room-code">{activeEvent.roomCode}</span>
@@ -100,12 +118,18 @@ export default function ActiveEventDock() {
                     <div className="dock-actions">
                         <button
                             type="button"
-                            className="dock-btn-return"
-                            onClick={returnToEvent}
-                            title="Return to room lobby"
+                            className={`dock-btn-return ${isDisqualified ? "dock-btn-pardon" : ""}`}
+                            onClick={isDisqualified ? openRejoinModal : returnToEvent}
+                            title={isDisqualified ? "Request host pardon" : "Return to session"}
                         >
-                            <span>Return to Lobby</span>
-                            <FontAwesomeIcon icon={faArrowRight} />
+                            <span>
+                                {isDisqualified
+                                    ? "Pardon Request"
+                                    : activeEvent.type === "BATTLE"
+                                    ? "Return to Battle"
+                                    : "Return to Lobby"}
+                            </span>
+                            <FontAwesomeIcon icon={isDisqualified ? faShieldHalved : faArrowRight} />
                         </button>
 
                         <button

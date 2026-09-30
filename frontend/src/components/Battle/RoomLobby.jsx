@@ -15,6 +15,7 @@ import {
     faUserSlash,
     faUserCheck,
     faTimes,
+    faCheck,
     faBell,
     faSearch,
     faFilter,
@@ -46,6 +47,7 @@ export default function RoomLobby() {
     const [starting, setStarting] = useState(false);
     const [countdown, setCountdown] = useState(null);
     const [joinRequests, setJoinRequests] = useState([]);
+    const [pardonRequests, setPardonRequests] = useState([]);
     const [removedParticipants, setRemovedParticipants] = useState([]);
     const [waitingForAdmission, setWaitingForAdmission] = useState(false);
     const [kickingUserId, setKickingUserId] = useState(null);
@@ -279,6 +281,44 @@ export default function RoomLobby() {
                                 roomCode: payload?.roomCode || roomCode
                             }
                         });
+                    }
+
+                    if (evt === "anticheat_pardon_requested") {
+                        if (isHostRef.current && payload) {
+                            setPardonRequests((prev) => [
+                                ...prev.filter((r) => r.userId !== payload.userId),
+                                payload,
+                            ]);
+                            notify({
+                                type: "warning",
+                                title: "Pardon Request",
+                                message: `${payload.username || "A player"} requested re-entry after anti-cheat disqualification (${payload.tabSwitches || 3} tab switches).`,
+                                duration: 8000,
+                            });
+                        }
+                    }
+
+                    if (evt === "anticheat_reentry_approved") {
+                        if (payload?.targetUserId === currentUserId) {
+                            notify({
+                                type: "success",
+                                title: "Re-Entry Approved!",
+                                message: "The host approved your re-entry into the room.",
+                                duration: 5000,
+                            });
+                            loadRoom(true);
+                        }
+                    }
+
+                    if (evt === "anticheat_reentry_rejected") {
+                        if (payload?.targetUserId === currentUserId) {
+                            notify({
+                                type: "error",
+                                title: "Request Declined",
+                                message: payload?.reason || "The host declined your re-entry request.",
+                                duration: 5000,
+                            });
+                        }
                     }
 
                     if (evt === "join_request_rejected") {
@@ -540,6 +580,37 @@ export default function RoomLobby() {
             }));
         }
         notify({ type: "info", title: "Requests Declined", message: `Declined ${currentBatch.length} pending join requests.` });
+    };
+
+    // Host Approves Anti-Cheat Pardon Request
+    const handleApprovePardon = (req) => {
+        setPardonRequests((prev) => prev.filter((r) => r.userId !== req.userId));
+        if (socketRef.current?.readyState === WebSocket.OPEN) {
+            socketRef.current.send(JSON.stringify({
+                action: "approve_anticheat_reentry",
+                payload: {
+                    roomId: room?.id || roomCode,
+                    targetUserId: req.userId,
+                },
+            }));
+        }
+        notify({ type: "success", title: "Pardon Approved", message: `Admitted ${req.username || "player"} back.` });
+        loadRoom(true);
+    };
+
+    // Host Rejects Anti-Cheat Pardon Request
+    const handleRejectPardon = (req) => {
+        setPardonRequests((prev) => prev.filter((r) => r.userId !== req.userId));
+        if (socketRef.current?.readyState === WebSocket.OPEN) {
+            socketRef.current.send(JSON.stringify({
+                action: "reject_anticheat_reentry",
+                payload: {
+                    roomId: room?.id || roomCode,
+                    targetUserId: req.userId,
+                },
+            }));
+        }
+        notify({ type: "info", title: "Request Declined", message: `Declined pardon for ${req.username || "player"}.` });
     };
 
     // Host Kicks Player
@@ -891,6 +962,69 @@ export default function RoomLobby() {
                                                 className="btn-req-reject"
                                                 onClick={() => handleRejectJoin(req)}
                                                 title="Decline player"
+                                            >
+                                                <FontAwesomeIcon icon={faTimes} />
+                                            </button>
+                                        </div>
+                                    </motion.div>
+                                ))}
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                {/* Host Anti-Cheat Pardon Requests Queue */}
+                <AnimatePresence>
+                    {isHost && pardonRequests.length > 0 && (
+                        <motion.div
+                            className="host-join-requests-panel"
+                            style={{ borderColor: "rgba(245, 158, 11, 0.45)", background: "rgba(24, 20, 12, 0.85)" }}
+                            initial={{ opacity: 0, y: -15 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                        >
+                            <div className="requests-header">
+                                <div className="requests-title">
+                                    <FontAwesomeIcon icon={faShieldHalved} style={{ color: "#fbbf24" }} className="pulse" />
+                                    <span style={{ color: "#fbbf24" }}>Anti-Cheat Pardon Requests ({pardonRequests.length})</span>
+                                </div>
+                            </div>
+
+                            <div className="requests-list">
+                                {pardonRequests.map((req) => (
+                                    <motion.div
+                                        key={req.userId}
+                                        className="request-item-card"
+                                        style={{ borderColor: "rgba(245, 158, 11, 0.35)" }}
+                                        initial={{ opacity: 0, scale: 0.95 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        exit={{ opacity: 0, scale: 0.9 }}
+                                    >
+                                        <div className="req-user-info">
+                                            <div className="req-avatar" style={{ background: "rgba(245, 158, 11, 0.2)", color: "#fbbf24", border: "1px solid rgba(245, 158, 11, 0.4)" }}>
+                                                {(req.username || "P")[0].toUpperCase()}
+                                            </div>
+                                            <div className="req-meta">
+                                                <div className="req-name" style={{ color: "#f8fafc" }}>{req.username || "Anonymous"}</div>
+                                                <div className="req-rating" style={{ color: "#f87171", fontSize: "0.8rem", fontWeight: 600 }}>
+                                                    Disqualified: {req.tabSwitches || 3} Tab Switches
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="req-actions">
+                                            <button
+                                                className="btn-req-allow"
+                                                style={{ background: "linear-gradient(135deg, rgba(16, 185, 129, 0.3), rgba(5, 150, 105, 0.4))", borderColor: "rgba(16, 185, 129, 0.6)", color: "#6ee7b7" }}
+                                                onClick={() => handleApprovePardon(req)}
+                                                title="Pardon anti-cheat violations and admit back"
+                                            >
+                                                <FontAwesomeIcon icon={faCheck} /> Approve Re-Entry
+                                            </button>
+                                            <button
+                                                className="btn-req-reject"
+                                                onClick={() => handleRejectPardon(req)}
+                                                title="Decline pardon"
                                             >
                                                 <FontAwesomeIcon icon={faTimes} />
                                             </button>
