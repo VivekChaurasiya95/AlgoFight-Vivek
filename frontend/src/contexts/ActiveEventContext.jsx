@@ -26,6 +26,10 @@ export function ActiveEventProvider({ children }) {
 
     const [countdown, setCountdown] = useState(null); // number | null (3, 2, 1...)
     const [pendingMatchData, setPendingMatchData] = useState(null);
+    const [isRejoinModalOpen, setIsRejoinModalOpen] = useState(true);
+
+    const openRejoinModal = useCallback(() => setIsRejoinModalOpen(true), []);
+    const closeRejoinModal = useCallback(() => setIsRejoinModalOpen(false), []);
 
     const activeEventRef = useRef(activeEvent);
     activeEventRef.current = activeEvent;
@@ -118,6 +122,14 @@ export function ActiveEventProvider({ children }) {
         const event = activeEventRef.current;
         if (!event) return;
 
+        // Disqualified users cannot directly rejoin without host pardon
+        if (event.isDisqualified) {
+            setIsRejoinModalOpen(true);
+            return;
+        }
+
+        setIsRejoinModalOpen(false);
+
         if (event.type === "LOBBY" && event.roomCode) {
             navigate(`/battle/room/${encodeURIComponent(event.roomCode)}`);
         } else if (event.type === "BATTLE") {
@@ -209,10 +221,43 @@ export function ActiveEventProvider({ children }) {
             }
         };
 
+        const handleAnticheatApproved = (data) => {
+            updateActiveEvent({ isDisqualified: false });
+            notify({
+                type: "success",
+                title: "Re-Entry Approved!",
+                message: data?.message || "The host approved your re-entry request! You can now re-enter.",
+                duration: 6000,
+            });
+        };
+
+        const handleAnticheatRejected = (data) => {
+            notify({
+                type: "error",
+                title: "Re-Entry Declined",
+                message: data?.message || "The host declined your re-entry request.",
+                duration: 6000,
+            });
+        };
+
+        const handleAnticheatDisqualified = (data) => {
+            if (data?.userId === currentUserId || !data?.userId) {
+                updateActiveEvent({
+                    isDisqualified: true,
+                    tabSwitches: data?.tabSwitches || 3,
+                    disqualificationReason: "ANTI_CHEAT",
+                });
+                setIsRejoinModalOpen(true);
+            }
+        };
+
         socket.on("battle_started", handleBattleStarted);
         socket.on("match_found", handleBattleStarted);
         socket.on("room_updated", handleRoomUpdated);
         socket.on("player_kicked", handlePlayerKicked);
+        socket.on("anticheat_reentry_approved", handleAnticheatApproved);
+        socket.on("anticheat_reentry_rejected", handleAnticheatRejected);
+        socket.on("anti_cheat_disqualified", handleAnticheatDisqualified);
 
         return () => {
             if (unregConnect) unregConnect();
@@ -221,6 +266,9 @@ export function ActiveEventProvider({ children }) {
             socket.off("match_found", handleBattleStarted);
             socket.off("room_updated", handleRoomUpdated);
             socket.off("player_kicked", handlePlayerKicked);
+            socket.off("anticheat_reentry_approved", handleAnticheatApproved);
+            socket.off("anticheat_reentry_rejected", handleAnticheatRejected);
+            socket.off("anti_cheat_disqualified", handleAnticheatDisqualified);
         };
     }, [activeEvent?.roomCode, currentUserId, currentUsername, location.pathname, navigate, notify, updateActiveEvent, clearActiveEvent]);
 
@@ -294,6 +342,10 @@ export function ActiveEventProvider({ children }) {
                 returnToEvent,
                 countdown,
                 pendingMatchData,
+                isRejoinModalOpen,
+                setIsRejoinModalOpen,
+                openRejoinModal,
+                closeRejoinModal,
             }}
         >
             {children}
