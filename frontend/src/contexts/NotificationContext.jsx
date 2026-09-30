@@ -30,13 +30,14 @@ export function NotificationProvider({ children }) {
   }, []);
 
   const notify = useCallback(
-    ({ title = "Notice", message = "", type = "info", duration = DEFAULT_DURATION }) => {
+    ({ title = "Notice", message = "", type = "info", duration = DEFAULT_DURATION, onClick = null }) => {
       const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       const next = {
         id,
         title,
         message,
         type,
+        onClick,
       };
 
       // Safely schedule state update to prevent "Cannot update a component while rendering a different component"
@@ -79,8 +80,15 @@ export function NotificationProvider({ children }) {
               animate={{ opacity: 1, x: 0, y: 0, scale: 1 }}
               exit={{ opacity: 0, x: 30, y: -10, scale: 0.96 }}
               transition={{ duration: 0.22, ease: "easeOut" }}
-              className={`app-notification-card app-notification-${item.type}`}
+              className={`app-notification-card app-notification-${item.type} ${item.onClick ? "is-clickable" : ""}`}
               role="status"
+              style={{ cursor: item.onClick ? "pointer" : "default" }}
+              onClick={(e) => {
+                if (item.onClick) {
+                  item.onClick(e);
+                  dismiss(item.id);
+                }
+              }}
             >
               <span className="app-notification-accent" />
 
@@ -93,7 +101,10 @@ export function NotificationProvider({ children }) {
                 type="button"
                 className="app-notification-close"
                 aria-label="Dismiss notification"
-                onClick={() => dismiss(item.id)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  dismiss(item.id);
+                }}
               >
                 x
               </button>

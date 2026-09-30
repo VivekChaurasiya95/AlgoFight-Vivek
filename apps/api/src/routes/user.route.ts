@@ -61,4 +61,9 @@ export async function userRoutes(app: FastifyInstance) {
     app.get("/leaderboard", async () => {
         return userController.getLeaderboard();
     });
+
+    // 5. Total Platform Coders Stats
+    app.get("/platform/stats", async () => {
+        return userController.getPlatformStats();
+    });
 }

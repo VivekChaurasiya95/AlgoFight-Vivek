@@ -316,4 +316,19 @@ export class PrismaBattleRoomRepository implements BattleRoomRepository {
 
         return expired.map((r: any) => this.mapToEntity(r));
     }
+
+    async getOpenWaitingRooms(limit = 20): Promise<BattleRoomEntity[]> {
+        const rooms = await prisma.battleRoom.findMany({
+            where: {
+                status: "WAITING",
+            },
+            orderBy: {
+                createdAt: "desc",
+            },
+            take: limit,
+            include: battleRoomInclude,
+        });
+
+        return rooms.map((r: any) => this.mapToEntity(r));
+    }
 }

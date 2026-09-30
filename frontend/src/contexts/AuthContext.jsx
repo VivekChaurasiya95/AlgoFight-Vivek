@@ -44,8 +44,21 @@ export const formatUser = (userData, token) => {
     department: userData.department || identityMeta.department,
     school: userData.school || identityMeta.school,
     designation: userData.designation || identityMeta.designation || (userData.userType === "FACULTY" ? "Faculty Educator" : null),
-    rating: userData.rating,
-    highestRank: userData.highestRank,
+    rating: Number(userData.rating ?? 0),
+    highestRating: Number(userData.highestRating ?? userData.rating ?? 0),
+    highestRank: userData.highestRank || "ROOKIE",
+    wins: Number(userData.wins ?? userData.matchesWon ?? 0),
+    losses: Number(userData.losses ?? userData.lossCount ?? 0),
+    matchesWon: Number(userData.matchesWon ?? userData.wins ?? 0),
+    matchesPlayed: Number(userData.matchesPlayed ?? ((userData.wins || 0) + (userData.losses || 0))),
+    currentStreak: Number(userData.currentStreak ?? 0),
+    longestStreak: Number(userData.longestStreak ?? userData.currentStreak ?? 0),
+    totalSubmissions: Number(userData.totalSubmissions ?? (userData.practiceSubmissionCount ?? 0)),
+    practiceSolvedCount: Number(userData.practiceSolvedCount ?? (userData.practiceSolvedProblemIds?.length ?? 0)),
+    practiceSolvedProblemIds: Array.isArray(userData.practiceSolvedProblemIds) ? userData.practiceSolvedProblemIds : [],
+    practiceSubmissionCount: Number(userData.practiceSubmissionCount ?? 0),
+    ratingHistory: Array.isArray(userData.ratingHistory) ? userData.ratingHistory : [],
+    ratingDelta: Number(userData.ratingDelta ?? 0),
     getIdToken: async () => currentToken || getSessionToken(),
   };
 };
@@ -64,7 +77,11 @@ export function AuthProvider({ children }) {
 
   const applyAuthenticatedState = useCallback(
     (authUser, token, profile) => {
-      const formatted = formatUser(authUser, token);
+      const mergedUser = {
+        ...authUser,
+        ...(profile || {}),
+      };
+      const formatted = formatUser(mergedUser, token);
       setUser(formatted);
       setStoredUser(formatted);
       if (token) setSessionToken(token);
@@ -226,11 +243,28 @@ export function AuthProvider({ children }) {
     return null;
   }, []);
 
+  // Refresh user stats from server across entire app
+  const refreshUser = useCallback(async () => {
+    const token = getSessionToken();
+    if (!token) return null;
+    try {
+      const meRes = await fetchMeApi();
+      if (meRes?.user) {
+        const profile = await fetchUserProfile(meRes.user.id).catch(() => null);
+        applyAuthenticatedState(meRes.user, token, profile);
+        return profile || meRes.user;
+      }
+    } catch {
+      return null;
+    }
+  }, [applyAuthenticatedState]);
+
   const value = {
     user,
     profileData,
     setProfileData,
     loading,
+    refreshUser,
     loginWithGoogle,
     loginManual,
     signupManual,

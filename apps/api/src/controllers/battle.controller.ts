@@ -70,10 +70,12 @@ export class BattleController {
         difficulty = "MIX",
         questionCount = 3,
         isFriendly?: boolean,
-        problemIds?: string[]
+        problemIds?: string[],
+        isPublic = true
     ) {
         const resolvedHostId = await this.resolveUser(authUser);
-        return this.battleRoomService.createRoom({
+        const hostUser = await this.userRepository.getUserById(resolvedHostId);
+        const room = await this.battleRoomService.createRoom({
             hostId: resolvedHostId,
             maxPlayers,
             timeLimitMinutes,
@@ -82,6 +84,76 @@ export class BattleController {
             isFriendly,
             problemIds,
         });
+
+        if (isPublic) {
+            const publicMeta = {
+                roomId: room.id,
+                roomCode: room.roomCode,
+                hostId: resolvedHostId,
+                hostUsername: hostUser?.username || authUser.username || "Arena Host",
+                hostRating: hostUser?.rating ?? 1200,
+                difficulty: room.difficulty,
+                questionCount: room.questionCount,
+                timeLimitMinutes: room.timeLimitMinutes,
+                maxPlayers: room.maxPlayers,
+                currentPlayers: 1,
+                isFriendly: room.isFriendly ?? false,
+                createdAt: room.createdAt ? new Date(room.createdAt).toISOString() : new Date().toISOString(),
+                isPublic: true,
+            };
+
+            try {
+                await this.redis.hset("public_battle_rooms", room.roomCode, JSON.stringify(publicMeta));
+                await this.redis.expire("public_battle_rooms", 1800);
+                await this.redis.publish("battle-events", JSON.stringify({
+                    event: "PUBLIC_CHALLENGE_CREATED",
+                    challenge: publicMeta,
+                }));
+            } catch (redisErr) {
+                // Non-fatal if redis fails to publish
+            }
+        }
+
+        return room;
+    }
+
+    async getPublicRooms() {
+        try {
+            const raw = await this.redis.hgetall("public_battle_rooms");
+            if (raw && Object.keys(raw).length > 0) {
+                const list = Object.values(raw).map((s) => {
+                    try { return JSON.parse(s); } catch { return null; }
+                }).filter(Boolean);
+                if (list.length > 0) {
+                    return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+                }
+            }
+        } catch {
+            // Fallback to database
+        }
+
+        try {
+            const dbRooms = await this.battleRoomService.getOpenWaitingRooms(10);
+            return dbRooms
+                .filter((r) => r.participants.length < r.maxPlayers)
+                .map((r) => ({
+                    roomId: r.id,
+                    roomCode: r.roomCode,
+                    hostId: r.hostId,
+                    hostUsername: r.host?.username || "Arena Host",
+                    hostRating: r.host?.rating ?? 1200,
+                    difficulty: r.difficulty,
+                    questionCount: r.questionCount,
+                    timeLimitMinutes: r.timeLimitMinutes,
+                    maxPlayers: r.maxPlayers,
+                    currentPlayers: r.participants.length,
+                    isFriendly: r.isFriendly,
+                    createdAt: r.createdAt ? new Date(r.createdAt).toISOString() : new Date().toISOString(),
+                    isPublic: true,
+                }));
+        } catch {
+            return [];
+        }
     }
 
     async getRoom(idOrCode: string, currentUserId?: string) {
@@ -126,12 +198,43 @@ export class BattleController {
 
     async joinRoom(idOrCode: string, userId: string, authUser?: { id: string; email?: string; username?: string }) {
         const resolvedUserId = await this.resolveUserId(userId, authUser);
-        return this.battleRoomService.joinRoom(idOrCode, resolvedUserId);
+        const room = await this.battleRoomService.joinRoom(idOrCode, resolvedUserId);
+        
+        try {
+            if (room.participants.length >= room.maxPlayers) {
+                await this.redis.hdel("public_battle_rooms", room.roomCode);
+                await this.redis.publish("battle-events", JSON.stringify({
+                    event: "PUBLIC_CHALLENGE_REMOVED",
+                    roomCode: room.roomCode,
+                }));
+            } else {
+                const existing = await this.redis.hget("public_battle_rooms", room.roomCode);
+                if (existing) {
+                    const parsed = JSON.parse(existing);
+                    parsed.currentPlayers = room.participants.length;
+                    await this.redis.hset("public_battle_rooms", room.roomCode, JSON.stringify(parsed));
+                }
+            }
+        } catch {}
+
+        return room;
     }
 
     async leaveRoom(roomId: string, userId: string) {
         const resolvedUserId = await this.resolveUserId(userId);
-        return this.battleRoomService.leaveRoom(roomId, resolvedUserId);
+        const result = await this.battleRoomService.leaveRoom(roomId, resolvedUserId);
+        if (result.remainingCount === 0 || result.wasHost) {
+            try {
+                const room = await this.battleRoomService.getRoom(roomId).catch(() => null);
+                const code = room?.roomCode || roomId;
+                await this.redis.hdel("public_battle_rooms", code);
+                await this.redis.publish("battle-events", JSON.stringify({
+                    event: "PUBLIC_CHALLENGE_REMOVED",
+                    roomCode: code,
+                }));
+            } catch {}
+        }
+        return result;
     }
 
     async kickPlayer(roomId: string, hostId: string, targetUserId: string) {
@@ -147,10 +250,28 @@ export class BattleController {
 
     async startBattle(roomId: string, hostId: string, problemId?: string) {
         const resolvedHostId = await this.resolveUserId(hostId);
-        return this.battleRoomService.startBattle(roomId, resolvedHostId, problemId);
+        const room = await this.battleRoomService.startBattle(roomId, resolvedHostId, problemId);
+        try {
+            await this.redis.hdel("public_battle_rooms", room.roomCode);
+            await this.redis.publish("battle-events", JSON.stringify({
+                event: "PUBLIC_CHALLENGE_REMOVED",
+                roomCode: room.roomCode,
+            }));
+        } catch {}
+        return room;
     }
 
     async finishBattle(roomId: string) {
-        return this.battleRoomService.finishBattle(roomId);
+        const result = await this.battleRoomService.finishBattle(roomId);
+        try {
+            if (result.room?.roomCode) {
+                await this.redis.hdel("public_battle_rooms", result.room.roomCode);
+                await this.redis.publish("battle-events", JSON.stringify({
+                    event: "PUBLIC_CHALLENGE_REMOVED",
+                    roomCode: result.room.roomCode,
+                }));
+            }
+        } catch {}
+        return result;
     }
 }

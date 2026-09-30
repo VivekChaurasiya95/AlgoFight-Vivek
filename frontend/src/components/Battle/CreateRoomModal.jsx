@@ -13,6 +13,7 @@ import {
   faCheck,
   faInfoCircle,
   faSpinner,
+  faBullhorn,
 } from "@fortawesome/free-solid-svg-icons";
 import { requestJson, fetchPracticeProblems } from "../../services/api";
 import { useAuth } from "../../contexts/AuthContext";
@@ -32,6 +33,7 @@ export default function CreateRoomModal({ isOpen, onClose }) {
   const [difficulty, setDifficulty] = useState("MEDIUM");
   const [questionCount, setQuestionCount] = useState(3);
   const [isFriendly, setIsFriendly] = useState(false);
+  const [isPublic, setIsPublic] = useState(true);
   const [creating, setCreating] = useState(false);
 
   // Custom problems state
@@ -139,6 +141,7 @@ export default function CreateRoomModal({ isOpen, onClose }) {
             ? selectedProblems.map((p) => String(p.id || p._id))
             : undefined,
         isFriendly,
+        isPublic,
       };
 
       const res = await requestJson("/api/battle/rooms", {
@@ -436,6 +439,29 @@ export default function CreateRoomModal({ isOpen, onClose }) {
                 </div>
               </div>
             )}
+
+            {/* Public Room Arena Broadcast Toggle */}
+            <div className="form-group-hud public-broadcast-toggle-box" style={{ marginTop: "16px", padding: "12px 14px", borderRadius: "10px", background: "rgba(0, 229, 255, 0.05)", border: "1px solid rgba(0, 229, 255, 0.22)" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+                  <label style={{ fontSize: "0.86rem", fontWeight: 700, color: "#f1f5f9", display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", margin: 0 }} onClick={() => setIsPublic(prev => !prev)}>
+                    <FontAwesomeIcon icon={faBullhorn} style={{ color: isPublic ? "#00e5ff" : "#64748b" }} />
+                    <span>Broadcast Public Challenge to Arena</span>
+                  </label>
+                  <span style={{ fontSize: "0.72rem", color: "#8fa1bc" }}>
+                    Display on Home Screen "Battle Dispatch" & flash live notification to active coders
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className={`pill-btn ${isPublic ? "active" : ""}`}
+                  style={{ padding: "5px 14px", minWidth: "75px", fontWeight: 800, fontSize: "0.76rem" }}
+                  onClick={() => setIsPublic(prev => !prev)}
+                >
+                  {isPublic ? "PUBLIC" : "PRIVATE"}
+                </button>
+              </div>
+            </div>
 
             <div className="modal-actions" style={{ marginTop: "20px" }}>
               <button

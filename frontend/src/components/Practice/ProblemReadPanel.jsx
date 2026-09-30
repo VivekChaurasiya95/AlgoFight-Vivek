@@ -107,13 +107,37 @@ export default function ProblemReadPanel({ problemId, onClose, initialProblem = 
     return parseProblemStatement(rawStatement);
   }, [rawStatement]);
 
-  // Sample test cases
+  // Sample test cases: prefer problem.testCases, fallback to parsed from statement, then example
   const sampleCases = useMemo(() => {
     if (Array.isArray(problem?.testCases) && problem.testCases.length > 0) {
-      return problem.testCases.slice(0, 2);
+      return problem.testCases.slice(0, 3).map((tc) => ({
+        input: tc.input || "",
+        expectedOutput: tc.expectedOutput ?? tc.output ?? "N/A",
+      }));
+    }
+    if (Array.isArray(parsed?.sampleCases) && parsed.sampleCases.length > 0) {
+      return parsed.sampleCases.slice(0, 3).map((sc) => ({
+        input: sc.input || "",
+        expectedOutput: sc.output || "N/A",
+      }));
+    }
+    if (problem?.example) {
+      return [{ input: problem.example, expectedOutput: "" }];
     }
     return [];
-  }, [problem]);
+  }, [problem, parsed]);
+
+  // Constraints: use parsed constraints or structured fallback execution limits
+  const constraintsList = useMemo(() => {
+    if (Array.isArray(parsed?.constraints) && parsed.constraints.length > 0) {
+      return parsed.constraints;
+    }
+    const fallback = [];
+    if (problem?.timeLimit) fallback.push(`Execution Time Limit: ${problem.timeLimit} ms`);
+    if (problem?.memoryLimit) fallback.push(`Memory Limit: ${problem.memoryLimit} MB`);
+    fallback.push("Standard I/O: Read from stdin, print to stdout");
+    return fallback;
+  }, [parsed?.constraints, problem?.timeLimit, problem?.memoryLimit]);
 
   const handleCopyInput = (inputStr, index) => {
     navigator.clipboard.writeText(inputStr || "");
@@ -260,7 +284,7 @@ export default function ProblemReadPanel({ problemId, onClose, initialProblem = 
           <div className="read-drawer-body">
             {/* Description Section */}
             {parsed.description.length > 0 && (
-              <section className="dash-card read-section-card">
+              <section className="read-section-card">
                 <div className="read-section-title">
                   <div className="dash-icon-box icon-cyan">
                     <FontAwesomeIcon icon={faBookOpen} />
@@ -278,15 +302,15 @@ export default function ProblemReadPanel({ problemId, onClose, initialProblem = 
             )}
 
             {/* Input Format Section */}
-            {parsed.inputFormat && (
-              <section className="dash-card read-section-card">
+            {parsed.inputFormat && parsed.inputFormat.length > 0 && (
+              <section className="read-section-card">
                 <div className="read-section-title">
                   <div className="dash-icon-box icon-purple">
                     <FontAwesomeIcon icon={faFileImport} />
                   </div>
                   <span>Input Format</span>
                 </div>
-                <div className="read-box">
+                <div className="read-box input-format-box">
                   {parsed.inputFormat.map((paragraph, idx) => (
                     <p key={idx} className="read-paragraph">
                       {paragraph}
@@ -297,15 +321,15 @@ export default function ProblemReadPanel({ problemId, onClose, initialProblem = 
             )}
 
             {/* Output Format Section */}
-            {parsed.outputFormat && (
-              <section className="dash-card read-section-card">
+            {parsed.outputFormat && parsed.outputFormat.length > 0 && (
+              <section className="read-section-card">
                 <div className="read-section-title">
                   <div className="dash-icon-box icon-blue">
                     <FontAwesomeIcon icon={faFileExport} />
                   </div>
                   <span>Output Format</span>
                 </div>
-                <div className="read-box">
+                <div className="read-box output-format-box">
                   {parsed.outputFormat.map((paragraph, idx) => (
                     <p key={idx} className="read-paragraph">
                       {paragraph}
@@ -316,88 +340,94 @@ export default function ProblemReadPanel({ problemId, onClose, initialProblem = 
             )}
 
             {/* Sample Test Cases */}
-            <section className="dash-card read-section-card">
-              <div className="read-section-title">
-                <div className="dash-icon-box icon-emerald">
-                  <FontAwesomeIcon icon={faVial} />
+            {(sampleCases.length > 0 || problem?.example) && (
+              <section className="read-section-card">
+                <div className="read-section-title">
+                  <div className="dash-icon-box icon-emerald">
+                    <FontAwesomeIcon icon={faVial} />
+                  </div>
+                  <span>Sample Test Cases</span>
+                  {sampleCases.length > 0 && (
+                    <span className="read-section-count-badge">
+                      {sampleCases.length} {sampleCases.length === 1 ? "Case" : "Cases"}
+                    </span>
+                  )}
                 </div>
-                <span>Sample Test Cases</span>
-              </div>
 
-              {sampleCases.length > 0 ? (
-                <div className="read-samples-list">
-                  {sampleCases.map((sample, idx) => {
-                    const inputVal = sample.input || "";
-                    const expectedVal = sample.expectedOutput ?? sample.output ?? "N/A";
+                {sampleCases.length > 0 ? (
+                  <div className="read-samples-list">
+                    {sampleCases.map((sample, idx) => {
+                      const inputVal = sample.input || "";
+                      const expectedVal = sample.expectedOutput ?? sample.output ?? "N/A";
 
-                    return (
-                      <div key={idx} className="read-sample-card">
-                        <div className="read-sample-header">
-                          <span className="sample-case-label">Case #{idx + 1}</span>
-                          <button
-                            type="button"
-                            className="read-copy-btn"
-                            onClick={() => handleCopyInput(inputVal, idx)}
-                            title="Copy input to clipboard"
-                          >
-                            <FontAwesomeIcon icon={copiedIndex === idx ? faCheck : faCopy} />
-                            <span>{copiedIndex === idx ? "Copied" : "Copy Input"}</span>
-                          </button>
-                        </div>
-                        <div className="read-sample-body">
-                          <div className="read-sample-block">
-                            <span className="read-sample-label">Input</span>
-                            <pre className="read-code-block">{inputVal}</pre>
+                      return (
+                        <div key={idx} className="read-sample-card">
+                          <div className="read-sample-header">
+                            <span className="sample-case-label">Case #{idx + 1}</span>
+                            <button
+                              type="button"
+                              className="read-copy-btn"
+                              onClick={() => handleCopyInput(inputVal, idx)}
+                              title="Copy input to clipboard"
+                            >
+                              <FontAwesomeIcon icon={copiedIndex === idx ? faCheck : faCopy} />
+                              <span>{copiedIndex === idx ? "Copied" : "Copy Input"}</span>
+                            </button>
                           </div>
-                          <div className="read-sample-block">
-                            <span className="read-sample-label">Expected Output</span>
-                            <pre className="read-code-block output-block">{expectedVal}</pre>
+                          <div className="read-sample-body">
+                            <div className="read-sample-block">
+                              <span className="read-sample-label">Input</span>
+                              <pre className="read-code-block">{inputVal}</pre>
+                            </div>
+                            <div className="read-sample-block">
+                              <span className="read-sample-label">Expected Output</span>
+                              <pre className="read-code-block output-block">{expectedVal}</pre>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : problem?.example ? (
-                <div className="read-box">
-                  <pre className="read-code-block">{problem.example}</pre>
-                </div>
-              ) : (
-                <p className="read-paragraph" style={{ opacity: 0.7, fontStyle: "italic" }}>
-                  No sample test cases available for this problem.
-                </p>
-              )}
-            </section>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="read-box">
+                    <pre className="read-code-block">{problem.example}</pre>
+                  </div>
+                )}
+              </section>
+            )}
 
             {/* Constraints Section */}
-            {parsed.constraints && (
-              <section className="dash-card read-section-card">
+            {constraintsList && constraintsList.length > 0 && (
+              <section className="read-section-card">
                 <div className="read-section-title">
                   <div className="dash-icon-box icon-pink">
                     <FontAwesomeIcon icon={faShieldHalved} />
                   </div>
-                  <span>Constraints</span>
+                  <span>Constraints & Specifications</span>
                 </div>
                 <div className="read-box constraints-box">
-                  {parsed.constraints.map((paragraph, idx) => (
-                    <p key={idx} className="read-paragraph constraint-item">
-                      {paragraph}
-                    </p>
-                  ))}
+                  <ul className="constraints-list">
+                    {constraintsList.map((constraintText, idx) => (
+                      <li key={idx} className="constraint-item">
+                        <span className="constraint-dot" />
+                        <span className="constraint-text">{constraintText}</span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               </section>
             )}
 
             {/* Note & Explanation */}
-            {parsed.note && (
-              <section className="dash-card read-section-card">
+            {parsed.note && parsed.note.length > 0 && (
+              <section className="read-section-card">
                 <div className="read-section-title">
                   <div className="dash-icon-box icon-trophy">
                     <FontAwesomeIcon icon={faLightbulb} />
                   </div>
                   <span>Note & Explanation</span>
                 </div>
-                <div className="read-box">
+                <div className="read-box note-box">
                   {parsed.note.map((paragraph, idx) => (
                     <p key={idx} className="read-paragraph">
                       {paragraph}

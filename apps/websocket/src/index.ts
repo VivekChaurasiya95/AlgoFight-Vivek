@@ -164,6 +164,16 @@ redisSubscriber.on("message", (channel, message) => {
                     })),
                 }).catch(() => {});
             }
+
+            if (payload.event === "PUBLIC_CHALLENGE_CREATED" && payload.challenge) {
+                connectionManager.broadcastPublicChallenge(payload.challenge);
+                // Also broadcast general room creation to all lobby listeners
+                connectionManager.broadcastToAll("public_challenge_created", payload.challenge);
+            }
+
+            if (payload.event === "PUBLIC_CHALLENGE_REMOVED" && payload.roomCode) {
+                connectionManager.broadcastToAll("public_challenge_removed", { roomCode: payload.roomCode });
+            }
         } catch (error) {
             logger.error({ error }, "Error parsing battle-events message");
         }

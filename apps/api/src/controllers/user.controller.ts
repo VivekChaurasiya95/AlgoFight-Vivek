@@ -1,5 +1,5 @@
 // apps/api/src/controllers/user.controller.ts
-import { PrismaUserRepository } from "@algofight/database";
+import { PrismaUserRepository, prisma } from "@algofight/database";
 import { defaultStudentIdentityService } from "@algofight/institutional-identity";
 
 export interface SyncUserPayload {
@@ -26,6 +26,84 @@ export interface SyncUserPayload {
 
 export class UserController {
     constructor(private readonly userRepository: PrismaUserRepository = new PrismaUserRepository()) { }
+
+    private async enrichUserMetrics(user: any) {
+        if (!user || !user.id) return {};
+        try {
+            const [practiceData, ratingHistories, submissions] = await Promise.all([
+                this.userRepository.getPracticeProgress(user.id).catch(() => ({
+                    practiceSubmissionCount: 0,
+                    practiceSolvedProblemIds: [] as string[],
+                })),
+                prisma.ratingHistory.findMany({
+                    where: { userId: user.id },
+                    select: { oldRating: true, newRating: true, delta: true, createdAt: true },
+                    orderBy: { createdAt: "asc" },
+                    take: 20,
+                }).catch(() => []),
+                prisma.submission.findMany({
+                    where: { userId: user.id },
+                    select: { createdAt: true },
+                    orderBy: { createdAt: "desc" },
+                    take: 60,
+                }).catch(() => []),
+            ]);
+
+            const practiceSolvedCount = practiceData.practiceSolvedProblemIds.length;
+            const practiceSubmissionCount = practiceData.practiceSubmissionCount;
+            const totalSubmissions = Math.max(practiceSubmissionCount, user.totalSubmissions || 0);
+
+            // Compute active submission streak
+            let currentStreak = 0;
+            if (submissions.length > 0) {
+                const uniqueDates = Array.from(
+                    new Set(
+                        submissions.map((s) => new Date(s.createdAt).toISOString().split("T")[0])
+                    )
+                ).sort().reverse();
+
+                const todayStr = new Date().toISOString().split("T")[0];
+                const yesterdayStr = new Date(Date.now() - 86400000).toISOString().split("T")[0];
+
+                if (uniqueDates.includes(todayStr) || uniqueDates.includes(yesterdayStr)) {
+                    let checkDate = new Date(uniqueDates[0]);
+                    for (const d of uniqueDates) {
+                        const expected = checkDate.toISOString().split("T")[0];
+                        if (d === expected) {
+                            currentStreak++;
+                            checkDate = new Date(checkDate.getTime() - 86400000);
+                        } else {
+                            break;
+                        }
+                    }
+                }
+            }
+
+            const latestDelta = ratingHistories.length > 0 ? ratingHistories[ratingHistories.length - 1].delta : 0;
+
+            return {
+                practiceSolvedProblemIds: practiceData.practiceSolvedProblemIds,
+                practiceSolvedCount,
+                practiceSubmissionCount,
+                totalSubmissions,
+                ratingHistory: ratingHistories,
+                ratingDelta: latestDelta,
+                currentStreak: Math.max(currentStreak, (user.wins > 0 ? 1 : 0)),
+                longestStreak: Math.max(currentStreak, (user.wins > 0 ? 1 : 0)),
+            };
+        } catch {
+            return {
+                practiceSolvedProblemIds: [],
+                practiceSolvedCount: 0,
+                practiceSubmissionCount: 0,
+                totalSubmissions: user.totalSubmissions || 0,
+                ratingHistory: [],
+                ratingDelta: 0,
+                currentStreak: 0,
+                longestStreak: 0,
+            };
+        }
+    }
 
     async syncUser(payload: SyncUserPayload) {
         const userId = payload.id || payload.uid;
@@ -100,6 +178,7 @@ export class UserController {
             );
         }
 
+        const metrics = await this.enrichUserMetrics(user);
         const syncMeta = (user.studentIdentityMetadata as any) || {};
         return {
             ...user,
@@ -109,9 +188,7 @@ export class UserController {
             matchesWon: user.wins,
             matchesPlayed: user.wins + user.losses,
             lossCount: user.losses,
-            practiceSolvedProblemIds: [],
-            practiceSolvedCount: 0,
-            practiceSubmissionCount: 0,
+            ...metrics,
         };
     }
 
@@ -196,6 +273,7 @@ export class UserController {
             }
         }
 
+        const metrics = await this.enrichUserMetrics(user);
         const userMeta = (user.studentIdentityMetadata as any) || {};
         return {
             ...user,
@@ -205,9 +283,7 @@ export class UserController {
             matchesWon: user.wins,
             matchesPlayed: user.wins + user.losses,
             lossCount: user.losses,
-            practiceSolvedProblemIds: [],
-            practiceSolvedCount: 0,
-            practiceSubmissionCount: 0,
+            ...metrics,
         };
     }
 
@@ -246,5 +322,20 @@ export class UserController {
             losses: u.losses,
             trend: "same",
         }));
+    }
+
+    async getPlatformStats() {
+        try {
+            const count = await this.userRepository.countUsers();
+            return {
+                totalCoders: count,
+                displayCount: count >= 100 ? `${count}+` : String(count),
+            };
+        } catch {
+            return {
+                totalCoders: 100,
+                displayCount: "100+",
+            };
+        }
     }
 }

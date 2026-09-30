@@ -229,14 +229,65 @@ export function NotificationInboxProvider({ children }) {
                 } catch {}
             };
 
+            const handlePublicChallengeCreated = (challenge) => {
+                if (!challenge || !challenge.roomCode) return;
+                const currentId = user?.uid || user?.email;
+                if (currentId && (currentId === challenge.hostId || currentId === challenge.hostUsername)) {
+                    return;
+                }
+
+                // Flash toast notification on active user screen
+                notify({
+                    title: "⚔️ PUBLIC DUEL CHALLENGE",
+                    message: `${challenge.hostUsername || "A player"} (${challenge.hostRating || 1200} ELO) opened a public ${challenge.difficulty || "MIX"} duel! Tap to compete.`,
+                    type: "info",
+                    duration: 8000,
+                    onClick: () => {
+                        window.location.href = `/battle/room/${challenge.roomCode}`;
+                    },
+                });
+
+                // Add to notification inbox dropdown
+                const publicItem = {
+                    id: `pub_chal_${challenge.roomCode}`,
+                    type: "PUBLIC_CHALLENGE",
+                    title: `⚔️ Public Duel: ${challenge.hostUsername || "Player"}`,
+                    message: `${challenge.hostUsername || "Player"} opened an open challenge (${challenge.questionCount || 3} Qs • ${challenge.timeLimitMinutes || 15}m • ${challenge.difficulty || "MIX"}).`,
+                    read: false,
+                    createdAt: Date.now(),
+                    metadata: {
+                        ...challenge,
+                        isPublicChallenge: true,
+                    },
+                };
+
+                setNotifications((prev) => {
+                    const exists = prev.some((n) => n.id === publicItem.id || n.metadata?.roomCode === challenge.roomCode);
+                    if (exists) return prev;
+                    setUnreadCount((c) => c + 1);
+                    return [publicItem, ...prev];
+                });
+            };
+
+            const handlePublicChallengeRemoved = ({ roomCode } = {}) => {
+                if (!roomCode) return;
+                setNotifications((prev) =>
+                    prev.filter((n) => n.metadata?.roomCode !== roomCode && n.id !== `pub_chal_${roomCode}`)
+                );
+            };
+
             socket.on("inbox_notification", handleInboxNotification);
             socket.on("system_broadcast_announcement", handleBroadcastAnnouncement);
             socket.on("system_broadcast_revoked", handleBroadcastRevoked);
+            socket.on("public_challenge_created", handlePublicChallengeCreated);
+            socket.on("public_challenge_removed", handlePublicChallengeRemoved);
 
             return () => {
                 socket.off("inbox_notification", handleInboxNotification);
                 socket.off("system_broadcast_announcement", handleBroadcastAnnouncement);
                 socket.off("system_broadcast_revoked", handleBroadcastRevoked);
+                socket.off("public_challenge_created", handlePublicChallengeCreated);
+                socket.off("public_challenge_removed", handlePublicChallengeRemoved);
             };
         };
 

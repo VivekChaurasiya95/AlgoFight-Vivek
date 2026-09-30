@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -36,6 +37,7 @@ function getNotificationIcon(type) {
         case 'SYSTEM':
             return faBullhorn;
         case 'CHALLENGE':
+        case 'PUBLIC_CHALLENGE':
             return faCrosshairs;
         case 'CHALLENGE_ACCEPTED':
             return faBolt;
@@ -55,6 +57,8 @@ function getNotificationTone(type) {
             return 'tone-cyan';
         case 'CHALLENGE':
             return 'tone-cyan';
+        case 'PUBLIC_CHALLENGE':
+            return 'tone-gold';
         case 'CHALLENGE_ACCEPTED':
             return 'tone-green';
         case 'CHALLENGE_DECLINED':
@@ -68,6 +72,7 @@ function getNotificationTone(type) {
 }
 
 export default function InboxDropdown({ isOpen, onClose }) {
+    const navigate = useNavigate();
     const { notifications, unreadCount, markAsRead, markAllAsRead, clearInbox } = useNotificationInbox();
     const [filter, setFilter] = useState('ALL');
 
@@ -285,6 +290,30 @@ export default function InboxDropdown({ isOpen, onClose }) {
                                                         <FontAwesomeIcon icon={faTimes} /> Decline
                                                     </button>
                                                 </div>
+                                                </div>
+                                            )}
+
+                                            {item.type === 'PUBLIC_CHALLENGE' && item.metadata?.roomCode && (
+                                                <div className="inbox-challenge-section">
+                                                    <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", margin: "6px 0", fontSize: "0.72rem", color: "#00e5ff", background: "rgba(0, 229, 255, 0.08)", padding: "4px 8px", borderRadius: "6px", border: "1px solid rgba(0, 229, 255, 0.2)" }}>
+                                                        <span>⏱️ {item.metadata.timeLimitMinutes || 15}m</span>
+                                                        <span>🎯 {item.metadata.difficulty || "MIX"}</span>
+                                                        <span>📝 {item.metadata.questionCount || 3} Qs</span>
+                                                        <span>🏆 Host: {item.metadata.hostRating || 1200} ELO</span>
+                                                    </div>
+                                                    <div className="inbox-challenge-actions">
+                                                        <button
+                                                            className="inbox-action-btn tone-green"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                markAsRead(item.id);
+                                                                onClose();
+                                                                navigate(`/battle/room/${item.metadata.roomCode}`);
+                                                            }}
+                                                        >
+                                                            <FontAwesomeIcon icon={faBolt} /> Join Duel
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             )}
                                         </div>

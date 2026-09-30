@@ -321,4 +321,8 @@ export class PrismaUserRepository implements UserRepository {
             practiceSolvedProblemIds: solvedProblemIds,
         };
     }
+
+    async countUsers(): Promise<number> {
+        return prisma.user.count();
+    }
 }

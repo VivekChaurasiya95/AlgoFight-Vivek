@@ -74,11 +74,12 @@ export function formatMathText(text) {
 
 /**
  * Parses a raw problem statement string into structured sections:
- * - description
- * - inputFormat
- * - outputFormat
- * - constraints
- * - note
+ * - description: string[]
+ * - inputFormat: string[] | null
+ * - outputFormat: string[] | null
+ * - constraints: string[] | null
+ * - sampleCases: Array<{ input: string, output: string }>
+ * - note: string[] | null
  */
 export function parseProblemStatement(statementText) {
   if (!statementText || typeof statementText !== "string") {
@@ -87,27 +88,31 @@ export function parseProblemStatement(statementText) {
       inputFormat: null,
       outputFormat: null,
       constraints: null,
+      sampleCases: [],
       note: null
     };
   }
 
   const cleanRaw = statementText.replace(/\r\n/g, "\n").trim();
 
-  // Pattern headers in Codeforces/CP problem descriptions
-  const sectionHeaderRegex = /\n?\s*(Input\s*Format|Input|Output\s*Format|Output|Constraints?|Notes?|Explanations?|Sample\s*Input|Interaction)\s*\n?/gi;
+  // Distinct section headers that appear on their own line (never in the middle of sentences)
+  const headerRegex = /(?:^|\n)\s*(?:#{1,4}\s*|\*{1,2})?(Input\s*Format|Input|Output\s*Format|Output|Constraints?|Notes?|Explanations?|Examples?|Sample\s*Inputs?|Sample\s*Tests?|Sample\s*Cases?)(?:\*{1,2})?:?\s*(?=\n|$)/gi;
 
   const matches = [];
   let match;
-  while ((match = sectionHeaderRegex.exec(cleanRaw)) !== null) {
+  while ((match = headerRegex.exec(cleanRaw)) !== null) {
+    const rawMatch = match[0];
+    const headerName = match[1].trim();
+    const matchOffset = rawMatch.indexOf(match[1]);
     matches.push({
-      headerName: match[1].trim(),
-      index: match.index,
-      length: match[0].length
+      headerName,
+      startIndex: match.index + matchOffset,
+      endIndex: match.index + rawMatch.length
     });
   }
 
   if (matches.length === 0) {
-    // Single block - try splitting by double newline for paragraphs
+    // Single block - split by double newline for paragraphs
     const paragraphs = cleanRaw
       .split(/\n\s*\n/)
       .map(p => formatMathText(p.trim()))
@@ -118,42 +123,95 @@ export function parseProblemStatement(statementText) {
       inputFormat: null,
       outputFormat: null,
       constraints: null,
+      sampleCases: [],
       note: null
     };
   }
 
-  let descriptionText = cleanRaw.substring(0, matches[0].index).trim();
-  let inputFormatText = null;
-  let outputFormatText = null;
-  let constraintsText = null;
-  let noteText = null;
+  // Find index where Examples section starts (if any)
+  let examplesStartIndex = -1;
+  const exampleHeaderIndex = matches.findIndex(m =>
+    /^(examples?|sample\s*tests?|sample\s*cases?|sample\s*inputs?)$/i.test(m.headerName)
+  );
+
+  if (exampleHeaderIndex !== -1) {
+    examplesStartIndex = matches[exampleHeaderIndex].startIndex;
+  }
+
+  let descriptionText = '';
+  let inputFormatText = '';
+  let outputFormatText = '';
+  let constraintsText = '';
+  let noteText = '';
+  let examplesText = '';
+
+  const firstHeaderIndex = matches.length > 0 ? matches[0].startIndex : cleanRaw.length;
+  descriptionText = cleanRaw.substring(0, firstHeaderIndex).trim();
 
   for (let i = 0; i < matches.length; i++) {
     const current = matches[i];
-    const nextIndex = i + 1 < matches.length ? matches[i + 1].index : cleanRaw.length;
-    const content = cleanRaw.substring(current.index + current.length, nextIndex).trim();
+    const isUnderExamples = examplesStartIndex !== -1 && current.startIndex >= examplesStartIndex && i !== exampleHeaderIndex;
+    const nextMatch = i + 1 < matches.length ? matches[i + 1] : null;
+    const content = cleanRaw.substring(current.endIndex, nextMatch ? nextMatch.startIndex : cleanRaw.length).trim();
 
-    const normalizedHeader = current.headerName.toLowerCase();
+    const lower = current.headerName.toLowerCase();
 
-    if (normalizedHeader.startsWith("input")) {
-      inputFormatText = content;
-    } else if (normalizedHeader.startsWith("output")) {
-      outputFormatText = content;
-    } else if (normalizedHeader.startsWith("constraint")) {
-      constraintsText = content;
-    } else if (normalizedHeader.startsWith("note") || normalizedHeader.startsWith("explanation")) {
+    if (/^(examples?|sample\s*tests?|sample\s*cases?|sample\s*inputs?)$/i.test(lower)) {
+      // Find where note starts (if any after examples)
+      const nextNote = matches.slice(i + 1).find(m => /^(notes?|explanations?)$/i.test(m.headerName));
+      const endOfExamples = nextNote ? nextNote.startIndex : cleanRaw.length;
+      examplesText = cleanRaw.substring(current.endIndex, endOfExamples).trim();
+    } else if (/^(notes?|explanations?)$/i.test(lower)) {
       noteText = content;
-    } else if (!descriptionText) {
-      descriptionText = content;
+    } else if (!isUnderExamples) {
+      if (/^input(\s*format)?$/i.test(lower)) {
+        inputFormatText = content;
+      } else if (/^output(\s*format)?$/i.test(lower)) {
+        outputFormatText = content;
+      } else if (/^constraints?$/i.test(lower)) {
+        constraintsText = content;
+      }
+    }
+  }
+
+  // Parse examplesText into sample test cases: pairs of Input / Output
+  const sampleCases = [];
+  if (examplesText) {
+    const sampleHeaderRegex = /(?:^|\n)\s*(?:#{1,4}\s*|\*{1,2})?(Input|Output)(?:\*{1,2})?:?\s*(?=\n|$)/gi;
+    const sampleMatches = [];
+    let sMatch;
+    while ((sMatch = sampleHeaderRegex.exec(examplesText)) !== null) {
+      sampleMatches.push({
+        type: sMatch[1].toLowerCase() === 'input' ? 'input' : 'output',
+        start: sMatch.index + sMatch[0].indexOf(sMatch[1]),
+        end: sMatch.index + sMatch[0].length
+      });
+    }
+
+    let currentInput = '';
+    for (let k = 0; k < sampleMatches.length; k++) {
+      const sm = sampleMatches[k];
+      const nextSm = k + 1 < sampleMatches.length ? sampleMatches[k + 1] : null;
+      const block = examplesText.substring(sm.end, nextSm ? nextSm.start : examplesText.length).trim();
+      if (sm.type === 'input') {
+        currentInput = block;
+      } else if (sm.type === 'output') {
+        sampleCases.push({
+          input: currentInput,
+          output: block
+        });
+        currentInput = '';
+      }
     }
   }
 
   const splitParagraphs = (str) => {
     if (!str) return null;
-    return str
-      .split(/\n\s*\n|\n/)
+    const list = str
+      .split(/\n\s*\n/)
       .map(p => formatMathText(p.trim()))
       .filter(Boolean);
+    return list.length > 0 ? list : null;
   };
 
   return {
@@ -161,6 +219,7 @@ export function parseProblemStatement(statementText) {
     inputFormat: splitParagraphs(inputFormatText),
     outputFormat: splitParagraphs(outputFormatText),
     constraints: splitParagraphs(constraintsText),
-    note: splitParagraphs(noteText)
+    sampleCases,
+    note: splitParagraphs(noteText),
   };
 }

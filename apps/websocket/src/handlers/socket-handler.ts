@@ -363,6 +363,19 @@ export class SocketHandler {
                     break;
                 }
 
+                case "get_public_challenges": {
+                    try {
+                        const raw = await this.redis.hgetall("public_battle_rooms");
+                        const list = Object.values(raw || {}).map((s) => {
+                            try { return JSON.parse(s); } catch { return null; }
+                        }).filter(Boolean);
+                        this.send(socket, "public_challenges_sync", { challenges: list });
+                    } catch {
+                        this.send(socket, "public_challenges_sync", { challenges: [] });
+                    }
+                    break;
+                }
+
                 case "send_challenge": {
                     const { targetUserId, targetUsername, fromUsername: rawFromUsername } = data;
                     const session = this.socketUsers.get(socket);

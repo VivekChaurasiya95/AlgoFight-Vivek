@@ -605,3 +605,33 @@ export async function saveUserProfile(payload) {
     includeAuth: true,
   });
 }
+
+/**
+ * Fetch active public rooms/challenges for home dispatch and arena
+ */
+export async function fetchPublicRooms() {
+  return requestJson("/api/battle/public-rooms", {
+    method: "GET",
+    cache: "no-store",
+  });
+}
+
+/**
+ * Fetch actual enrolled coder stats
+ */
+export async function fetchPlatformStats() {
+  return requestJson("/api/platform/stats", {
+    method: "GET",
+    ttlMs: 30000,
+  });
+}
+
+/**
+ * Fetch showcase user feedbacks/testimonials for home page
+ */
+export async function fetchShowcaseFeedback() {
+  return requestJson("/api/feedback/showcase?limit=15", {
+    method: "GET",
+    ttlMs: 30000,
+  });
+}

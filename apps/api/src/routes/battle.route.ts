@@ -24,7 +24,13 @@ export async function battleRoutes(app: FastifyInstance) {
             body.questionCount,
             body.isFriendly,
             body.problemIds,
+            body.isPublic,
         );
+    });
+
+    // 1b. Get active public rooms for arena / home display
+    app.get("/battle/public-rooms", async () => {
+        return battleController.getPublicRooms();
     });
 
     // 2. Get room details (by UUID or RoomCode like "BTL-ABCD") - High allowance for 2.5s lobby polling

@@ -231,4 +231,8 @@ export class BattleRoomService {
         const finishedRoom = await this.battleRoomRepository.finishBattle(roomId);
         return { room: finishedRoom, eloResults };
     }
+
+    async getOpenWaitingRooms(limit = 20): Promise<BattleRoomEntity[]> {
+        return this.battleRoomRepository.getOpenWaitingRooms(limit);
+    }
 }

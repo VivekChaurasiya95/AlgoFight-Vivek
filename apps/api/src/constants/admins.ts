@@ -4,6 +4,7 @@ export const ADMIN_EMAILS: string[] = [
     "vivekchaurasiya943@gmail.com",
     "aringupta2244@gmail.com",
     "dargarkrish@gmail.com",
+    "atul@mitsgwalior.in",
 ];
 
 export function isAdminEmail(email?: string | null): boolean {

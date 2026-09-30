@@ -47,4 +47,5 @@ export interface UserRepository {
     getAvailablePlayers(excludeUserId?: string, limit?: number, search?: string): Promise<UserEntity[]>;
     getTopUsers(limit?: number): Promise<UserEntity[]>;
     getPracticeProgress(userId: string): Promise<{ practiceSubmissionCount: number; practiceSolvedProblemIds: string[] }>;
+    countUsers(): Promise<number>;
 }

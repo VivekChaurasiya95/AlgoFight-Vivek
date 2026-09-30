@@ -24,4 +24,5 @@ export interface BattleRoomRepository {
     updateParticipantRank(roomId: string, userId: string, rank: number): Promise<void>;
     recordParticipantScore(roomId: string, userId: string, score: number, isSolved: boolean): Promise<void>;
     getExpiredRooms(): Promise<BattleRoomEntity[]>;
+    getOpenWaitingRooms(limit?: number): Promise<BattleRoomEntity[]>;
 }

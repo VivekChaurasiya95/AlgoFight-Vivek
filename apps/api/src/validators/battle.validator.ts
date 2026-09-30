@@ -8,6 +8,7 @@ export const CreateBattleRoomSchema = z.object({
     questionCount: z.number().int().min(1).max(10).optional().default(3),
     isFriendly: z.boolean().optional(),
     problemIds: z.array(z.string()).optional(),
+    isPublic: z.boolean().optional().default(true),
 });
 
 export const JoinRoomSchema = z.object({

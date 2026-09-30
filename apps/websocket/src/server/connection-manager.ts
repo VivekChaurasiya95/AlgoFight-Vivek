@@ -219,6 +219,19 @@ export class ConnectionManager {
         }
     }
 
+    // Broadcast public challenge to active users not in battle
+    broadcastPublicChallenge(challenge: any): void {
+        const message = JSON.stringify({ event: "public_challenge_created", payload: challenge });
+        for (const [userId, socket] of this.userSockets.entries()) {
+            if (userId === challenge.hostId) continue;
+            const presence = this.presenceMap.get(userId);
+            if (presence && presence.status === "IN_BATTLE") continue;
+            if (socket.readyState === WebSocket.OPEN) {
+                socket.send(message);
+            }
+        }
+    }
+
     // Check if user is online
     isUserOnline(userId: string): boolean {
         return !!this.getSocketByIdentifier(userId);
