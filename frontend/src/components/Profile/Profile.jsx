@@ -595,12 +595,15 @@ function Profile() {
                             </div>
 
                             <div className="profile-identity-copy">
-                                <div className="hero-badge">
-                                    <span className="badge-pulse-dot" />
-                                    <span>{isFacultyProfile ? (isOwnProfile ? "FACULTY PORTAL PROFILE" : "FACULTY ACADEMIC PROFILE") : (isOwnProfile ? "PLAYER PROFILE" : "COMPETITOR PROFILE")}</span>
+                                <div className="hero-kicker-tag profile-kicker-tag">
+                                    <span className="kicker-slash">//</span>
+                                    <span className="kicker-word">{isFacultyProfile ? "FACULTY PORTAL" : (isOwnProfile ? "VERIFIED PLAYER" : "COMPETITOR")}</span>
+                                    <span className="kicker-cross">•</span>
+                                    <span className="kicker-word word-glow-cyan">PROFILE IDENTITY</span>
+                                    <span className="kicker-slash">//</span>
                                 </div>
                                 <h1 className="profile-display-name">{displayName}</h1>
-                            <p>{email || (isFacultyProfile ? 'Faculty Member' : 'Competitor')}</p>
+                            <p className="profile-email-label">{email || (isFacultyProfile ? 'Faculty Member' : 'Competitor')}</p>
                             {(profile?.platformCode || user?.platformCode) && (
                                 <div
                                     className="profile-code-badge"
@@ -627,11 +630,13 @@ function Profile() {
                         <div className="profile-header-actions">
                             {!isFacultyProfile && !isOwnProfile && (
                                 <button
-                                    className="profile-challenge-btn"
+                                    type="button"
+                                    className="btn-hero-compete profile-challenge-btn"
                                     onClick={handleSendChallenge}
                                     title={`Send a direct 1v1 friendly battle invite to ${displayName}`}
                                 >
-                                    <FontAwesomeIcon icon={faBolt} /> Invite to Friendly Battle
+                                    <FontAwesomeIcon icon={faBolt} />
+                                    <span>Invite to Battle</span>
                                 </button>
                             )}
                             {isFacultyProfile ? (
@@ -795,10 +800,15 @@ function Profile() {
                 </section>
             {!isFacultyProfile ? (
                 <section className="profile-content-grid">
-                    <article className="profile-panel">
+                    <article className="profile-panel dash-card">
                         <div className="profile-panel-head">
-                            <h2>Progress Overview</h2>
-                            <span className="profile-chip">Live</span>
+                            <div className="dash-card-title-group">
+                                <div className="dash-icon-box icon-cyan">
+                                    <FontAwesomeIcon icon={faChartLine} />
+                                </div>
+                                <h2 className="dash-card-title">Progress Overview</h2>
+                            </div>
+                            <span className="dash-pill-tag tag-cyan">LIVE</span>
                         </div>
 
                         <div className="profile-progress-list">
@@ -817,8 +827,8 @@ function Profile() {
                                     <div 
                                         className="profile-progress-fill" 
                                         style={{ 
-                                            width: `${rankProgress.progressWithinTier}%`,
-                                            background: rankProgress.currentTier.gradient || "linear-gradient(90deg, #38bdf8, #818cf8)"
+                                             width: `${rankProgress.progressWithinTier}%`,
+                                             background: rankProgress.currentTier.gradient || "linear-gradient(90deg, #38bdf8, #818cf8)"
                                         }} 
                                     />
                                 </div>
@@ -856,10 +866,15 @@ function Profile() {
                         </div>
                     </article>
 
-                    <article className="profile-panel">
+                    <article className="profile-panel dash-card">
                         <div className="profile-panel-head">
-                            <h2>Achievements</h2>
-                            <span className="profile-chip">Milestones</span>
+                            <div className="dash-card-title-group">
+                                <div className="dash-icon-box icon-trophy">
+                                    <FontAwesomeIcon icon={faTrophy} />
+                                </div>
+                                <h2 className="dash-card-title">Achievements</h2>
+                            </div>
+                            <span className="dash-pill-tag tag-purple">MILESTONES</span>
                         </div>
 
                         <ul className="profile-achievement-list">

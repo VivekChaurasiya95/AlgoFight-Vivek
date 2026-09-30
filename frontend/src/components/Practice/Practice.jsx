@@ -1,6 +1,7 @@
 // frontend/src/components/Practice/Practice.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faCheckCircle,
@@ -9,6 +10,15 @@ import {
   faChevronRight,
   faBookOpen,
   faPlus,
+  faCode,
+  faFilter,
+  faTrophy,
+  faBolt,
+  faFire,
+  faShieldHalved,
+  faPlay,
+  faArrowRight,
+  faLayerGroup,
 } from "@fortawesome/free-solid-svg-icons";
 import { fetchPracticeProblems, fetchUserProfile, toApiUrl } from "../../services/api";
 import { useAuth } from "../../contexts/AuthContext.jsx";
@@ -234,12 +244,7 @@ export default function Practice() {
   const rangeEnd = hasProblems ? rangeStart + problems.length - 1 : 0;
   const canGoPrev = currentPage > 1;
   const canGoNext = currentPage < totalPages;
-  const headingLabel =
-    totalProblems >= 100
-      ? "100+ Problems"
-      : totalProblems > 0
-        ? `${totalProblems} Problems`
-        : "Practice Problems";
+
   useEffect(() => {
     fetch(toApiUrl("/api/problems/categories"))
       .then((res) => res.json())
@@ -257,209 +262,405 @@ export default function Practice() {
           setAvailableTags(["all", ...formattedCats.sort((a, b) => a.localeCompare(b))]);
         }
       })
-      .catch(() => { });
+      .catch(() => {});
   }, []);
+
+  const solvedRate = totalProblems > 0 ? Math.round((solvedProblemSet.size / totalProblems) * 100) : 0;
 
   return (
     <BackgroundPaths>
-      <div className="archive-root">
-        <div className="archive-header">
-          <div className="hero-badge">
-            <span className="badge-pulse-dot" />
-            <span>PROBLEM ARCHIVE</span>
-          </div>
-          <h1>
-            Handpicked <span className="text-cyan-gradient">Algorithmic</span> <span className="text-yellow-gradient">Challenges</span>
-          </h1>
-          <p>Pick a challenge, test your logic, and track your solved progress. Hone your coding skills in this offline practice workspace before joining the Live Competitive Arena.</p>
-        </div>
+      <div className="practice-dashboard-wrapper">
+        <div className="practice-inner-container">
+          {/* ================= COMPACT HEADER & CONTROLS ================= */}
+          <motion.header
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35 }}
+            className="practice-compact-header"
+          >
+            <div className="practice-header-left">
+              <div className="hero-kicker-tag practice-kicker">
+                <span className="kicker-slash">//</span>
+                <span className="kicker-word">ALGORITHM ARCHIVE</span>
+                <span className="kicker-cross">•</span>
+                <span className="kicker-word word-glow-cyan">PRACTICE LAB</span>
+                <span className="kicker-slash">//</span>
+              </div>
+              <h1 className="practice-header-title">
+                PRACTICE <span className="text-cyan-gradient">PROBLEM LAB</span>
+              </h1>
+              <p className="practice-header-subtext">
+                Hone algorithmic speed, test logic against hidden edge-cases, and track solved challenges at your own pace.
+              </p>
+            </div>
 
-        <div className="archive-controls archive-panel">
-          <div className="archive-filters-wrap">
-            <div className="archive-filters">
-              <select
-                value={difficulty}
-                onChange={handleDifficultyChange}
-                className="filter-select"
-              >
-                {DIFFICULTY_OPTIONS.map((level) => (
-                  <option key={level} value={level}>
-                    {level === "all" ? "All Difficulties" : level.charAt(0).toUpperCase() + level.slice(1)}
-                  </option>
-                ))}
-              </select>
+            <div className="practice-header-right">
+              {/* Telemetry Bar */}
+              <div className="telemetry-bar practice-telemetry-bar">
+                <span className="live-status-pill">
+                  <span className="live-pulse-node" />
+                  <span>OFFLINE SANDBOX</span>
+                </span>
+                <span className="telemetry-divider">•</span>
+                <span>
+                  <FontAwesomeIcon icon={faCode} className="text-cyan" /> Sub-Second Judge
+                </span>
+                <span className="telemetry-divider">•</span>
+                <span>
+                  <FontAwesomeIcon icon={faShieldHalved} className="text-purple" /> Balanced Test Suites
+                </span>
+              </div>
 
-              <select
-                value={selectedTag}
-                onChange={handleTagChange}
-                className="filter-select"
-              >
-                {availableTags.map((tag) => (
-                  <option key={tag} value={tag}>
-                    {tag === "all" ? "All Types" : getFormattedTagName(tag)}
-                  </option>
-                ))}
-              </select>
+              {canImport && (
+                <button
+                  type="button"
+                  className="btn-hero-action btn-action-purple"
+                  onClick={() => setShowImportModal(true)}
+                  title="Import or create algorithmic challenges from Excel, CSV, or JSON"
+                >
+                  <FontAwesomeIcon icon={faPlus} />
+                  <span>Add Questions</span>
+                </button>
+              )}
+            </div>
+          </motion.header>
+
+          {/* ================= 3 SUMMARY STATS CARDS (DASHBOARD STYLE) ================= */}
+          <section className="practice-stats-grid">
+            {/* Card 1: Total Problems in Archive */}
+            <motion.div
+              className="dash-card practice-stat-card"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.05 }}
+              whileHover={{ y: -3 }}
+            >
+              <div className="dash-card-header">
+                <div className="dash-card-title-group">
+                  <div className="dash-icon-box icon-blue">
+                    <FontAwesomeIcon icon={faBookOpen} />
+                  </div>
+                  <span className="dash-card-title">Problem Catalog</span>
+                </div>
+                <span className="dash-pill-tag tag-muted">CURATED</span>
+              </div>
+
+              <div className="rating-stat-row">
+                <div className="dash-stat-big">{totalProblems}</div>
+                <div className="rating-trend-badge">
+                  <span className="rating-trend-arrow">▲</span> Available
+                </div>
+              </div>
+              <div className="dash-card-subtext">Verified core algorithmic challenges</div>
+
+              <div className="practice-meter-box">
+                <div className="practice-meter-bar">
+                  <div className="practice-meter-fill fill-blue" style={{ width: "100%" }} />
+                </div>
+                <div className="practice-meter-meta">
+                  <span>Standard Test Sets</span>
+                  <span className="meta-cyan">Full Spectrum</span>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Card 2: Solved Questions Progress */}
+            <motion.div
+              className="dash-card practice-stat-card"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.1 }}
+              whileHover={{ y: -3 }}
+            >
+              <div className="dash-card-header">
+                <div className="dash-card-title-group">
+                  <div className="dash-icon-box icon-emerald">
+                    <FontAwesomeIcon icon={faCheckCircle} />
+                  </div>
+                  <span className="dash-card-title">Solved Progress</span>
+                </div>
+                <span className="dash-pill-tag tag-emerald">PROFILE</span>
+              </div>
+
+              <div className="rating-stat-row">
+                <div className="dash-stat-big text-cyan-stat">{solvedProblemSet.size}</div>
+                <div className="rating-trend-badge">
+                  <span className="rating-trend-arrow">✓</span> {solvedRate}% Rate
+                </div>
+              </div>
+              <div className="dash-card-subtext">Tackled and verified in offline practice</div>
+
+              <div className="practice-meter-box">
+                <div className="practice-meter-bar">
+                  <div
+                    className="practice-meter-fill fill-emerald"
+                    style={{ width: `${Math.min(100, Math.max(8, solvedRate))}%` }}
+                  />
+                </div>
+                <div className="practice-meter-meta">
+                  <span>Career Completion</span>
+                  <span className="meta-emerald">{solvedRate}% Solved</span>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Card 3: Active Filters & Display */}
+            <motion.div
+              className="dash-card practice-stat-card"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.15 }}
+              whileHover={{ y: -3 }}
+            >
+              <div className="dash-card-header">
+                <div className="dash-card-title-group">
+                  <div className="dash-icon-box icon-purple">
+                    <FontAwesomeIcon icon={faLayerGroup} />
+                  </div>
+                  <span className="dash-card-title">Active Filter</span>
+                </div>
+                <span className="dash-pill-tag tag-purple">
+                  {difficulty === "all" ? "ALL LEVELS" : difficulty.toUpperCase()}
+                </span>
+              </div>
+
+              <div className="rating-stat-row">
+                <div className="dash-stat-big text-purple-stat">{problems.length}</div>
+                <div className="rating-trend-badge badge-purple">
+                  Page {currentPage}/{totalPages}
+                </div>
+              </div>
+              <div className="dash-card-subtext">
+                {selectedTag === "all" ? "All algorithm categories" : getFormattedTagName(selectedTag)}
+              </div>
+
+              <div className="practice-meter-box">
+                <div className="practice-meter-bar">
+                  <div
+                    className="practice-meter-fill fill-purple"
+                    style={{ width: `${Math.min(100, (problems.length / PAGE_SIZE) * 100)}%` }}
+                  />
+                </div>
+                <div className="practice-meter-meta">
+                  <span>Batch Density</span>
+                  <span className="meta-purple">{PAGE_SIZE} per page</span>
+                </div>
+              </div>
+            </motion.div>
+          </section>
+
+          {/* ================= FILTER TOOLBAR ================= */}
+          <div className="dash-card practice-toolbar">
+            <div className="toolbar-left">
+              <div className="filter-group">
+                <label className="filter-label">
+                  <FontAwesomeIcon icon={faFilter} />
+                  <span>Difficulty:</span>
+                </label>
+                <div className="difficulty-pills">
+                  {DIFFICULTY_OPTIONS.map((level) => (
+                    <button
+                      key={level}
+                      type="button"
+                      className={`diff-pill-btn ${difficulty === level ? "active" : ""} diff-${level}`}
+                      onClick={() => {
+                        setDifficulty(level);
+                        setCurrentPage(1);
+                      }}
+                    >
+                      {level === "all" ? "All" : level.charAt(0).toUpperCase() + level.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="filter-group tag-dropdown-group">
+                <label className="filter-label">
+                  <span>Topic:</span>
+                </label>
+                <select
+                  value={selectedTag}
+                  onChange={handleTagChange}
+                  className="hud-select practice-select"
+                >
+                  {availableTags.map((tag) => (
+                    <option key={tag} value={tag}>
+                      {tag === "all" ? "All Types" : getFormattedTagName(tag)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="toolbar-right">
+              <div className="archive-counter-pill">
+                <span className="counter-dot" />
+                <span>
+                  {hasProblems ? `${rangeStart}-${rangeEnd} of ${totalProblems}` : `0 of ${totalProblems}`} Problems
+                </span>
+              </div>
             </div>
           </div>
 
-          <div className="archive-meta-pills">
-            <span className="archive-pill">{totalProblems} Total</span>
-            <span className="archive-pill archive-pill-solved">{solvedProblemSet.size} Solved</span>
-            {canImport && (
-              <button
-                type="button"
-                className="add-problem-btn"
-                onClick={() => setShowImportModal(true)}
-                title="Import or create algorithmic challenges from Excel, CSV, or JSON"
-              >
-                <FontAwesomeIcon icon={faPlus} />
-                <span>Add Questions</span>
-              </button>
-            )}
-          </div>
-        </div>
+          {error && <div className="practice-error-banner">{error}</div>}
 
-        {error ? <div className="archive-error">{error}</div> : null}
+          {/* ================= PRACTICE PROBLEMS TABLE ================= */}
+          <div className="dash-card practice-table-card">
+            <div className="practice-list-head" aria-hidden="true">
+              <div className="th-num">#</div>
+              <div className="th-status">Status</div>
+              <div className="th-title">Challenge Title</div>
+              <div className="th-tags">Category Tags</div>
+              <div className="th-acc">Acceptance</div>
+              <div className="th-diff">Difficulty</div>
+              <div className="th-action">Action</div>
+            </div>
 
-        <div className="archive-panel archive-table-wrap">
-          <div className="archive-list-head" aria-hidden="true">
-            <div className="th-num">#</div>
-            <div className="th-status">Status</div>
-            <div className="th-title">Title</div>
-            <div className="th-tags">Tags</div>
-            <div className="th-acc">Acceptance</div>
-            <div className="th-diff">Difficulty</div>
-            <div className="th-action">Action</div>
-          </div>
+            <div className="practice-list">
+              {loadingList && <div className="loading-state">Loading problems...</div>}
+              {!loadingList && problems.length === 0 && (
+                <div className="empty-state">No practice problems found for selected filters.</div>
+              )}
 
-          <div className="archive-list">
-            {loadingList ? <div className="loading-state">Loading problems...</div> : null}
-            {!loadingList && problems.length === 0 ? (
-              <div className="empty-state">No practice problems found.</div>
-            ) : null}
+              {!loadingList &&
+                problems.map((problem, index) => {
+                  const problemId = problem.id || problem._id;
+                  const absoluteIndex = (currentPage - 1) * PAGE_SIZE + index + 1;
+                  const numberStr = `#${String(absoluteIndex).padStart(3, "0")}`;
+                  const acceptanceRate = getDeterministicAcceptanceRate(problemId);
+                  const isSolved = solvedProblemSet.has(String(problemId));
+                  const difficultyLabel = problem.difficulty || "easy";
 
-            {!loadingList &&
-              problems.map((problem, index) => {
-                const problemId = problem.id || problem._id;
-                const absoluteIndex = (currentPage - 1) * PAGE_SIZE + index + 1;
-                const numberStr = `#${String(absoluteIndex).padStart(3, "0")}`;
-                const acceptanceRate = getDeterministicAcceptanceRate(problemId);
-                const isSolved = solvedProblemSet.has(String(problemId));
-                const difficultyLabel = problem.difficulty || "easy";
+                  return (
+                    <div
+                      key={problemId}
+                      className="practice-row"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => navigate(`/practice/${problemId}`)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          navigate(`/practice/${problemId}`);
+                        }
+                      }}
+                      aria-label={`Open practice problem ${problem.title}`}
+                    >
+                      <div className="col-num">{numberStr}</div>
 
-                return (
-                  <div
-                    key={problemId}
-                    className="archive-row"
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => navigate(`/practice/${problemId}`)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault();
-                        navigate(`/practice/${problemId}`);
-                      }
-                    }}
-                    aria-label={`Open practice problem ${problem.title}`}
-                  >
-                    <div className="col-num">{numberStr}</div>
+                      <div className="col-status">
+                        {isSolved ? (
+                          <FontAwesomeIcon icon={faCheckCircle} className="status-icon solved" />
+                        ) : (
+                          <FontAwesomeIcon icon={faCircle} className="status-icon unsolved" />
+                        )}
+                      </div>
 
-                    <div className="col-status">
-                      {isSolved ? (
-                        <FontAwesomeIcon icon={faCheckCircle} className="status-icon solved" />
-                      ) : (
-                        <FontAwesomeIcon icon={faCircle} className="status-icon unsolved" />
-                      )}
-                    </div>
+                      <div className="col-title">
+                        <span className="title-text">{problem.title}</span>
+                      </div>
 
-                    <div className="col-title">{problem.title}</div>
+                      <div className="col-tags">
+                        {(() => {
+                          const rawTags = [];
+                          if (problem.category) rawTags.push(problem.category);
+                          if (Array.isArray(problem.tags)) rawTags.push(...problem.tags);
 
-                    <div className="col-tags">
-                      {(() => {
-                        const rawTags = [];
-                        if (problem.category) rawTags.push(problem.category);
-                        if (Array.isArray(problem.tags)) rawTags.push(...problem.tags);
-
-                        const uniqueTags = [];
-                        const seen = new Set();
-                        for (const tag of rawTags) {
-                          if (typeof tag === "string" && tag.trim()) {
-                            const key = tag.trim().toLowerCase();
-                            if (!seen.has(key)) {
-                              seen.add(key);
-                              uniqueTags.push(tag.trim());
+                          const uniqueTags = [];
+                          const seen = new Set();
+                          for (const tag of rawTags) {
+                            if (typeof tag === "string" && tag.trim()) {
+                              const key = tag.trim().toLowerCase();
+                              if (!seen.has(key)) {
+                                seen.add(key);
+                                uniqueTags.push(tag.trim());
+                              }
                             }
                           }
-                        }
-                        if (uniqueTags.length === 0) uniqueTags.push("Algorithms");
-                        return uniqueTags.slice(0, 2);
-                      })().map((tag, tagIndex) => (
-                        <span key={`${problemId}-tag-${tagIndex}`} className="tag-pill">
-                          {tag.toUpperCase()}
+                          if (uniqueTags.length === 0) uniqueTags.push("Algorithms");
+                          return uniqueTags.slice(0, 2);
+                        })().map((tag, tagIndex) => (
+                          <span key={`${problemId}-tag-${tagIndex}`} className="tag-pill">
+                            {tag.toUpperCase()}
+                          </span>
+                        ))}
+                      </div>
+
+                      <div className="col-acc">{acceptanceRate}</div>
+
+                      <div className="col-diff">
+                        <span className={`diff-badge diff-${difficultyLabel.toLowerCase()}`}>
+                          {difficultyLabel.charAt(0).toUpperCase() + difficultyLabel.slice(1)}
                         </span>
-                      ))}
+                      </div>
+
+                      <div className="col-action">
+                        <button
+                          type="button"
+                          className="read-problem-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setReadingProblemId(problemId);
+                          }}
+                          aria-label={`Read problem ${problem.title}`}
+                          title={`Read ${problem.title}`}
+                        >
+                          <FontAwesomeIcon icon={faBookOpen} />
+                          <span>Read</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          className="solve-problem-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/practice/${problemId}`);
+                          }}
+                          aria-label={`Solve problem ${problem.title}`}
+                          title={`Solve ${problem.title}`}
+                        >
+                          <FontAwesomeIcon icon={faPlay} className="solve-btn-icon" />
+                          <span>Solve</span>
+                        </button>
+                      </div>
                     </div>
-
-                    <div className="col-acc">{acceptanceRate}</div>
-
-                    <div className={`col-diff diff-${difficultyLabel.toLowerCase()}`}>
-                      <span>
-                        {difficultyLabel.charAt(0).toUpperCase() + difficultyLabel.slice(1)}
-                      </span>
-                    </div>
-
-                    <div className="col-action">
-                      <button
-                        type="button"
-                        className="read-problem-btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setReadingProblemId(problemId);
-                        }}
-                        aria-label={`Read problem ${problem.title}`}
-                        title={`Read ${problem.title}`}
-                      >
-                        <FontAwesomeIcon icon={faBookOpen} />
-                        <span>Read</span>
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-          </div>
-
-          <div className="archive-pagination">
-            <button
-              type="button"
-              className="archive-nav-btn"
-              onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-              disabled={!canGoPrev || loadingList}
-              aria-label="Go to previous page"
-            >
-              <FontAwesomeIcon icon={faChevronLeft} />
-              Previous
-            </button>
-
-            <div className="archive-page-display" aria-live="polite">
-              <strong>Page {currentPage} of {totalPages}</strong>
-              <span>
-                {hasProblems
-                  ? `${rangeStart}-${rangeEnd} of ${totalProblems} problems`
-                  : `0 of ${totalProblems} problems`}
-              </span>
+                  );
+                })}
             </div>
 
-            <button
-              type="button"
-              className="archive-nav-btn"
-              onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-              disabled={!canGoNext || loadingList}
-              aria-label="Go to next page"
-            >
-              Next
-              <FontAwesomeIcon icon={faChevronRight} />
-            </button>
+            {/* Pagination */}
+            <div className="practice-pagination">
+              <button
+                type="button"
+                className="practice-nav-btn"
+                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                disabled={!canGoPrev || loadingList}
+                aria-label="Go to previous page"
+              >
+                <FontAwesomeIcon icon={faChevronLeft} />
+                <span>Previous</span>
+              </button>
+
+              <div className="practice-page-display" aria-live="polite">
+                <strong>Page {currentPage} of {totalPages}</strong>
+                <span>
+                  {hasProblems
+                    ? `${rangeStart}-${rangeEnd} of ${totalProblems} problems`
+                    : `0 of ${totalProblems} problems`}
+                </span>
+              </div>
+
+              <button
+                type="button"
+                className="practice-nav-btn"
+                onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                disabled={!canGoNext || loadingList}
+                aria-label="Go to next page"
+              >
+                <span>Next</span>
+                <FontAwesomeIcon icon={faChevronRight} />
+              </button>
+            </div>
           </div>
         </div>
 

@@ -98,24 +98,16 @@ const mentor = {
   imgStyle: { objectPosition: "center 15%" },
 };
 
-const developerStats = [
-  { label: "Core Architects", value: "3" },
-  { label: "Monorepo Packages", value: "14" },
-  { label: "Gateway Ingress", value: "15k+ RPS" },
-  { label: "P99 Latency", value: "< 6ms" },
-];
-
-
 const containerVariants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
-    transition: { staggerChildren: 0.14 },
+    transition: { staggerChildren: 0.12 },
   },
 };
 
 const childVariants = {
-  hidden: { opacity: 0, y: 24 },
+  hidden: { opacity: 0, y: 20 },
   visible: {
     opacity: 1,
     y: 0,
@@ -137,33 +129,29 @@ function Developer() {
       <div className="developer-page">
         {/* Hero Section */}
         <motion.section
-          className="developer-hero"
-          initial={{ opacity: 0, y: 20 }}
+          className="developer-hero-header"
+          initial={{ opacity: 0, y: -16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45, ease: "easeOut" }}
         >
-          <div className="hero-badge">
-            <span className="badge-pulse-dot" />
-            <span>ENGINEERING & ARCHITECTURE</span>
+          <div className="hero-kicker-tag developer-kicker-tag">
+            <span className="kicker-slash">//</span>
+            <span className="kicker-word">ENGINEERING</span>
+            <span className="kicker-cross">•</span>
+            <span className="kicker-word word-glow-cyan">CORE ARCHITECTURE</span>
+            <span className="kicker-slash">//</span>
           </div>
-          <h1>
-            Built By <span className="text-cyan-gradient">AlgoFight</span> <span className="text-purple">Architects</span>
-          </h1>
-          <p>
-            Meet the engineers building AlgoFight. Designed from the ground up as a high-throughput, real-time algorithmic combat arena, powered by modern distributed systems and cyber glassmorphic aesthetics.
-          </p>
 
-          <div className="developer-stat-grid">
-            {developerStats.map((item) => (
-              <article key={item.label} className="developer-stat-card">
-                <div className="developer-stat-value">{item.value}</div>
-                <div className="developer-stat-label">{item.label}</div>
-              </article>
-            ))}
-          </div>
+          <h1 className="developer-hero-title">
+            BUILT BY <span className="word-glow-cyan">ALGOFIGHT ARCHITECTS</span>
+          </h1>
+
+          <p className="developer-hero-desc">
+            Engineered from the ground up as a high-throughput, sub-second algorithmic combat platform. Driven by distributed state machines, containerized judge sandboxes, and modern glassmorphic aesthetics.
+          </p>
         </motion.section>
 
-        {/* Developer Cards Section - Matching 2nd Image Layout with Custom Color Themes */}
+        {/* Developer Cards Section */}
         <motion.section
           className="developer-team-grid"
           variants={containerVariants}
@@ -174,16 +162,16 @@ function Developer() {
             <motion.article
               key={member.name}
               variants={childVariants}
-              className={`dev-profile-card dev-column-card ${member.tone}`}
+              className={`dev-profile-card dash-card dev-column-card ${member.tone}`}
             >
-              {/* Top-Left Category Badge */}
+              {/* Category Badge */}
               <div className="card-header-badge">
                 <FontAwesomeIcon icon={member.headerIcon} />
                 <span>{member.categoryBadge}</span>
               </div>
 
               <div className="card-inner">
-                {/* Circular Avatar with Radiant Halo & Tag Chip */}
+                {/* Circular Avatar with Glowing Halo */}
                 <div className="card-avatar-wrap">
                   <div className="card-avatar-glow" />
                   <div className="card-avatar-img-box">
@@ -209,15 +197,10 @@ function Developer() {
                         <span>{member.role}</span>
                       </div>
                     </div>
-                    <div className="card-tag-pill">
-                      {member.stack}
-                    </div>
+                    <div className="card-tag-pill">{member.stack}</div>
                   </div>
 
-                  <p className="card-institution">
-                    {member.institution}
-                  </p>
-
+                  <p className="card-institution">{member.institution}</p>
                   <p className="card-bio">{member.bio}</p>
 
                   <div className="card-skills-list">
@@ -232,7 +215,7 @@ function Developer() {
                         href={member.linkedin}
                         target="_blank"
                         rel="noreferrer"
-                        className="card-primary-btn"
+                        className="btn-hero-compete card-primary-btn"
                         title={`${member.name} on LinkedIn`}
                       >
                         <FontAwesomeIcon icon={faLinkedin} />
@@ -244,7 +227,7 @@ function Developer() {
                         href={member.github}
                         target="_blank"
                         rel="noreferrer"
-                        className="card-secondary-btn"
+                        className="btn-glass-action card-secondary-btn"
                         title={`${member.name} on GitHub`}
                       >
                         <FontAwesomeIcon icon={faGithub} />
@@ -258,22 +241,22 @@ function Developer() {
           ))}
         </motion.section>
 
-        {/* Faculty Mentor Section - Golden Amber Theme */}
+        {/* Faculty Mentor Section */}
         <motion.section
-          className={`dev-profile-card ${mentor.tone} faculty-mentor-card`}
-          initial={{ opacity: 0, y: 24 }}
+          className={`dev-profile-card dash-card ${mentor.tone} faculty-mentor-card`}
+          initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.25 }}
           transition={{ duration: 0.45, ease: "easeOut" }}
         >
-          {/* Top-Left Category Badge */}
+          {/* Category Badge */}
           <div className="card-header-badge">
             <FontAwesomeIcon icon={mentor.headerIcon} />
             <span>{mentor.categoryBadge}</span>
           </div>
 
           <div className="card-inner">
-            {/* Circular Avatar with Radiant Halo & Tag Chip */}
+            {/* Circular Avatar with Glowing Halo */}
             <div className="card-avatar-wrap">
               <div className="card-avatar-glow" />
               <div className="card-avatar-img-box">
@@ -299,15 +282,10 @@ function Developer() {
                     <span>{mentor.role}</span>
                   </div>
                 </div>
-                <div className="card-tag-pill">
-                  {mentor.stack}
-                </div>
+                <div className="card-tag-pill">{mentor.stack}</div>
               </div>
 
-              <p className="card-institution">
-                {mentor.institution}
-              </p>
-
+              <p className="card-institution">{mentor.institution}</p>
               <p className="card-bio">{mentor.bio}</p>
 
               <div className="card-skills-list">
@@ -319,14 +297,15 @@ function Developer() {
               <div className="card-contact-actions">
                 <a
                   href={`mailto:${mentor.email}`}
-                  className="card-primary-btn"
+                  className="btn-hero-compete card-primary-btn mentor-email-btn"
                   title={`Send email to ${mentor.name}`}
                 >
                   <FontAwesomeIcon icon={faEnvelope} />
                   <span>{mentor.email}</span>
                 </a>
                 <button
-                  className="card-secondary-btn"
+                  type="button"
+                  className="btn-glass-action card-secondary-btn"
                   onClick={handleCopyMentorEmail}
                   title="Copy email address"
                 >
@@ -337,8 +316,6 @@ function Developer() {
             </div>
           </div>
         </motion.section>
-
-
       </div>
       <Footer />
     </BackgroundPaths>

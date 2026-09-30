@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import ReactDOM from "react-dom";
+import { useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faTimes,
@@ -14,6 +15,8 @@ import {
   faShieldHalved,
   faLightbulb,
   faBookOpen,
+  faPlay,
+  faCode,
 } from "@fortawesome/free-solid-svg-icons";
 import { fetchProblemById } from "../../services/api";
 import { parseProblemStatement } from "../../utils/problemFormatter";
@@ -21,6 +24,7 @@ import { useNotification } from "../../contexts/NotificationContext";
 import "./ProblemReadPanel.css";
 
 export default function ProblemReadPanel({ problemId, onClose, initialProblem = null }) {
+  const navigate = useNavigate();
   const { notify } = useNotification();
   const [problem, setProblem] = useState(initialProblem);
   const [loading, setLoading] = useState(false);
@@ -39,7 +43,11 @@ export default function ProblemReadPanel({ problemId, onClose, initialProblem = 
     let active = true;
 
     // If initial problem object with complete statement matches, use it immediately
-    if (initialProblem && (initialProblem.id === problemId || initialProblem._id === problemId) && (initialProblem.statement || initialProblem.description)) {
+    if (
+      initialProblem &&
+      (initialProblem.id === problemId || initialProblem._id === problemId) &&
+      (initialProblem.statement || initialProblem.description)
+    ) {
       setProblem(initialProblem);
       setLoading(false);
       setError(null);
@@ -134,6 +142,11 @@ export default function ProblemReadPanel({ problemId, onClose, initialProblem = 
 
   const difficultyLabel = (problem?.difficulty || "Medium").toLowerCase();
 
+  const handleSolve = () => {
+    onClose();
+    navigate(`/practice/${problemId}`);
+  };
+
   const drawerContent = (
     <div
       className="problem-read-backdrop"
@@ -155,9 +168,12 @@ export default function ProblemReadPanel({ problemId, onClose, initialProblem = 
         {/* Header */}
         <header className="read-drawer-header">
           <div className="read-drawer-header-left">
-            <div className="read-drawer-eyebrow">
-              <span className="read-drawer-eyebrow-dot" />
-              <span>Read-Only Viewer</span>
+            <div className="hero-kicker-tag read-drawer-kicker">
+              <span className="kicker-slash">//</span>
+              <span className="kicker-word">SPECIFICATION</span>
+              <span className="kicker-cross">•</span>
+              <span className="kicker-word word-glow-cyan">OFFLINE LAB</span>
+              <span className="kicker-slash">//</span>
             </div>
 
             <h2 className="read-drawer-title">
@@ -193,15 +209,27 @@ export default function ProblemReadPanel({ problemId, onClose, initialProblem = 
             )}
           </div>
 
-          <button
-            type="button"
-            className="read-drawer-close-btn"
-            onClick={onClose}
-            aria-label="Close problem read panel"
-            title="Close (Esc)"
-          >
-            <FontAwesomeIcon icon={faTimes} />
-          </button>
+          <div className="read-drawer-header-actions">
+            <button
+              type="button"
+              className="btn-hero-compete read-solve-btn"
+              onClick={handleSolve}
+              title="Solve this problem in the interactive code editor"
+            >
+              <FontAwesomeIcon icon={faPlay} className="solve-btn-icon" />
+              <span>Solve Challenge</span>
+            </button>
+
+            <button
+              type="button"
+              className="read-drawer-close-btn"
+              onClick={onClose}
+              aria-label="Close problem read panel"
+              title="Close (Esc)"
+            >
+              <FontAwesomeIcon icon={faTimes} />
+            </button>
+          </div>
         </header>
 
         {/* Body Content */}
@@ -215,7 +243,7 @@ export default function ProblemReadPanel({ problemId, onClose, initialProblem = 
             <p>{error}</p>
             <button
               type="button"
-              className="read-retry-btn"
+              className="btn-hud-secondary"
               onClick={() => {
                 setLoading(true);
                 setError(null);
@@ -231,24 +259,32 @@ export default function ProblemReadPanel({ problemId, onClose, initialProblem = 
         ) : (
           <div className="read-drawer-body">
             {/* Description Section */}
-            {parsed.description.length > 0 ? (
-              <section className="read-section">
+            {parsed.description.length > 0 && (
+              <section className="dash-card read-section-card">
                 <div className="read-section-title">
-                  <FontAwesomeIcon icon={faBookOpen} /> Description
+                  <div className="dash-icon-box icon-cyan">
+                    <FontAwesomeIcon icon={faBookOpen} />
+                  </div>
+                  <span>Problem Statement</span>
                 </div>
-                {parsed.description.map((paragraph, idx) => (
-                  <p key={idx} className="read-paragraph">
-                    {paragraph}
-                  </p>
-                ))}
+                <div className="read-section-content">
+                  {parsed.description.map((paragraph, idx) => (
+                    <p key={idx} className="read-paragraph">
+                      {paragraph}
+                    </p>
+                  ))}
+                </div>
               </section>
-            ) : null}
+            )}
 
             {/* Input Format Section */}
             {parsed.inputFormat && (
-              <section className="read-section">
+              <section className="dash-card read-section-card">
                 <div className="read-section-title">
-                  <FontAwesomeIcon icon={faFileImport} /> Input Format
+                  <div className="dash-icon-box icon-purple">
+                    <FontAwesomeIcon icon={faFileImport} />
+                  </div>
+                  <span>Input Format</span>
                 </div>
                 <div className="read-box">
                   {parsed.inputFormat.map((paragraph, idx) => (
@@ -262,9 +298,12 @@ export default function ProblemReadPanel({ problemId, onClose, initialProblem = 
 
             {/* Output Format Section */}
             {parsed.outputFormat && (
-              <section className="read-section">
+              <section className="dash-card read-section-card">
                 <div className="read-section-title">
-                  <FontAwesomeIcon icon={faFileExport} /> Output Format
+                  <div className="dash-icon-box icon-blue">
+                    <FontAwesomeIcon icon={faFileExport} />
+                  </div>
+                  <span>Output Format</span>
                 </div>
                 <div className="read-box">
                   {parsed.outputFormat.map((paragraph, idx) => (
@@ -277,9 +316,12 @@ export default function ProblemReadPanel({ problemId, onClose, initialProblem = 
             )}
 
             {/* Sample Test Cases */}
-            <section className="read-section">
+            <section className="dash-card read-section-card">
               <div className="read-section-title">
-                <FontAwesomeIcon icon={faVial} /> Examples & Sample Cases
+                <div className="dash-icon-box icon-emerald">
+                  <FontAwesomeIcon icon={faVial} />
+                </div>
+                <span>Sample Test Cases</span>
               </div>
 
               {sampleCases.length > 0 ? (
@@ -291,7 +333,7 @@ export default function ProblemReadPanel({ problemId, onClose, initialProblem = 
                     return (
                       <div key={idx} className="read-sample-card">
                         <div className="read-sample-header">
-                          <span>Sample Test Case {idx + 1}</span>
+                          <span className="sample-case-label">Case #{idx + 1}</span>
                           <button
                             type="button"
                             className="read-copy-btn"
@@ -299,7 +341,7 @@ export default function ProblemReadPanel({ problemId, onClose, initialProblem = 
                             title="Copy input to clipboard"
                           >
                             <FontAwesomeIcon icon={copiedIndex === idx ? faCheck : faCopy} />
-                            {copiedIndex === idx ? "Copied" : "Copy Input"}
+                            <span>{copiedIndex === idx ? "Copied" : "Copy Input"}</span>
                           </button>
                         </div>
                         <div className="read-sample-body">
@@ -309,7 +351,7 @@ export default function ProblemReadPanel({ problemId, onClose, initialProblem = 
                           </div>
                           <div className="read-sample-block">
                             <span className="read-sample-label">Expected Output</span>
-                            <pre className="read-code-block">{expectedVal}</pre>
+                            <pre className="read-code-block output-block">{expectedVal}</pre>
                           </div>
                         </div>
                       </div>
@@ -329,13 +371,16 @@ export default function ProblemReadPanel({ problemId, onClose, initialProblem = 
 
             {/* Constraints Section */}
             {parsed.constraints && (
-              <section className="read-section">
+              <section className="dash-card read-section-card">
                 <div className="read-section-title">
-                  <FontAwesomeIcon icon={faShieldHalved} /> Constraints
+                  <div className="dash-icon-box icon-pink">
+                    <FontAwesomeIcon icon={faShieldHalved} />
+                  </div>
+                  <span>Constraints</span>
                 </div>
                 <div className="read-box constraints-box">
                   {parsed.constraints.map((paragraph, idx) => (
-                    <p key={idx} className="read-paragraph">
+                    <p key={idx} className="read-paragraph constraint-item">
                       {paragraph}
                     </p>
                   ))}
@@ -345,9 +390,12 @@ export default function ProblemReadPanel({ problemId, onClose, initialProblem = 
 
             {/* Note & Explanation */}
             {parsed.note && (
-              <section className="read-section">
+              <section className="dash-card read-section-card">
                 <div className="read-section-title">
-                  <FontAwesomeIcon icon={faLightbulb} /> Note & Explanation
+                  <div className="dash-icon-box icon-trophy">
+                    <FontAwesomeIcon icon={faLightbulb} />
+                  </div>
+                  <span>Note & Explanation</span>
                 </div>
                 <div className="read-box">
                   {parsed.note.map((paragraph, idx) => (
@@ -368,7 +416,17 @@ export default function ProblemReadPanel({ problemId, onClose, initialProblem = 
             <kbd>ESC</kbd>
             <span>or click outside to close</span>
           </div>
-          <div style={{ opacity: 0.8 }}>Strictly Read-Only Mode</div>
+
+          <div className="read-drawer-footer-actions">
+            <button
+              type="button"
+              className="btn-hero-action btn-action-purple"
+              onClick={handleSolve}
+            >
+              <FontAwesomeIcon icon={faCode} />
+              <span>Launch Editor</span>
+            </button>
+          </div>
         </footer>
       </div>
     </div>
