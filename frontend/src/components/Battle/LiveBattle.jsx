@@ -1661,7 +1661,7 @@ export default function LiveBattle() {
             <SmartCodeEditor
               value={code}
               onChange={handleCodeChange}
-              language={selectedLanguage}
+              language={language}
               disabled={status === "finished" || isSelfDisqualified}
               isBlurred={isBlurred}
             />
