@@ -215,7 +215,7 @@ function Developer() {
                         href={member.linkedin}
                         target="_blank"
                         rel="noreferrer"
-                        className="btn-hero-compete card-primary-btn"
+                        className="card-primary-btn"
                         title={`${member.name} on LinkedIn`}
                       >
                         <FontAwesomeIcon icon={faLinkedin} />
@@ -227,7 +227,7 @@ function Developer() {
                         href={member.github}
                         target="_blank"
                         rel="noreferrer"
-                        className="btn-glass-action card-secondary-btn"
+                        className="card-secondary-btn"
                         title={`${member.name} on GitHub`}
                       >
                         <FontAwesomeIcon icon={faGithub} />
@@ -297,7 +297,7 @@ function Developer() {
               <div className="card-contact-actions">
                 <a
                   href={`mailto:${mentor.email}`}
-                  className="btn-hero-compete card-primary-btn mentor-email-btn"
+                  className="card-primary-btn mentor-email-btn"
                   title={`Send email to ${mentor.name}`}
                 >
                   <FontAwesomeIcon icon={faEnvelope} />
@@ -305,7 +305,7 @@ function Developer() {
                 </a>
                 <button
                   type="button"
-                  className="btn-glass-action card-secondary-btn"
+                  className="card-secondary-btn"
                   onClick={handleCopyMentorEmail}
                   title="Copy email address"
                 >

@@ -236,7 +236,7 @@ export default function ProblemReadPanel({ problemId, onClose, initialProblem = 
           <div className="read-drawer-header-actions">
             <button
               type="button"
-              className="btn-hero-compete read-solve-btn"
+              className="read-solve-btn"
               onClick={handleSolve}
               title="Solve this problem in the interactive code editor"
             >
