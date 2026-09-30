@@ -335,12 +335,76 @@
   justify-content: center;
   gap: 8px;
   padding: 9px 16px;
+  border-radius: 999px;
+  border: none;
   text-decoration: none;
   font-family: 'Space Grotesk', sans-serif;
   font-size: 0.84rem;
   font-weight: 700;
+  cursor: pointer;
+  background: linear-gradient(135deg, #00e5ff 0%, #00b4d8 100%);
+  color: #041421;
+  box-shadow: 0 4px 18px rgba(0, 229, 255, 0.38);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+.card-primary-btn:hover {
+  transform: translateY(-2px);
+}
+
+/* Tone-Specific Styles for Primary Action Button (LinkedIn / Mentor Email) */
+.tone-cyan .card-primary-btn {
+  background: linear-gradient(135deg, #00e5ff 0%, #00b4d8 100%);
+  color: #041421;
+  box-shadow: 0 4px 18px rgba(0, 229, 255, 0.38);
+}
+
+.tone-cyan .card-primary-btn:hover {
+  background: linear-gradient(135deg, #38bdf8 0%, #00e5ff 100%);
+  box-shadow: 0 8px 26px rgba(0, 229, 255, 0.6);
+  color: #000000;
+}
+
+.tone-emerald .card-primary-btn {
+  background: linear-gradient(135deg, #00f59b 0%, #10b981 100%);
+  color: #021a11;
+  box-shadow: 0 4px 18px rgba(0, 245, 155, 0.38);
+}
+
+.tone-emerald .card-primary-btn:hover {
+  background: linear-gradient(135deg, #34d399 0%, #00f59b 100%);
+  box-shadow: 0 8px 26px rgba(0, 245, 155, 0.6);
+  color: #000000;
+}
+
+.tone-magenta .card-primary-btn {
+  background: linear-gradient(135deg, #ff2a7a 0%, #f43f5e 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 18px rgba(255, 42, 122, 0.38);
+}
+
+.tone-magenta .card-primary-btn:hover {
+  background: linear-gradient(135deg, #fb7185 0%, #ff2a7a 100%);
+  box-shadow: 0 8px 26px rgba(255, 42, 122, 0.6);
+  color: #ffffff;
+}
+
+.tone-amber .card-primary-btn,
+.mentor-email-btn {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
+  color: #181102 !important;
+  box-shadow: 0 4px 18px rgba(245, 158, 11, 0.4) !important;
+}
+
+.tone-amber .card-primary-btn:hover,
+.mentor-email-btn:hover {
+  background: linear-gradient(135deg, #fde047 0%, #f59e0b 100%) !important;
+  box-shadow: 0 8px 26px rgba(245, 158, 11, 0.65) !important;
+  color: #000000 !important;
+}
+
+/* Secondary Button (GitHub / Copy Email) */
+.card-secondary-btn,
 .btn-glass-action {
   flex: 1;
   display: inline-flex;
@@ -360,6 +424,7 @@
   transition: all 0.25s ease;
 }
 
+.card-secondary-btn:hover,
 .btn-glass-action:hover {
   background: rgba(255, 255, 255, 0.1);
   border-color: rgba(255, 255, 255, 0.25);
@@ -367,21 +432,51 @@
   transform: translateY(-2px);
 }
 
+.tone-cyan .card-secondary-btn:hover {
+  border-color: rgba(0, 229, 255, 0.45);
+  box-shadow: 0 4px 14px rgba(0, 229, 255, 0.18);
+  color: #ffffff;
+}
+
+.tone-emerald .card-secondary-btn:hover {
+  border-color: rgba(0, 255, 136, 0.45);
+  box-shadow: 0 4px 14px rgba(0, 255, 136, 0.18);
+  color: #ffffff;
+}
+
+.tone-magenta .card-secondary-btn:hover {
+  border-color: rgba(255, 42, 122, 0.45);
+  box-shadow: 0 4px 14px rgba(255, 42, 122, 0.18);
+  color: #ffffff;
+}
+
+.tone-amber .card-secondary-btn:hover {
+  border-color: rgba(255, 213, 0, 0.45);
+  box-shadow: 0 4px 14px rgba(255, 213, 0, 0.18);
+  color: #ffffff;
+}
+
 /* ================= FACULTY MENTOR SECTION ================= */
 .faculty-mentor-card {
-  padding: 28px;
+  padding: 32px 36px;
   background: rgba(10, 14, 23, 0.82) !important;
-  border: 1px solid rgba(255, 213, 0, 0.25) !important;
+  border: 1px solid rgba(255, 213, 0, 0.28) !important;
+  margin-top: 14px;
 }
 
 .faculty-mentor-card .card-inner {
+  display: flex;
   flex-direction: row;
   align-items: flex-start;
-  gap: 28px;
+  gap: 32px;
 }
 
 .faculty-mentor-card .card-avatar-wrap {
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 0;
 }
 
 .faculty-mentor-card .card-avatar-img-box {
@@ -389,17 +484,18 @@
   height: 130px;
 }
 
+.faculty-mentor-card .card-content {
+  flex: 1;
+  text-align: left;
+}
+
 .faculty-mentor-card .card-name {
-  font-size: 1.5rem;
+  font-size: 1.55rem;
 }
 
-.mentor-email-btn {
-  background: linear-gradient(90deg, #f59e0b 0%, #d97706 100%) !important;
-  box-shadow: 0 4px 18px rgba(245, 158, 11, 0.4) !important;
-}
-
-.mentor-email-btn:hover {
-  box-shadow: 0 8px 24px rgba(245, 158, 11, 0.65) !important;
+.faculty-mentor-card .card-contact-actions {
+  justify-content: flex-start;
+  max-width: 480px;
 }
 
 /* ================= RESPONSIVE ADJUSTMENTS ================= */
@@ -407,17 +503,28 @@
   .developer-team-grid {
     grid-template-columns: 1fr;
   }
+}
+
+@media (max-width: 768px) {
+  .faculty-mentor-card {
+    padding: 24px 20px;
+  }
 
   .faculty-mentor-card .card-inner {
     flex-direction: column;
-    align-items: center;
-    text-align: center;
+    align-items: flex-start;
+    text-align: left;
+    gap: 20px;
+  }
+
+  .faculty-mentor-card .card-avatar-wrap {
+    align-items: flex-start;
   }
 
   .faculty-mentor-card .card-role-badge,
   .faculty-mentor-card .card-skills-list,
   .faculty-mentor-card .card-contact-actions {
-    justify-content: center;
+    justify-content: flex-start;
   }
 }
 
@@ -429,5 +536,16 @@
 
   .developer-hero-title {
     font-size: 1.85rem;
+  }
+
+  .faculty-mentor-card .card-contact-actions {
+    flex-direction: column;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .faculty-mentor-card .card-contact-actions .card-primary-btn,
+  .faculty-mentor-card .card-contact-actions .card-secondary-btn {
+    width: 100%;
   }
 }

@@ -600,16 +600,16 @@
 
 .read-problem-btn:hover {
   background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.25);
-  color: #ffffff;
+  border-color: rgba(0, 229, 255, 0.35);
+  color: #00e5ff;
 }
 
 .solve-problem-btn {
   padding: 4px 12px;
   border-radius: 999px;
   border: none;
-  background: linear-gradient(90deg, #8b5cf6 0%, #3b82f6 100%);
-  color: #ffffff;
+  background: linear-gradient(135deg, #00e5ff 0%, #00b4d8 100%);
+  color: #041421;
   font-family: 'Space Grotesk', sans-serif;
   font-size: 0.72rem;
   font-weight: 700;
@@ -617,13 +617,15 @@
   align-items: center;
   gap: 5px;
   cursor: pointer;
-  box-shadow: 0 2px 10px rgba(139, 92, 246, 0.35);
+  box-shadow: 0 2px 10px rgba(0, 229, 255, 0.35);
   transition: all 0.2s ease;
 }
 
 .solve-problem-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 14px rgba(139, 92, 246, 0.55);
+  background: linear-gradient(135deg, #38bdf8 0%, #00e5ff 100%);
+  box-shadow: 0 4px 16px rgba(0, 229, 255, 0.58);
+  color: #000000;
 }
 
 .solve-btn-icon {
@@ -863,6 +865,20 @@
   font-weight: 700;
   cursor: pointer;
   transition: all 0.2s ease;
+}
+
+.btn-action-cyan {
+  background: rgba(0, 229, 255, 0.12);
+  border: 1px solid rgba(0, 229, 255, 0.4);
+  color: #00e5ff;
+}
+
+.btn-action-cyan:hover {
+  background: rgba(0, 229, 255, 0.25);
+  border-color: rgba(0, 229, 255, 0.8);
+  box-shadow: 0 2px 14px rgba(0, 229, 255, 0.4);
+  color: #ffffff;
+  transform: translateY(-1px);
 }
 
 .btn-action-purple {

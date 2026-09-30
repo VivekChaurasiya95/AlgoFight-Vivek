@@ -413,7 +413,7 @@ export default function BattleArena({ defaultTab }) {
                         </div>
 
                         <button
-                          className="btn-hero-action btn-action-purple w-full"
+                          className="btn-hero-action btn-action-cyan w-full"
                           onClick={() => setShowCreateModal(true)}
                         >
                           <FontAwesomeIcon icon={faPlus} />
