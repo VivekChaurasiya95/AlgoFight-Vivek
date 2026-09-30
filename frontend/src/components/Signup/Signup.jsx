@@ -28,7 +28,8 @@ function Signup() {
   useEffect(() => {
     // Only auto-redirect if NOT waiting for faculty onboarding form
     if (user && !showFacultyOnboarding) {
-      navigate(user.userType === "FACULTY" ? "/faculty" : from, { replace: true });
+      const isFaculty = user.userType === "FACULTY" || user.role === "FACULTY" || (user.email || "").toLowerCase().includes("mitsgwalior.in");
+      navigate(isFaculty ? "/faculty" : from, { replace: true });
     }
   }, [user, navigate, from, showFacultyOnboarding]);
 
@@ -36,7 +37,8 @@ function Signup() {
     setLoading(true);
     try {
       const loggedUser = await loginWithGoogle(credential);
-      if (accountRole === "FACULTY" || loggedUser?.userType === "FACULTY") {
+      const isMitsFaculty = (loggedUser?.email || "").toLowerCase().includes("mitsgwalior.in");
+      if (accountRole === "FACULTY" || loggedUser?.userType === "FACULTY" || isMitsFaculty) {
         setNewFacultyUser(loggedUser);
         setShowFacultyOnboarding(true);
         notify({
@@ -104,16 +106,18 @@ function Signup() {
     try {
       const cleanEmail = email.trim();
       const defaultUsername = cleanEmail.split("@")[0].replace(/[^a-zA-Z0-9_]/g, "");
+      const isMitsFaculty = cleanEmail.toLowerCase().includes("mitsgwalior.in");
+      const userType = (accountRole === "FACULTY" || isMitsFaculty) ? "FACULTY" : "INDIVIDUAL";
 
       const createdUser = await signupManual({
         email: cleanEmail,
         password,
         username: defaultUsername,
-        userType: accountRole === "FACULTY" ? "FACULTY" : "INDIVIDUAL",
-        institutionName: accountRole === "FACULTY" ? "Madhav Institute of Technology & Science" : undefined,
+        userType,
+        institutionName: (accountRole === "FACULTY" || isMitsFaculty) ? "Madhav Institute of Technology & Science" : undefined,
       });
 
-      if (accountRole === "FACULTY") {
+      if (accountRole === "FACULTY" || isMitsFaculty || createdUser?.userType === "FACULTY") {
         setNewFacultyUser(createdUser);
         setShowFacultyOnboarding(true);
         notify({

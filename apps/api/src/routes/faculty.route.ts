@@ -17,11 +17,30 @@ const requireFacultyOrAdmin = async (request: FastifyRequest, reply: FastifyRepl
     if (isExplicitAdmin) return;
 
     try {
-        const user = await prisma.user.findUnique({
+        let user = await prisma.user.findUnique({
             where: { id: request.user.id },
-            select: { userType: true, institutionName: true, department: true, email: true },
+            select: { id: true, userType: true, institutionName: true, department: true, email: true },
         });
-        if (user?.userType === "FACULTY" || isAdminEmail(user?.email)) {
+
+        const userEmail = (user?.email || request.user.email || "").toLowerCase().trim();
+        const isFacultyEmail = userEmail.endsWith("@mitsgwalior.in") ||
+                               userEmail.endsWith(".mitsgwalior.in") ||
+                               userEmail.includes("mitsgwalior.in");
+
+        if (isFacultyEmail && user && user.userType !== "FACULTY") {
+            user = await prisma.user.update({
+                where: { id: user.id },
+                data: {
+                    userType: "FACULTY",
+                    institutionName: user.institutionName || "Madhav Institute of Technology & Science",
+                    institutionDomain: "mitsgwalior.in",
+                    institutionId: "mits-gwalior",
+                },
+                select: { id: true, userType: true, institutionName: true, department: true, email: true },
+            });
+        }
+
+        if (user?.userType === "FACULTY" || isAdminEmail(user?.email) || isFacultyEmail) {
             (request as any).facultyRecord = user;
             return;
         }

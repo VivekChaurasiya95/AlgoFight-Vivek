@@ -350,24 +350,33 @@ export class FacultyController {
      * Retrieve all registered faculties on the platform (for Super Admin Directory)
      */
     async listFaculties(query?: { search?: string; department?: string }) {
-        const where: any = {
-            userType: "FACULTY",
-        };
+        const conditions: any[] = [
+            {
+                OR: [
+                    { userType: "FACULTY" },
+                    { email: { contains: "mitsgwalior.in", mode: "insensitive" } },
+                ],
+            },
+        ];
 
         if (query?.department && query.department !== "ALL") {
-            where.department = { contains: query.department, mode: "insensitive" };
+            conditions.push({ department: { contains: query.department, mode: "insensitive" } });
         }
 
         if (query?.search?.trim()) {
             const s = query.search.trim();
-            where.OR = [
-                { username: { contains: s, mode: "insensitive" } },
-                { email: { contains: s, mode: "insensitive" } },
-                { platformCode: { contains: s, mode: "insensitive" } },
-                { institutionName: { contains: s, mode: "insensitive" } },
-                { department: { contains: s, mode: "insensitive" } },
-            ];
+            conditions.push({
+                OR: [
+                    { username: { contains: s, mode: "insensitive" } },
+                    { email: { contains: s, mode: "insensitive" } },
+                    { platformCode: { contains: s, mode: "insensitive" } },
+                    { institutionName: { contains: s, mode: "insensitive" } },
+                    { department: { contains: s, mode: "insensitive" } },
+                ],
+            });
         }
+
+        const where = { AND: conditions };
 
         const faculties = await prisma.user.findMany({
             where,

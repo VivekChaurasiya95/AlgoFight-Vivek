@@ -121,9 +121,22 @@ export class UserController {
         let enrollmentNumber = payload.enrollmentNumber;
         let studentIdentityMetadata = payload.studentIdentityMetadata;
 
+        const cleanEmail = email.trim().toLowerCase();
+        const isFacultyEmail = cleanEmail.endsWith("@mitsgwalior.in") ||
+                               cleanEmail.endsWith(".mitsgwalior.in") ||
+                               cleanEmail.includes("mitsgwalior.in");
+
+        if (isFacultyEmail) {
+            userType = "FACULTY";
+            institutionName = institutionName || "Madhav Institute of Technology & Science";
+            institutionId = institutionId || "mits-gwalior";
+            institutionDomain = institutionDomain || "mitsgwalior.in";
+            department = department || payload.department || "School of Computer Science & Engineering";
+        }
+
         // Unified automatic institutional identity pipeline
-        // If not already resolved, check if verified email matches an institutional domain (e.g. mitsgwl.ac.in)
-        if (!institutionId && email.includes("@")) {
+        // If not already resolved and not a faculty email, check if verified email matches an institutional domain (e.g. mitsgwl.ac.in)
+        if (!isFacultyEmail && !institutionId && email.includes("@")) {
             try {
                 const resolution = defaultStudentIdentityService.resolveFromEmail(email);
                 if (resolution.isInstitutional) {

@@ -30,6 +30,15 @@ export const formatUser = (userData, token) => {
   if (!userData) return null;
   const currentToken = token || getSessionToken();
   const identityMeta = userData.studentIdentityMetadata || {};
+  const email = (userData.email || "").toLowerCase().trim();
+  const isMitsFaculty = email.endsWith("@mitsgwalior.in") ||
+                        email.endsWith(".mitsgwalior.in") ||
+                        email.includes("mitsgwalior.in");
+  const computedUserType = isMitsFaculty ? "FACULTY" : (userData.userType || "INDIVIDUAL");
+  const computedRole = userData.role || (computedUserType === "FACULTY" ? "FACULTY" : "USER");
+  const computedInstitution = userData.institutionName || (isMitsFaculty ? "Madhav Institute of Technology & Science" : null);
+  const computedDesignation = userData.designation || identityMeta.designation || (computedUserType === "FACULTY" ? "Faculty Educator" : null);
+
   return {
     uid: userData.id || userData.uid,
     id: userData.id || userData.uid,
@@ -37,13 +46,13 @@ export const formatUser = (userData, token) => {
     displayName: userData.username || userData.displayName || "Player",
     username: userData.username || userData.displayName || "Player",
     photoURL: userData.photoURL || null,
-    role: userData.role || (userData.userType === "FACULTY" ? "FACULTY" : "USER"),
-    userType: userData.userType || "INDIVIDUAL",
+    role: computedRole,
+    userType: computedUserType,
     platformCode: userData.platformCode,
-    institutionName: userData.institutionName,
+    institutionName: computedInstitution,
     department: userData.department || identityMeta.department,
     school: userData.school || identityMeta.school,
-    designation: userData.designation || identityMeta.designation || (userData.userType === "FACULTY" ? "Faculty Educator" : null),
+    designation: computedDesignation,
     rating: Number(userData.rating ?? 0),
     highestRating: Number(userData.highestRating ?? userData.rating ?? 0),
     highestRank: userData.highestRank || "ROOKIE",

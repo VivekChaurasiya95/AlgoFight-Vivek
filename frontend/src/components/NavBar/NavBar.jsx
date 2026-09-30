@@ -48,7 +48,11 @@ const Navbar = () => {
   };
 
   const isAdmin = isAdminUser(user);
-  const isFacultyUser = profileData?.userType === "FACULTY";
+  const userEmail = (user?.email || profileData?.email || "").toLowerCase().trim();
+  const isMitsFaculty = userEmail.endsWith("@mitsgwalior.in") ||
+                        userEmail.endsWith(".mitsgwalior.in") ||
+                        userEmail.includes("mitsgwalior.in");
+  const isFacultyUser = profileData?.userType === "FACULTY" || user?.userType === "FACULTY" || user?.role === "FACULTY" || isMitsFaculty;
   const hasFacultyAccess = isFacultyUser || isAdmin;
   const isExploreActive = ['/about', '/admin', '/faculty'].includes(location.pathname);
 

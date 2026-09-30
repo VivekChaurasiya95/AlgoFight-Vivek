@@ -386,7 +386,11 @@ function Profile() {
     }, [email, user?.email]);
 
     const isInstitutional = Boolean(profile?.academicProfile || profile?.institutionName || academicFallback);
-    const isFacultyProfile = profile?.userType === "FACULTY" || profile?.role === "FACULTY";
+    const targetEmail = (email || profile?.email || user?.email || "").toLowerCase().trim();
+    const isMitsFacultyEmail = targetEmail.endsWith("@mitsgwalior.in") ||
+                               targetEmail.endsWith(".mitsgwalior.in") ||
+                               targetEmail.includes("mitsgwalior.in");
+    const isFacultyProfile = profile?.userType === "FACULTY" || profile?.role === "FACULTY" || isMitsFacultyEmail;
 
     const {
         rating,

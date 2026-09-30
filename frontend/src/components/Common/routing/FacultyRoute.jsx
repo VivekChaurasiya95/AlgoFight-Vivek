@@ -29,8 +29,17 @@ export default function FacultyRoute({ children }) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
+  const userEmail = (user.email || profileData?.email || "").toLowerCase().trim();
+  const isMitsFaculty = userEmail.endsWith("@mitsgwalior.in") ||
+                        userEmail.endsWith(".mitsgwalior.in") ||
+                        userEmail.includes("mitsgwalior.in");
+
   const isFacultyOrAdmin = Boolean(
-    isAdminUser(user) || profileData?.userType === "FACULTY"
+    isAdminUser(user) ||
+    profileData?.userType === "FACULTY" ||
+    user?.userType === "FACULTY" ||
+    user?.role === "FACULTY" ||
+    isMitsFaculty
   );
 
   if (!isFacultyOrAdmin) {

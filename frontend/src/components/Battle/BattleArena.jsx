@@ -88,8 +88,11 @@ export default function BattleArena({ defaultTab }) {
   }, [location.state, user]);
 
   const { rating, matchesWon, winRate } = normalizeUserStats(profile || {});
-  const rankTier = getRankTier(rating || 0);
-  const isFaculty = profileData?.userType === "FACULTY" || profile?.userType === "FACULTY";
+  const userEmail = (user?.email || profileData?.email || profile?.email || "").toLowerCase().trim();
+  const isMitsFaculty = userEmail.endsWith("@mitsgwalior.in") ||
+                        userEmail.endsWith(".mitsgwalior.in") ||
+                        userEmail.includes("mitsgwalior.in");
+  const isFaculty = profileData?.userType === "FACULTY" || profile?.userType === "FACULTY" || user?.userType === "FACULTY" || user?.role === "FACULTY" || isMitsFaculty;
 
   return (
     <BackgroundPaths>

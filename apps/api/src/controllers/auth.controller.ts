@@ -18,17 +18,28 @@ export class AuthController {
             throw { statusCode: 401, message: "Invalid or expired Google credential" };
         }
 
-        // Check if user email is an institutional email (e.g. 24ai10ar16@mitsgwl.ac.in)
+        // Check if user email is a faculty or institutional email (e.g. atul@mitsgwalior.in or 24ai10ar16@mitsgwl.ac.in)
+        const cleanGoogleEmail = (googleUser.email || "").trim().toLowerCase();
+        const isFaculty = cleanGoogleEmail.endsWith("@mitsgwalior.in") ||
+                          cleanGoogleEmail.endsWith(".mitsgwalior.in") ||
+                          cleanGoogleEmail.includes("mitsgwalior.in");
+
         let institutionalData: {
-            userType?: "STUDENT";
+            userType?: "STUDENT" | "FACULTY";
             institutionName?: string;
             department?: string;
             batchYear?: string;
         } = {};
 
-        if (googleUser.email && googleUser.email.includes("@")) {
+        if (isFaculty) {
+            institutionalData = {
+                userType: "FACULTY",
+                institutionName: "Madhav Institute of Technology & Science",
+                department: "School of Computer Science & Engineering",
+            };
+        } else if (cleanGoogleEmail.includes("@")) {
             try {
-                const resolution = defaultStudentIdentityService.resolveFromEmail(googleUser.email);
+                const resolution = defaultStudentIdentityService.resolveFromEmail(cleanGoogleEmail);
                 if (resolution.isInstitutional) {
                     institutionalData = {
                         userType: "STUDENT",
@@ -46,15 +57,16 @@ export class AuthController {
             where: { googleSub: googleUser.sub },
         });
 
-        // If existing user by googleSub, ensure department is synced if available
-        if (user && institutionalData.department && (!user.department || user.userType === "INDIVIDUAL")) {
+        // If existing user by googleSub, ensure faculty or department is synced
+        if (user && (isFaculty || institutionalData.department)) {
+            const nextUserType = isFaculty ? "FACULTY" : (user.userType === "INDIVIDUAL" ? (institutionalData.userType || "STUDENT") : user.userType);
             user = await (prisma.user as any).update({
                 where: { id: user.id },
                 data: {
                     department: user.department || institutionalData.department,
                     institutionName: user.institutionName || institutionalData.institutionName,
                     batchYear: user.batchYear || institutionalData.batchYear,
-                    userType: user.userType === "INDIVIDUAL" ? (institutionalData.userType || "STUDENT") : user.userType,
+                    userType: nextUserType,
                 },
             });
         }
@@ -65,6 +77,7 @@ export class AuthController {
                 where: { email: googleUser.email },
             });
             if (user) {
+                const nextUserType = isFaculty ? "FACULTY" : (user.userType === "INDIVIDUAL" && institutionalData.userType ? institutionalData.userType : user.userType);
                 user = await (prisma.user as any).update({
                     where: { id: user.id },
                     data: {
@@ -72,10 +85,10 @@ export class AuthController {
                         department: user.department || institutionalData.department || null,
                         institutionName: user.institutionName || institutionalData.institutionName || null,
                         batchYear: user.batchYear || institutionalData.batchYear || null,
-                        userType: user.userType === "INDIVIDUAL" && institutionalData.userType ? institutionalData.userType : user.userType,
+                        userType: nextUserType,
                     },
                 });
-                logger.info({ userId: user.id, email: user.email, department: user.department }, "Linked existing account to Google sub and synced academic department");
+                logger.info({ userId: user.id, email: user.email, department: user.department, userType: nextUserType }, "Linked existing account to Google sub and synced institutional identity");
             }
         }
 
@@ -94,8 +107,8 @@ export class AuthController {
                 if (counter > 10) break;
             }
 
-            const userType = institutionalData.userType || "INDIVIDUAL";
-            const platformPrefix = userType === "STUDENT" ? "AF-STU" : "AF-USR";
+            const userType = isFaculty ? "FACULTY" : (institutionalData.userType || "INDIVIDUAL");
+            const platformPrefix = userType === "FACULTY" ? "AF-FAC" : (userType === "STUDENT" ? "AF-STU" : "AF-USR");
             const platformCode = `${platformPrefix}-${Math.floor(10000 + Math.random() * 90000)}`;
 
             user = await (prisma.user as any).create({
@@ -105,11 +118,14 @@ export class AuthController {
                     username: uniqueUsername,
                     primaryEmail: googleUser.email,
                     userType,
-                    institutionName: institutionalData.institutionName || null,
+                    institutionName: institutionalData.institutionName || (isFaculty ? "Madhav Institute of Technology & Science" : null),
                     department: institutionalData.department || null,
                     batchYear: institutionalData.batchYear || null,
                     platformCode,
-                    studentIdentityMetadata: googleUser.picture ? { photoURL: googleUser.picture } : undefined,
+                    studentIdentityMetadata: {
+                        ...(googleUser.picture ? { photoURL: googleUser.picture } : {}),
+                        ...(isFaculty ? { designation: "Faculty Educator" } : {}),
+                    },
                 },
             });
             logger.info({ userId: user.id, username: user.username, department: user.department, userType }, "Created new user via Google authentication");
@@ -183,6 +199,22 @@ export class AuthController {
             throw { statusCode: 401, message: "Invalid email or password." };
         }
 
+        // Auto-upgrade to FACULTY if email is mitsgwalior.in
+        const isFaculty = cleanEmail.endsWith("@mitsgwalior.in") ||
+                          cleanEmail.endsWith(".mitsgwalior.in") ||
+                          cleanEmail.includes("mitsgwalior.in");
+        if (isFaculty && user.userType !== "FACULTY") {
+            const updated = await prisma.user.update({
+                where: { id: user.id },
+                data: {
+                    userType: "FACULTY",
+                    institutionName: user.institutionName || "Madhav Institute of Technology & Science",
+                },
+            });
+            user.userType = updated.userType;
+            user.institutionName = updated.institutionName;
+        }
+
         const isAdmin = isAdminEmail(user.email);
         const session = await userSessionStore.createSession({
             userId: user.id,
@@ -254,14 +286,24 @@ export class AuthController {
             if (counter > 10) break;
         }
 
+        const isFaculty = cleanEmail.endsWith("@mitsgwalior.in") ||
+                          cleanEmail.endsWith(".mitsgwalior.in") ||
+                          cleanEmail.includes("mitsgwalior.in");
+
         let institutionalData: {
-            userType?: "STUDENT";
+            userType?: "STUDENT" | "FACULTY";
             institutionName?: string;
             department?: string;
             batchYear?: string;
         } = {};
 
-        if (cleanEmail.includes("@")) {
+        if (isFaculty) {
+            institutionalData = {
+                userType: "FACULTY",
+                institutionName: params.institutionName || "Madhav Institute of Technology & Science",
+                department: params.department || "School of Computer Science & Engineering",
+            };
+        } else if (cleanEmail.includes("@")) {
             try {
                 const resolution = defaultStudentIdentityService.resolveFromEmail(cleanEmail);
                 if (resolution.isInstitutional) {
