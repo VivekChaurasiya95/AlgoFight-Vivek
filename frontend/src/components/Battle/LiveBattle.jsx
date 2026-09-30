@@ -41,6 +41,7 @@ import {
 import BackgroundPaths from "../BackgroundPaths/BackgroundPaths";
 import "../BackgroundPaths/BackgroundPaths.css";
 import Footer from "../Common/Footer/Footer";
+import SmartCodeEditor from "../Common/editor/SmartCodeEditor.jsx";
 import "./LiveBattle.css";
 
 const PostBattleSummaryModal = ({ battleResult, liveState, problems, ratingUpdates, currentUser, currentUsername, onClose }) => {
@@ -1657,16 +1658,12 @@ export default function LiveBattle() {
                 </div>
               </div>
             )}
-            <textarea
-              className="livebattle-code-editor"
+            <SmartCodeEditor
               value={code}
-              onChange={(e) => handleCodeChange(e.target.value)}
-              spellCheck="false"
+              onChange={handleCodeChange}
+              language={selectedLanguage}
               disabled={status === "finished" || isSelfDisqualified}
-              style={{ 
-                  filter: isBlurred ? 'blur(8px)' : 'none',
-                  transition: 'filter 0.3s'
-              }}
+              isBlurred={isBlurred}
             />
             <div className="code-editor-statusbar">
               <span>{code ? code.split('\n').length : 0} Lines</span>

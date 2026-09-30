@@ -2,22 +2,38 @@ import { ExecuteRequest, PipelineProgressEvent } from "../models/execute-request
 import { EvaluationResult, TestCaseResult, Verdict } from "@algofight/types";
 import { WorkerPool } from "./worker-pool";
 import { PistonAdapter } from "../../services/piston.adapter";
+import { normalizeOutput } from "../comparators/exact-comparator";
 
 export type PipelineEventCallback = (event: PipelineProgressEvent) => void;
 
 export class ExecutionPipeline {
     private pistonAdapter = new PistonAdapter();
-    private workerPool = new WorkerPool(4); // Bounded concurrency limit
+
+    private getAvailableRuntimeUrls(targetRuntimeUrl?: string): string[] {
+        const urls: string[] = [];
+        if (targetRuntimeUrl) urls.push(targetRuntimeUrl);
+        
+        const primary = process.env.PISTON_URL || (process.env.NODE_ENV === "production" ? "http://piston-1:2000" : "http://127.0.0.1:2000");
+        if (!urls.includes(primary)) urls.push(primary);
+
+        const backups = (process.env.PISTON_BACKUP_URLS || (process.env.NODE_ENV === "production" ? "http://piston-2:2000" : "http://127.0.0.1:2001"))
+            .split(",")
+            .map(u => u.trim())
+            .filter(Boolean);
+
+        for (const backup of backups) {
+            if (!urls.includes(backup)) urls.push(backup);
+        }
+
+        return urls;
+    }
 
     async execute(request: ExecuteRequest, onProgress?: PipelineEventCallback): Promise<EvaluationResult> {
         const { submissionId, language, code, testCases, timeLimitMs, memoryLimitBytes, mode, targetRuntimeUrl } = request;
         
         onProgress?.({ submissionId, stage: "PREPARE" });
 
-        // Phase 1: Compile/First Run (used for compilation check)
-        onProgress?.({ submissionId, stage: "COMPILE" });
-        
-        if (testCases.length === 0) {
+        if (!testCases || testCases.length === 0) {
             return {
                 submissionId,
                 verdict: Verdict.SYSTEM_ERROR,
@@ -25,14 +41,24 @@ export class ExecutionPipeline {
             };
         }
 
+        const runtimes = this.getAvailableRuntimeUrls(targetRuntimeUrl);
+        const isCompiled = ["cpp", "c++", "c", "java", "rust"].includes(language.toLowerCase().trim());
+        // Bounded concurrency: 2 for heavy compiled languages to protect CPU, 4 for interpreted scripts
+        const concurrency = isCompiled ? 2 : 4;
+        const workerPool = new WorkerPool(concurrency);
+
+        // Phase 1: Compile/Canary Run with Test Case 0
+        onProgress?.({ submissionId, stage: "COMPILE" });
+        
         const firstTestCase = testCases[0];
+        const primaryRuntime = runtimes[0];
         const firstExecution = await this.pistonAdapter.executeCode(
             language,
             code,
             firstTestCase.input,
             timeLimitMs,
             memoryLimitBytes,
-            targetRuntimeUrl
+            primaryRuntime
         );
 
         const compilationResult = {
@@ -59,7 +85,7 @@ export class ExecutionPipeline {
 
         onProgress?.({ submissionId, stage: "TEST_STARTED" });
 
-        // Phase 2: Fan-out test cases with bounded worker pool
+        // Phase 2: Fan-out test cases with multi-node round-robin distribution
         let overallVerdict = Verdict.ACCEPTED;
         let maxMemory = 0;
         let totalTime = 0;
@@ -67,17 +93,18 @@ export class ExecutionPipeline {
         
         const testCaseResults: TestCaseResult[] = [];
         const executionPromises = testCases.map(async (testCase, index) => {
-            return this.workerPool.add(async () => {
+            return workerPool.add(async () => {
                 let execution = firstExecution;
                 // Don't re-run the first test case unless it was just compilation
                 if (index !== 0) {
+                    const assignedRuntime = runtimes[index % runtimes.length];
                     execution = await this.pistonAdapter.executeCode(
                         language,
                         code,
                         testCase.input,
                         timeLimitMs,
                         memoryLimitBytes,
-                        targetRuntimeUrl
+                        assignedRuntime
                     );
                 }
 
@@ -96,9 +123,9 @@ export class ExecutionPipeline {
                     status = Verdict.RUNTIME_ERROR;
                     currentError = run.stderr || "Runtime Error";
                 } else {
-                    const actual = run.stdout.trim();
-                    const expected = testCase.expectedOutput.trim();
-                    if (actual === expected) {
+                    const actualNorm = normalizeOutput(run.stdout);
+                    const expectedNorm = normalizeOutput(testCase.expectedOutput);
+                    if (actualNorm === expectedNorm) {
                         passed = true;
                         status = Verdict.ACCEPTED;
                     } else {

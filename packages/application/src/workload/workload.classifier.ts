@@ -12,7 +12,7 @@ export class WorkloadClassifier {
     private static readonly COMPILED_LANGUAGES = new Set(["cpp", "c", "java", "rust", "csharp"]);
 
     // Threshold constants for heuristic classification
-    private static readonly LARGE_SOURCE_BYTES = 8 * 1024; // 8 KB
+    private static readonly LARGE_SOURCE_BYTES = 128 * 1024; // 128 KB
     private static readonly HIGH_TEST_COUNT = 15;
     private static readonly EXTENDED_TIME_LIMIT_MS = 3000;
 

@@ -8,6 +8,7 @@ import { logger } from "@algofight/logger";
 
 export class SubmissionController {
     private readonly sandboxExecutor = new SandboxExecutor();
+    private readonly evaluationService = new EvaluationService();
     private readonly pistonAdapter = new PistonAdapter();
 
     constructor(
@@ -114,42 +115,46 @@ export class SubmissionController {
         }
 
         try {
-            const result = await this.sandboxExecutor.execute({
+            const evalResult = await this.evaluationService.evaluateSubmission({
                 submissionId: `practice-${Date.now()}`,
                 language: body.language,
                 code: body.code,
-                testCases: testCases.map((tc) => ({
+                testCases: testCases.map((tc, i) => ({
+                    id: tc.id || `tc-${i + 1}`,
                     input: tc.input,
                     expectedOutput: tc.expectedOutput,
                 })),
-                timeLimit: problem.timeLimit,
-                memoryLimit: problem.memoryLimit,
+                timeLimitMs: problem.timeLimit,
+                memoryLimitBytes: problem.memoryLimit,
                 targetRuntimeUrl,
-            });
+            } as any, undefined, body.mode === "submit" ? "SUBMIT" : "SAMPLE");
 
-            const passed = result.failedCount === 0;
+            const tcs = evalResult.testCases || [];
+            const passed = evalResult.verdict === "ACCEPTED";
+            const passedCount = tcs.filter((tc: any) => tc.passed).length;
+            const totalCount = tcs.length;
 
             // 🔐 Mask hidden test case input/output so secrets never leak to the client
-            const sanitizedTestCaseResults = (result.individualExecutions || []).map((exec: any, idx: number) => {
+            const sanitizedTestCaseResults = tcs.map((tc: any, idx: number) => {
                 const isHidden = Boolean(testCases[idx]?.isHidden);
-                if (isHidden) {
-                    return {
-                        ...exec,
-                        input: "[Hidden Test Case]",
-                        expectedOutput: "[Hidden Expected Output]",
-                        actualOutput: exec.passed ? "[Hidden Output Match]" : "[Hidden Output Mismatch]",
-                    };
-                }
-                return exec;
+                return {
+                    testCaseId: tc.testCaseId,
+                    passed: tc.passed,
+                    input: isHidden ? "[Hidden Test Case]" : (testCases[idx]?.input || ""),
+                    expectedOutput: isHidden ? "[Hidden Expected Output]" : (tc.expectedOutput || testCases[idx]?.expectedOutput || ""),
+                    actualOutput: isHidden ? (tc.passed ? "[Hidden Output Match]" : "[Hidden Output Mismatch]") : tc.actualOutput,
+                    error: tc.error,
+                    metrics: tc.metrics,
+                };
             });
 
             return {
                 passed,
-                output: result.stdout || (passed ? "All test cases passed successfully!" : result.stderr || "Output mismatch."),
-                passedTestCases: result.passedCount,
-                totalTestCases: result.passedCount + result.failedCount,
-                executionTime: result.executionTime,
-                verdict: result.verdict || (passed ? "ACCEPTED" : "WRONG_ANSWER"),
+                output: passed ? "All test cases passed successfully!" : (evalResult.compilation?.error || tcs.find((tc: any) => !tc.passed)?.error || "Output mismatch."),
+                passedTestCases: passedCount,
+                totalTestCases: totalCount,
+                executionTime: evalResult.resourceUsage?.totalTime || 0,
+                verdict: evalResult.verdict,
                 testCaseResults: sanitizedTestCaseResults,
             };
         } catch (err: any) {

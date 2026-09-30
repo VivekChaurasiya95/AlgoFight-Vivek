@@ -1,4 +1,5 @@
 import { Verdict } from "@algofight/types";
+import { CodeHarness } from "../judge/harness/code-harness";
 
 // Types matching Piston's API format
 interface PistonExecuteRequest {
@@ -58,7 +59,7 @@ export interface NormalizedExecutionResult {
 }
 
 export class PistonAdapter {
-    private readonly PISTON_URL = process.env.PISTON_URL || "http://127.0.0.1:2001";
+    private readonly PISTON_URL = process.env.PISTON_URL || (process.env.NODE_ENV === "production" ? "http://piston-1:2000" : "http://127.0.0.1:2000");
 
     // Maps AlgoFight languages to Piston (language, version)
     private languageMap: Record<string, { language: string; version: string; fileExtension: string }> = {
@@ -89,7 +90,7 @@ export class PistonAdapter {
 
     /**
      * Executes the provided code on the Piston engine and normalizes the response.
-     * Incorporates automatic fallback cascade across targetUrl -> PISTON_URL -> public EMKC.
+     * Incorporates automatic fallback cascade across targetUrl -> PISTON_URL -> backup nodes.
      */
     async executeCode(
         language: string,
@@ -104,20 +105,22 @@ export class PistonAdapter {
             throw new Error(`Unsupported language: ${language}`);
         }
 
-        const safeRunTimeout = Math.min(Math.max(100, timeLimitMs), 3000);
+        const prepared = CodeHarness.prepare(language, code, pistonLang.fileExtension);
+        const safeRunTimeout = Math.min(Math.max(100, timeLimitMs), 10000);
 
         const requestBody: PistonExecuteRequest = {
             language: pistonLang.language,
             version: pistonLang.version,
             files: [
                 {
-                    name: `main.${pistonLang.fileExtension}`,
-                    content: code,
+                    name: prepared.fileName,
+                    content: prepared.code,
                 },
             ],
             stdin: stdin,
             run_timeout: safeRunTimeout,
-            compile_timeout: 10000,
+            compile_timeout: 25000,
+            compile_memory_limit: 512 * 1024 * 1024,
             run_memory_limit: memoryLimitBytes,
         };
 

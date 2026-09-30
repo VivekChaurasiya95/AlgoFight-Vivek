@@ -28,6 +28,7 @@ import {
 import BackgroundPaths from "../BackgroundPaths/BackgroundPaths";
 import "../BackgroundPaths/BackgroundPaths.css";
 import Footer from "../Common/Footer/Footer";
+import SmartCodeEditor from "../Common/editor/SmartCodeEditor.jsx";
 import "../Battle/LiveBattle.css";
 
 export default function PracticeWorkspace() {
@@ -527,15 +528,11 @@ export default function PracticeWorkspace() {
             </div>
 
             <div className="code-editor-wrapper">
-              <textarea
-                className="livebattle-code-editor"
+              <SmartCodeEditor
                 value={code}
-                onChange={(event) => setCode(event.target.value)}
-                spellCheck="false"
-                style={{
-                  filter: isBlurred ? "blur(8px)" : "none",
-                  transition: "filter 0.3s ease",
-                }}
+                onChange={setCode}
+                language={selectedLanguage}
+                isBlurred={isBlurred}
               />
               <div className="code-editor-statusbar">
                 <span>{code ? code.split("\n").length : 0} Lines</span>

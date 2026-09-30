@@ -1,14 +1,23 @@
 import { Comparator } from "./comparator.interface";
 
-export class ExactComparator implements Comparator{
+export function normalizeOutput(raw: string): string {
+    return (raw || "")
+        .replace(/\r\n/g, "\n")
+        .replace(/\r/g, "\n")
+        .split("\n")
+        .map(line => line.trimEnd())
+        .join("\n")
+        .trim();
+}
+
+export class ExactComparator implements Comparator {
     compare(
         expectedOutput: string,
         actualOutput: string,
     ): boolean {
-        const expected = expectedOutput.trim();
+        const expected = normalizeOutput(expectedOutput);
+        const actual = normalizeOutput(actualOutput);
 
-        const actual = actualOutput.trim();
-
-        return expected == actual;
+        return expected === actual;
     }
 }
