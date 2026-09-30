@@ -12,6 +12,7 @@ import SystemBroadcastBanner from './components/Common/broadcasts/SystemBroadcas
 import FeedbackNotificationPrompt from './components/Feedback/FeedbackNotificationPrompt.jsx';
 import ActiveEventDock from './components/Common/ActiveEventDock.jsx';
 import ActiveEventCountdownModal from './components/Common/ActiveEventCountdownModal.jsx';
+import RejoinSessionModal from './components/Common/RejoinSessionModal.jsx';
 
 // 🚀 Code-split secondary route components with React.lazy
 const LandingPage = lazy(() => import('./components/LandingPage/LandingPage.jsx'));
@@ -107,6 +108,7 @@ function App() {
       <FeedbackNotificationPrompt />
       <ActiveEventDock />
       <ActiveEventCountdownModal />
+      <RejoinSessionModal />
       <AnimatePresence mode="wait">
         <Routes location={location} key={location.pathname}>
           {/* ================= Auth Routes ================= */}

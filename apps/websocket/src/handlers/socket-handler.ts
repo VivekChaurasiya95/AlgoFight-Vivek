@@ -232,13 +232,14 @@ export class SocketHandler {
 
         const battleState = {
             roomId: match.roomId,
+            hostId: match.player1Id,
             status: "RUNNING",
             timeLimitSeconds,
             startTime: Date.now(),
             totalQuestions: problems.length,
             players: [
-                { userId: match.player1Id, username: match.player1Username, points: 0, solvedProblems: [], solvedCount: 0 },
-                { userId: match.player2Id, username: match.player2Username, points: 0, solvedProblems: [], solvedCount: 0 }
+                { userId: match.player1Id, username: match.player1Username, points: 0, solvedProblems: [], solvedCount: 0, tabSwitches: 0, disqualified: false },
+                { userId: match.player2Id, username: match.player2Username, points: 0, solvedProblems: [], solvedCount: 0, tabSwitches: 0, disqualified: false }
             ]
         };
 
@@ -535,13 +536,15 @@ export class SocketHandler {
 
                         const battleState = {
                             roomId: room.id,
+                            roomCode: room.roomCode,
+                            hostId: challenge.fromUserId || room.hostId,
                             status: "RUNNING",
                             timeLimitSeconds: room.timeLimitMinutes * 60,
                             startTime: Date.now(),
                             totalQuestions: problems.length,
                             players: [
-                                { userId: challenge.fromUserId, username: challenge.fromUsername, points: 0, solvedProblems: [], solvedCount: 0 },
-                                { userId: challenge.targetUserId, username: challenge.targetUsername, points: 0, solvedProblems: [], solvedCount: 0 }
+                                { userId: challenge.fromUserId, username: challenge.fromUsername, points: 0, solvedProblems: [], solvedCount: 0, tabSwitches: 0, disqualified: false },
+                                { userId: challenge.targetUserId, username: challenge.targetUsername, points: 0, solvedProblems: [], solvedCount: 0, tabSwitches: 0, disqualified: false }
                             ]
                         };
                         await this.redis.set(`battle_state:${room.id}`, JSON.stringify(battleState), "EX", (room.timeLimitMinutes * 60) + 300);
@@ -1044,6 +1047,8 @@ export class SocketHandler {
 
                                 const battleState = {
                                     roomId: room.id,
+                                    roomCode: room.roomCode,
+                                    hostId: room.hostId,
                                     status: "RUNNING",
                                     timeLimitSeconds: room.timeLimitMinutes * 60,
                                     startTime: Date.now(),
@@ -1058,7 +1063,9 @@ export class SocketHandler {
                                             rating: profile?.rating ?? p.user?.rating ?? p.rating ?? 0,
                                             points: 0,
                                             solvedProblems: [],
-                                            solvedCount: 0
+                                            solvedCount: 0,
+                                            tabSwitches: 0,
+                                            disqualified: false
                                         };
                                     })
                                 };
@@ -1163,33 +1170,202 @@ export class SocketHandler {
                     break;
                 }
 
-                // 🛡️ AF-022: Server-Authoritative Anti-Cheat & Forfeit Handler
+                // 🛡️ AF-022: Server-Authoritative Anti-Cheat & Continuous Tab Switch Tracking
                 case "anti_cheat_violation": {
-                    const { roomId, type } = data;
+                    const { roomId, type, tabSwitches: reportedSwitches } = data;
                     const session = this.socketUsers.get(socket);
                     const userId = session?.userId || currentUserId.value;
+                    const username = session?.username || data.username || "A player";
                     if (!roomId || !userId) break;
 
                     const violationKey = `${roomId}:${userId}`;
                     const count = (this.violations.get(violationKey) || 0) + 1;
                     this.violations.set(violationKey, count);
 
-                    logger.warn({ roomId, userId, type, count }, "Anti-cheat violation detected");
+                    logger.warn({ roomId, userId, type, count, reportedSwitches }, "Anti-cheat violation detected");
+
+                    let currentSwitches = typeof reportedSwitches === "number" ? reportedSwitches : count;
+
+                    const rawState = await this.redis.get(`battle_state:${roomId}`);
+                    if (rawState) {
+                        try {
+                            const state = JSON.parse(rawState);
+                            const player = state.players?.find((p: any) => p.userId === userId || p.username === username);
+                            if (player) {
+                                player.tabSwitches = Math.max(player.tabSwitches || 0, currentSwitches);
+                                currentSwitches = player.tabSwitches;
+                                if (count >= 3) {
+                                    player.disqualified = true;
+                                    player.status = "DISQUALIFIED";
+                                }
+                            }
+                            await this.redis.set(`battle_state:${roomId}`, JSON.stringify(state), "EX", 7200);
+                            this.connectionManager.broadcastToRoom(roomId, "battle_state_sync", state);
+                            if (state.roomCode) {
+                                this.connectionManager.broadcastToRoom(state.roomCode, "battle_state_sync", state);
+                            }
+                        } catch (err) {
+                            logger.error({ err }, "Error updating battle state on anti_cheat_violation");
+                        }
+                    }
 
                     this.send(socket, "anti_cheat_warning", {
                         warning: `Anti-cheat warning (${count}/3): Window blur / tab switch detected.`,
                         violationsCount: count,
                         maxViolations: 3,
+                        tabSwitches: currentSwitches,
                     });
 
                     if (count >= 3) {
-                        await this.battleService.finishBattle(roomId, "FORFEIT_ANTI_CHEAT", undefined, userId);
-                        this.connectionManager.broadcastToRoom(roomId, "battle_forfeited", {
+                        this.send(socket, "anti_cheat_disqualified", {
                             roomId,
-                            forfeitedUserId: userId,
+                            userId,
+                            username,
+                            violationsCount: count,
+                            tabSwitches: currentSwitches,
                             reason: "Disqualified due to repeated anti-cheat violations (tab switching).",
                         });
+
+                        this.connectionManager.broadcastToRoom(roomId, "player_disqualified", {
+                            roomId,
+                            userId,
+                            username,
+                            tabSwitches: currentSwitches,
+                            reason: `${username} was disqualified by Anti-Cheat.`,
+                        });
                     }
+                    break;
+                }
+
+                // 🛡️ User requests re-entry after anti-cheat disqualification
+                case "request_anticheat_reentry": {
+                    const session = this.socketUsers.get(socket);
+                    const userId = session?.userId || currentUserId.value;
+                    const username = session?.username || data.username || "Combatant";
+                    const { roomId, tabSwitches } = data;
+                    if (!roomId || !userId) break;
+
+                    const rawState = await this.redis.get(`battle_state:${roomId}`);
+                    let hostId = data.hostId;
+                    let roomCode = data.roomCode;
+                    let playerSwitches = tabSwitches || 3;
+
+                    if (rawState) {
+                        try {
+                            const state = JSON.parse(rawState);
+                            hostId = state.hostId || hostId;
+                            roomCode = state.roomCode || roomCode;
+                            const player = state.players?.find((p: any) => p.userId === userId || p.username === username);
+                            if (player?.tabSwitches) {
+                                playerSwitches = player.tabSwitches;
+                            }
+                        } catch (err) {
+                            logger.error({ err }, "Error parsing battle state for request_anticheat_reentry");
+                        }
+                    }
+
+                    if (!hostId) {
+                        try {
+                            const room = await this.battleRoomRepo.getRoomById(roomId) 
+                                || (roomCode ? await this.battleRoomRepo.getRoomByCode(roomCode) : null);
+                            if (room?.hostId) {
+                                hostId = room.hostId;
+                            }
+                        } catch (_) {}
+                    }
+
+                    logger.info({ roomId, userId, username, hostId }, "Anti-cheat re-entry requested");
+
+                    if (hostId) {
+                        this.connectionManager.sendToUser(hostId, "anticheat_pardon_requested", {
+                            roomId,
+                            roomCode,
+                            targetUserId: userId,
+                            targetUsername: username,
+                            tabSwitches: playerSwitches,
+                            timestamp: Date.now(),
+                        });
+                    }
+
+                    this.send(socket, "anticheat_reentry_pending", {
+                        roomId,
+                        message: "Your re-entry request has been sent to the host. Please wait for approval.",
+                    });
+                    break;
+                }
+
+                // 🛡️ Host approves anti-cheat re-entry
+                case "approve_anticheat_reentry": {
+                    const session = this.socketUsers.get(socket);
+                    const activeUserId = session?.userId || currentUserId.value;
+                    const { roomId, targetUserId } = data;
+                    if (!activeUserId || !roomId || !targetUserId) break;
+
+                    const rawState = await this.redis.get(`battle_state:${roomId}`);
+                    if (!rawState) break;
+                    const state = JSON.parse(rawState);
+
+                    if (state.hostId && state.hostId !== activeUserId) {
+                        this.send(socket, "error", "Unauthorized: only the room host can approve re-entry.");
+                        break;
+                    }
+
+                    const player = state.players?.find((p: any) => p.userId === targetUserId);
+                    if (player) {
+                        player.disqualified = false;
+                        player.status = "ACTIVE";
+                        player.forfeited = false;
+
+                        // Clear violation warning count
+                        const violationKey = `${roomId}:${targetUserId}`;
+                        this.violations.delete(violationKey);
+
+                        // Save updated state (tabSwitches preserved)
+                        await this.redis.set(`battle_state:${roomId}`, JSON.stringify(state), "EX", 7200);
+
+                        logger.info({ roomId, targetUserId, hostId: activeUserId }, "Host approved anti-cheat re-entry");
+
+                        this.connectionManager.broadcastToRoom(roomId, "player_readmitted", {
+                            roomId,
+                            targetUserId,
+                            username: player.username,
+                            tabSwitches: player.tabSwitches || 0,
+                            reason: "Host approved re-entry after anti-cheat disqualification.",
+                        });
+                        this.connectionManager.broadcastToRoom(roomId, "battle_state_sync", state);
+                        if (state.roomCode) {
+                            this.connectionManager.broadcastToRoom(state.roomCode, "battle_state_sync", state);
+                            this.connectionManager.broadcastToRoom(state.roomCode, "player_readmitted", {
+                                roomId,
+                                targetUserId,
+                                username: player.username,
+                                tabSwitches: player.tabSwitches || 0,
+                                reason: "Host approved re-entry after anti-cheat disqualification.",
+                            });
+                        }
+
+                        this.connectionManager.sendToUser(targetUserId, "anticheat_reentry_approved", {
+                            roomId,
+                            message: "Your re-entry request was approved by the host! You may resume coding.",
+                            tabSwitches: player.tabSwitches || 0,
+                        });
+                    }
+                    break;
+                }
+
+                // 🛡️ Host rejects anti-cheat re-entry
+                case "reject_anticheat_reentry": {
+                    const session = this.socketUsers.get(socket);
+                    const activeUserId = session?.userId || currentUserId.value;
+                    const { roomId, targetUserId, reason } = data;
+                    if (!activeUserId || !roomId || !targetUserId) break;
+
+                    logger.info({ roomId, targetUserId, hostId: activeUserId }, "Host rejected anti-cheat re-entry");
+
+                    this.connectionManager.sendToUser(targetUserId, "anticheat_reentry_rejected", {
+                        roomId,
+                        message: reason || "Your re-entry request was declined by the host.",
+                    });
                     break;
                 }
 
@@ -1341,10 +1517,9 @@ export class SocketHandler {
 
                     const player = state.players?.find((p: any) => p.userId === targetUserId);
                     if (player) {
-                        if (player.disqualified) {
-                            this.send(socket, "error", "Cannot readmit player disqualified for anti-cheat violation.");
-                            break;
-                        }
+                        player.disqualified = false;
+                        const violationKey = `${roomId}:${targetUserId}`;
+                        this.violations.delete(violationKey);
 
                         // Retrieve persisted timer (e.g. 181 seconds / 3.01 mins)
                         const savedTimerRaw = await this.redis.get(`battle_timer_persisted:${roomId}:${targetUserId}`)
