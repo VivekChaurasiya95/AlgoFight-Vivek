@@ -335,16 +335,31 @@ export class SocketHandler {
                         status: "AVAILABLE",
                     });
 
+                    const resolvedUsername = user?.username || username;
+                    (socket as any)._username = resolvedUsername;
+
                     this.socketUsers.set(socket, {
                         userId,
-                        username: user?.username || username,
+                        username: resolvedUsername,
                         rating: userRating,
                         platformCode,
                     });
 
+                    try {
+                        this.redis.publish("platform-audit-logs", JSON.stringify({
+                            category: "WEBSOCKET",
+                            severity: "INFO",
+                            action: "WS_AUTHENTICATED",
+                            actor: resolvedUsername,
+                            ip: (socket as any)._clientIp || "127.0.0.1",
+                            method: "WS",
+                            details: `Combatant ${resolvedUsername} (${userId}) authenticated successfully`,
+                        })).catch(() => {});
+                    } catch {}
+
                     this.send(socket, "authenticated", {
                         userId,
-                        username: user?.username || username,
+                        username: resolvedUsername,
                         rating: userRating,
                         platformCode,
                     });

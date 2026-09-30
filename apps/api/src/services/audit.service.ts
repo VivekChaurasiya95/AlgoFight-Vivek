@@ -51,9 +51,10 @@ export class AuditService {
                 const severity: AuditSeverity =
                     levelNum >= 50 ? "ERROR" : levelNum >= 40 ? "WARN" : "INFO";
                 const msg =
+                    logObj.errorMessage ||
                     logObj.msg ||
                     logObj.message ||
-                    (typeof logObj.err === "object" ? logObj.err.message : JSON.stringify(logObj));
+                    (typeof logObj.err === "object" ? logObj.err?.message : typeof logObj === "string" ? logObj : logObj.action || "Internal core log entry");
 
                 this.recordEvent({
                     category: "SYSTEM",
@@ -63,7 +64,7 @@ export class AuditService {
                     ip: "127.0.0.1",
                     method: "EVENT",
                     details: String(msg).slice(0, 300),
-                    metadata: logObj,
+                    metadata: typeof logObj === "object" ? logObj : { log: logObj },
                 });
             } catch {
                 // Fail-safe
@@ -150,7 +151,7 @@ export class AuditService {
                     severity: "INFO",
                     action: "USER_REGISTERED",
                     actor: u.username,
-                    ip: "103.21.244.2",
+                    ip: "127.0.0.1",
                     method: "POST",
                     details: `New ${u.userType} combatant registered (${u.platformCode || "Individual"}${u.institutionName ? ` - ${u.institutionName}` : ""})`,
                 });
@@ -166,7 +167,7 @@ export class AuditService {
                     severity: isSuccess ? "INFO" : "WARN",
                     action: "SUBMISSION_EVALUATED",
                     actor: s.user?.username || "Combatant",
-                    ip: "152.58.12.90",
+                    ip: "127.0.0.1",
                     method: "POST",
                     details: `Language: ${s.language.toUpperCase()} | Verdict: ${s.verdict || s.status} | Execution: ${s.executionTime ? `${s.executionTime}ms` : "N/A"}`,
                     metadata: { submissionId: s.id, language: s.language, verdict: s.verdict },
@@ -198,7 +199,7 @@ export class AuditService {
                     severity: "INFO",
                     action: "BATTLE_ROOM_HOSTED",
                     actor: r.host?.username || "Host",
-                    ip: "49.37.112.45",
+                    ip: "127.0.0.1",
                     method: "POST",
                     details: `Room Code: ${r.roomCode} | Status: ${r.status} | Capacity: ${r.maxPlayers}`,
                     metadata: { roomId: r.id, roomCode: r.roomCode },
@@ -228,9 +229,10 @@ export class AuditService {
         }
 
         let combined = [...this.entries];
+        const categoryFilter = filter.category?.toUpperCase() || "ALL";
 
-        // Fuse WSL Linux structured logs if requested or searching all
-        if (filter.includeLinuxLogs !== false) {
+        // Fuse WSL Linux structured logs only if requested and category matches
+        if (filter.includeLinuxLogs !== false && (categoryFilter === "ALL" || categoryFilter === "LINUX_TELEMETRY")) {
             const linuxLogs = await linuxTelemetryBridge.queryLinuxLogs({
                 limit: 30,
                 q: filter.search,
@@ -257,8 +259,7 @@ export class AuditService {
         combined.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
         // Apply Category filter
-        const categoryFilter = filter.category?.toUpperCase();
-        if (categoryFilter && categoryFilter !== "ALL") {
+        if (categoryFilter !== "ALL") {
             combined = combined.filter((e) => e.category === categoryFilter);
         }
 

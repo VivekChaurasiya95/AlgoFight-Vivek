@@ -52,7 +52,7 @@ export default function AvailablePlayers({ onPlayerCountChange }) {
     const loadPlayersFromDb = async () => {
         try {
             setLoading(true);
-            const data = await fetchAvailablePlayers({ limit: 150 });
+            const data = await fetchAvailablePlayers({ limit: 100 });
             if (Array.isArray(data)) {
                 setDbPlayers(data);
             }

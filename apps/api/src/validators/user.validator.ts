@@ -9,5 +9,10 @@ export const AvailablePlayersQuerySchema = z.object({
     excludeUserId: z.string().optional(),
     search: z.string().optional(),
     status: z.string().optional(),
-    limit: z.coerce.number().int().min(1).max(100).optional().default(50),
+    limit: z.coerce
+        .number()
+        .int()
+        .optional()
+        .default(50)
+        .transform((val) => Math.min(Math.max(val, 1), 200)),
 });

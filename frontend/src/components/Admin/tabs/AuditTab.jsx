@@ -70,15 +70,17 @@ export default function AuditTab({
           <span className="filter-group-label">Category:</span>
           {[
             "ALL",
-            "PAGE_VIEW",
             "HTTP_TRAFFIC",
+            "WEBSOCKET",
             "AUTH",
             "SECURITY",
             "SUBMISSION",
             "BATTLE",
+            "SYSTEM",
             "ADMIN",
             "FLEET",
             "LINUX_TELEMETRY",
+            "PAGE_VIEW",
           ].map((cat) => (
             <button
               key={cat}
@@ -96,7 +98,7 @@ export default function AuditTab({
 
         <div className="filter-group">
           <span className="filter-group-label">Method:</span>
-          {["ALL", "GET", "POST", "PUT", "DELETE", "EVENT"].map((meth) => (
+          {["ALL", "GET", "POST", "PUT", "DELETE", "WS", "EVENT"].map((meth) => (
             <button
               key={meth}
               type="button"
@@ -162,12 +164,20 @@ export default function AuditTab({
                       setExpandedAuditId(expandedAuditId === entry.id ? null : entry.id)
                     }
                   >
-                    <td className="audit-time-cell">
-                      {new Date(entry.timestamp).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        second: "2-digit",
-                      })}
+                    <td className="audit-time-cell" title={new Date(entry.timestamp).toLocaleString()}>
+                      <div className="time-main">
+                        {new Date(entry.timestamp).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          second: "2-digit",
+                        })}
+                      </div>
+                      <div className="time-sub" style={{ fontSize: "0.68rem", opacity: 0.65 }}>
+                        {new Date(entry.timestamp).toLocaleDateString([], {
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </div>
                     </td>
                     <td>
                       <span

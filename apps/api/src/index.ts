@@ -103,24 +103,45 @@ const start = async () => {
             },
         });
 
-        // 2b. Global HTTP Traffic Logging Hook (Captures every completed request)
+        // 2b. Global HTTP Traffic Logging Hook (Captures completed requests cleanly)
         app.addHook("onResponse", async (request, reply) => {
             const url = request.url;
+            const statusCode = reply.statusCode;
+
+            // 1. Ignore static assets
             if (url.startsWith("/favicon") || url.startsWith("/@") || url.startsWith("/node_modules")) return;
 
-            const statusCode = reply.statusCode;
+            // 2. Suppress high-frequency internal telemetry/status read polls when successful (prevents self-logging loop)
+            const isInternalTelemetryPoll =
+                statusCode < 400 &&
+                (url.startsWith("/api/admin/audit-logs") ||
+                 url.startsWith("/api/admin/metrics") ||
+                 url.startsWith("/api/admin/analytics") ||
+                 url.startsWith("/api/admin/linux-status") ||
+                 url === "/health" ||
+                 url === "/metrics");
+            if (isInternalTelemetryPoll) return;
+
+            // 3. Skip if this request failure was already recorded in error-handler
+            if ((request as any)._auditLogged) return;
+
             const durationMs = reply.elapsedTime ? Math.round(reply.elapsedTime) : 0;
             const clientIp = extractClientIp(request);
+            const adminSecret = config.adminSecretKey || process.env.ADMIN_SECRET_KEY;
+            const isAdmin = Boolean(adminSecret && request.headers["x-admin-key"] === adminSecret);
             const user = (request as any).user || (request as any).trustContext;
-            const actor = user?.username || (user?.id ? `user_${user.id.slice(0, 8)}` : "Guest");
+            const actor = user?.username || user?.displayName || (isAdmin ? "SuperAdmin" : (user?.id ? `user_${user.id.slice(0, 8)}` : "Visitor"));
 
             let category: AuditCategory = "HTTP_TRAFFIC";
-            if (url.includes("/auth")) category = "AUTH";
-            else if (url.includes("/battle")) category = "BATTLE";
-            else if (url.includes("/submission")) category = "SUBMISSION";
-            else if (url.includes("/admin")) category = "ADMIN";
+            if (statusCode === 401 || statusCode === 403 || statusCode === 429) category = "SECURITY";
+            else if (url.includes("/auth")) category = "AUTH";
+            else if (url.includes("/users") || url.includes("/players")) category = "AUTH";
+            else if (url.includes("/battle") || url.includes("/matchmaking") || url.includes("/rooms")) category = "BATTLE";
+            else if (url.includes("/submission") || url.includes("/execute")) category = "SUBMISSION";
+            else if (url.includes("/admin") || url.includes("/broadcast")) category = "ADMIN";
             else if (url.includes("/ws")) category = "WEBSOCKET";
-            else if (statusCode === 401 || statusCode === 403 || statusCode === 429) category = "SECURITY";
+            else if (url.includes("/analytics")) category = "PAGE_VIEW";
+            else if (url.includes("/feedback") || url.includes("/notifications")) category = "SYSTEM";
 
             let severity: AuditSeverity = "INFO";
             if (statusCode >= 500) severity = "ERROR";

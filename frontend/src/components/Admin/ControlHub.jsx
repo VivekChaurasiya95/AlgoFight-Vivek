@@ -326,7 +326,9 @@ export default function ControlHub() {
   // 🖥️ Linux Status Probe
   const checkLinuxStatus = useCallback(async () => {
     try {
-      const res = await fetch(toApiUrl("/api/admin/linux-status"));
+      const res = await fetch(toApiUrl("/api/admin/linux-status"), {
+        headers: adminKey ? { "x-admin-key": adminKey } : {},
+      });
       if (res.ok) {
         const data = await res.json().catch(() => ({}));
         setLinuxStatus(data.status === "ONLINE" || data.online ? "ONLINE" : "OFFLINE");
@@ -336,7 +338,7 @@ export default function ControlHub() {
     } catch {
       setLinuxStatus("OFFLINE");
     }
-  }, []);
+  }, [adminKey]);
 
   const handleTabSwitch = (tabId) => {
     setActiveTab(tabId);

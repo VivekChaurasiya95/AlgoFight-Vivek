@@ -18,7 +18,7 @@ const verifyAdminAccess = async (request: FastifyRequest, reply: FastifyReply) =
             category: "SECURITY",
             severity: "WARN",
             action: "UNAUTHORIZED_ADMIN_ACCESS_ATTEMPT",
-            actor: clientIp,
+            actor: (request as any).user?.username || clientIp || "Unknown",
             ip: clientIp,
             method: request.method,
             details: `Failed admin access attempt on ${request.url}`,
@@ -28,6 +28,15 @@ const verifyAdminAccess = async (request: FastifyRequest, reply: FastifyReply) =
             error: "ACCESS_DENIED",
             message: "Level 5 SuperAdmin Clearance Required. Invalid or missing admin key.",
         });
+    }
+
+    // Ensure request has a recognized SuperAdmin identity if not already authenticated via JWT
+    if (!(request as any).user) {
+        (request as any).user = {
+            id: "super_admin",
+            username: "SuperAdmin",
+            role: "ADMIN",
+        };
     }
 };
 
@@ -184,8 +193,8 @@ export async function adminRoutes(app: FastifyInstance) {
         }
     });
 
-    // 6. Resilient Proxy for Linux Telemetry Health
-    app.get("/admin/linux-status", async () => {
+    // 6. Resilient Proxy for Linux Telemetry Health (Admin Protected)
+    app.get("/admin/linux-status", { preHandler: [verifyAdminAccess] }, async () => {
         const health = await linuxTelemetryBridge.checkHealth();
         return {
             status: health.status,

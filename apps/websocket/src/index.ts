@@ -45,18 +45,24 @@ wss.on("close", () => {
     clearInterval(heartbeatInterval);
 });
 
-wss.on("connection", (socket: any) => {
+wss.on("connection", (socket: any, req: any) => {
     socket.isAlive = true;
     socket.on("pong", () => {
         socket.isAlive = true;
     });
 
-    logger.info("New WebSocket connection established");
+    const forwarded = req?.headers?.["cf-connecting-ip"] || req?.headers?.["x-real-ip"] || req?.headers?.["x-forwarded-for"];
+    const rawIp = typeof forwarded === "string" ? forwarded.split(",")[0].trim() : req?.socket?.remoteAddress;
+    const clientIp = rawIp ? String(rawIp).replace(/^::ffff:/, "").trim() : "127.0.0.1";
+    (socket as any)._clientIp = clientIp;
+
+    logger.info({ clientIp }, "New WebSocket connection established");
     publishAuditEvent({
         category: "WEBSOCKET",
         severity: "INFO",
         action: "WS_STANDALONE_CONNECTED",
         actor: "WebSocket_Client",
+        ip: clientIp,
         method: "WS",
         details: `Client connected to WebSocket server on port ${WS_PORT}`,
     });
@@ -72,23 +78,27 @@ wss.on("connection", (socket: any) => {
         if (currentUserId.value) {
             connectionManager.unregisterUser(currentUserId.value, socket);
         }
+        const actorName = (socket as any)._username || currentUserId.value || "WebSocket_Client";
         publishAuditEvent({
             category: "WEBSOCKET",
             severity: "INFO",
             action: "WS_STANDALONE_DISCONNECTED",
-            actor: currentUserId.value || "WebSocket_Client",
+            actor: actorName,
+            ip: clientIp,
             method: "WS",
-            details: `Client disconnected from WebSocket server${currentUserId.value ? ` (${currentUserId.value})` : ""}`,
+            details: `Client disconnected from WebSocket server${currentUserId.value ? ` (${actorName})` : ""}`,
         });
     });
 
     socket.on("error", (error: any) => {
         logger.error({ error }, "WebSocket error occurred");
+        const actorName = (socket as any)._username || currentUserId.value || "WebSocket_Client";
         publishAuditEvent({
             category: "WEBSOCKET",
             severity: "ERROR",
             action: "WS_STANDALONE_ERROR",
-            actor: currentUserId.value || "WebSocket_Client",
+            actor: actorName,
+            ip: clientIp,
             method: "WS",
             details: error?.message || "WebSocket error occurred",
         });
