@@ -850,6 +850,15 @@ export class SocketHandler {
                         try {
                             await this.battleRoomService.kickPlayer(roomCode, hostId, targetUserId);
 
+                            const room = await this.battleRoomRepo.getRoomByCode(roomCode)
+                                || await this.battleRoomRepo.getRoomById(roomCode);
+                            if (room) {
+                                await this.redis.sadd(`room_kicked_players:${room.id}`, targetUserId);
+                                await this.redis.sadd(`room_kicked_players:${room.roomCode}`, targetUserId);
+                                await this.redis.expire(`room_kicked_players:${room.id}`, 86400);
+                                await this.redis.expire(`room_kicked_players:${room.roomCode}`, 86400);
+                            }
+
                             this.connectionManager.sendToUser(targetUserId, "kicked_from_room", {
                                 roomCode,
                                 message: "You were removed from the lobby by the room host.",
@@ -897,6 +906,10 @@ export class SocketHandler {
                             if (room && room.hostId === hostId) {
                                 await this.battleRoomService.joinRoom(room.id, targetUserId);
 
+                                // Clear kicked restriction on host approval
+                                await this.redis.srem(`room_kicked_players:${room.id}`, targetUserId);
+                                await this.redis.srem(`room_kicked_players:${room.roomCode}`, targetUserId);
+
                                 const savedTimerRaw = await this.redis.get(`battle_timer_persisted:${room.id}:${targetUserId}`)
                                     || await this.redis.get(`battle_timer_persisted:${roomCode}:${targetUserId}`);
                                 const persistedTimeRemaining = savedTimerRaw ? parseInt(savedTimerRaw, 10) : undefined;
@@ -938,6 +951,11 @@ export class SocketHandler {
                                     if (!req?.userId) continue;
                                     try {
                                         await this.battleRoomService.joinRoom(room.id, req.userId);
+
+                                        // Clear kicked restriction
+                                        await this.redis.srem(`room_kicked_players:${room.id}`, req.userId);
+                                        await this.redis.srem(`room_kicked_players:${room.roomCode}`, req.userId);
+
                                         const savedTimerRaw = await this.redis.get(`battle_timer_persisted:${room.id}:${req.userId}`)
                                             || await this.redis.get(`battle_timer_persisted:${roomCode}:${req.userId}`);
                                         const persistedTimeRemaining = savedTimerRaw ? parseInt(savedTimerRaw, 10) : undefined;

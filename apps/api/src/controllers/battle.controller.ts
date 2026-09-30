@@ -198,6 +198,28 @@ export class BattleController {
 
     async joinRoom(idOrCode: string, userId: string, authUser?: { id: string; email?: string; username?: string }) {
         const resolvedUserId = await this.resolveUserId(userId, authUser);
+
+        // Check if user was kicked from this room by the host
+        try {
+            const roomBefore = await this.battleRoomService.getRoom(idOrCode).catch(() => null);
+            const rId = roomBefore?.id || idOrCode;
+            const rCode = roomBefore?.roomCode || idOrCode;
+
+            const isKicked = (await this.redis.sismember(`room_kicked_players:${rId}`, resolvedUserId)) === 1 ||
+                             (await this.redis.sismember(`room_kicked_players:${rCode}`, resolvedUserId)) === 1;
+
+            if (isKicked) {
+                const error: any = new Error("You were removed from this lobby by the host. Re-entry requires host approval.");
+                error.statusCode = 403;
+                error.requiresApproval = true;
+                throw error;
+            }
+        } catch (err: any) {
+            if (err?.requiresApproval || err?.statusCode === 403) {
+                throw err;
+            }
+        }
+
         const room = await this.battleRoomService.joinRoom(idOrCode, resolvedUserId);
         
         try {
@@ -255,7 +277,17 @@ export class BattleController {
     async kickPlayer(roomId: string, hostId: string, targetUserId: string) {
         const resolvedHostId = await this.resolveUserId(hostId);
         const resolvedTargetUserId = await this.resolveUserId(targetUserId);
-        return this.battleRoomService.kickPlayer(roomId, resolvedHostId, resolvedTargetUserId);
+        const res = await this.battleRoomService.kickPlayer(roomId, resolvedHostId, resolvedTargetUserId);
+        try {
+            const room = await this.battleRoomService.getRoom(roomId).catch(() => null);
+            const rId = room?.id || roomId;
+            const rCode = room?.roomCode || roomId;
+            await this.redis.sadd(`room_kicked_players:${rId}`, resolvedTargetUserId);
+            await this.redis.sadd(`room_kicked_players:${rCode}`, resolvedTargetUserId);
+            await this.redis.expire(`room_kicked_players:${rId}`, 86400);
+            await this.redis.expire(`room_kicked_players:${rCode}`, 86400);
+        } catch {}
+        return res;
     }
 
     async setPlayerReady(roomId: string, userId: string, isReady: boolean) {

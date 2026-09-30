@@ -50,6 +50,7 @@ export default function RoomLobby() {
     const [pardonRequests, setPardonRequests] = useState([]);
     const [removedParticipants, setRemovedParticipants] = useState([]);
     const [waitingForAdmission, setWaitingForAdmission] = useState(false);
+    const waitingForAdmissionRef = useRef(false);
     const [kickingUserId, setKickingUserId] = useState(null);
     const [searchQuery, setSearchQuery] = useState("");
     const [filterTab, setFilterTab] = useState("ALL"); // "ALL" | "READY" | "WAITING"
@@ -66,6 +67,10 @@ export default function RoomLobby() {
     useEffect(() => {
         isHostRef.current = isHost;
     }, [isHost]);
+
+    useEffect(() => {
+        waitingForAdmissionRef.current = waitingForAdmission;
+    }, [waitingForAdmission]);
 
     const loadRoom = async (isBackgroundSync = false) => {
         try {
@@ -206,6 +211,18 @@ export default function RoomLobby() {
                     action: "join_room_channel",
                     payload: { roomCode, userId: currentUserId, username: currentUsername },
                 }));
+
+                if (waitingForAdmissionRef.current) {
+                    ws.send(JSON.stringify({
+                        action: "request_join_room",
+                        payload: {
+                            roomCode,
+                            userId: currentUserId,
+                            username: currentUsername,
+                            rating: user?.rating ?? 0,
+                        },
+                    }));
+                }
             };
 
             ws.onmessage = (event) => {

@@ -45,6 +45,17 @@ export default function JoinRoomModal({ isOpen, onClose }) {
             onClose();
             navigate(`/battle/room/${cleanCode}`);
         } catch (err) {
+            if (err?.message?.includes("requires host approval") || err?.message?.includes("removed from this lobby")) {
+                notify({
+                    type: "warning",
+                    title: "Admission Required",
+                    message: "You were previously removed from this lobby. Submitting admission request to the host...",
+                    duration: 5000,
+                });
+                onClose();
+                navigate(`/battle/room/${cleanCode}`);
+                return;
+            }
             notify({ type: "error", title: "Unable to Join", message: err.message || "Room code not found or room is full." });
         } finally {
             setJoining(false);

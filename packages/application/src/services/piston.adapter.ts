@@ -119,8 +119,7 @@ export class PistonAdapter {
             ],
             stdin: stdin,
             run_timeout: safeRunTimeout,
-            compile_timeout: 25000,
-            compile_memory_limit: 512 * 1024 * 1024,
+            compile_timeout: 10000,
             run_memory_limit: memoryLimitBytes,
         };
 
