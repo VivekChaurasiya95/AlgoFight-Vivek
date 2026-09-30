@@ -5,14 +5,32 @@ import parserTypescript from "prettier/plugins/typescript";
 
 /**
  * Intelligent self-formatting for multi-language competitive coding
+ * Supported:
+ * - JavaScript / TypeScript via Prettier Standalone (Babel, Estree, TypeScript plugins)
+ * - Python via structural alignment & block indent
+ * - C++, C, Java via brace-depth and structural alignment
  */
-export async function autoFormatCode(rawCode, language = "javascript") {
-  if (!rawCode || typeof rawCode !== "string") return rawCode;
+export async function formatCode(rawCode, language = "javascript") {
+  if (!rawCode || typeof rawCode !== "string") {
+    return {
+      success: true,
+      formatted: rawCode || "",
+      error: null,
+      isPrettier: false,
+      changed: false,
+    };
+  }
 
   const lang = (language || "").toLowerCase().trim();
+  const isJsOrTs =
+    lang === "javascript" ||
+    lang === "js" ||
+    lang === "node" ||
+    lang === "typescript" ||
+    lang === "ts";
 
   // 1. JavaScript / TypeScript Formatting via Prettier Standalone
-  if (lang === "javascript" || lang === "js" || lang === "node" || lang === "typescript" || lang === "ts") {
+  if (isJsOrTs) {
     try {
       const isTs = lang === "typescript" || lang === "ts";
       const formatted = await prettier.format(rawCode, {
@@ -26,25 +44,125 @@ export async function autoFormatCode(rawCode, language = "javascript") {
         arrowParens: "always",
         trailingComma: "es5",
       });
-      return formatted.trimEnd();
-    } catch {
-      // If code is temporarily syntactically incomplete during user typing, keep as is
-      return rawCode;
+
+      const cleanFormatted = formatted.trimEnd();
+      const changed = cleanFormatted !== rawCode.trimEnd();
+
+      return {
+        success: true,
+        formatted: cleanFormatted,
+        error: null,
+        isPrettier: true,
+        changed,
+      };
+    } catch (err) {
+      // Clean up Prettier error message to be single-line and clear
+      const rawMsg = err?.message || "Syntax error";
+      const cleanMsg = rawMsg.split("\n")[0].replace(/^.*?: /, "");
+      return {
+        success: false,
+        formatted: rawCode,
+        error: cleanMsg || "Syntax error in code",
+        isPrettier: true,
+        changed: false,
+      };
     }
   }
 
-  // 2. Syntax-aware structural alignment for C++, C, Java, Python
-  return autoAlignCode(rawCode, lang);
+  // 2. Python Structural Alignment
+  if (lang === "python" || lang === "py" || lang === "python3") {
+    try {
+      const aligned = autoAlignPython(rawCode);
+      const clean = aligned.trimEnd();
+      return {
+        success: true,
+        formatted: clean,
+        error: null,
+        isPrettier: false,
+        changed: clean !== rawCode.trimEnd(),
+      };
+    } catch (err) {
+      return {
+        success: false,
+        formatted: rawCode,
+        error: err?.message || "Python formatting error",
+        isPrettier: false,
+        changed: false,
+      };
+    }
+  }
+
+  // 3. C++, C, Java Structural Alignment
+  try {
+    const aligned = autoAlignCLike(rawCode);
+    const clean = aligned.trimEnd();
+    return {
+      success: true,
+      formatted: clean,
+      error: null,
+      isPrettier: false,
+      changed: clean !== rawCode.trimEnd(),
+    };
+  } catch (err) {
+    return {
+      success: false,
+      formatted: rawCode,
+      error: err?.message || "Formatting error",
+      isPrettier: false,
+      changed: false,
+    };
+  }
 }
 
 /**
- * Clean structural self-alignment and indentation for C++, C, Java, Python
+ * Backward-compatible helper returning formatted code directly
  */
-export function autoAlignCode(code, lang = "") {
+export async function autoFormatCode(rawCode, language = "javascript") {
+  const result = await formatCode(rawCode, language);
+  return result.success ? result.formatted : rawCode;
+}
+
+/**
+ * Python indentation and block alignment
+ */
+export function autoAlignPython(code) {
+  if (!code) return code;
+  const lines = code.split(/\r?\n/);
+  const indentStep = 4;
+  let currentIndent = 0;
+  const aligned = [];
+  const dedentKeywords = /^\s*(elif\b|else:|except\b|finally:)/;
+
+  for (let i = 0; i < lines.length; i++) {
+    const rawLine = lines[i];
+    const trimmed = rawLine.trim();
+
+    if (!trimmed) {
+      aligned.push("");
+      continue;
+    }
+
+    if (dedentKeywords.test(trimmed)) {
+      currentIndent = Math.max(0, currentIndent - 1);
+    }
+
+    aligned.push(" ".repeat(currentIndent * indentStep) + trimmed);
+
+    if (trimmed.endsWith(":")) {
+      currentIndent++;
+    }
+  }
+
+  return aligned.join("\n");
+}
+
+/**
+ * Clean structural self-alignment and indentation for C++, C, Java
+ */
+export function autoAlignCLike(code) {
   if (!code) return code;
 
   const lines = code.split(/\r?\n/);
-  const isPython = lang === "python" || lang === "py" || lang === "python3";
   const indentStep = 4;
   let currentIndent = 0;
   const aligned = [];
@@ -58,19 +176,20 @@ export function autoAlignCode(code, lang = "") {
       continue;
     }
 
-    if (isPython) {
-      // In Python, leading indent depends on colons
-      aligned.push(rawLine.trimEnd());
-      continue;
-    }
+    // Adjust for closing braces on the current line
+    const startsWithClosing = /^[\}\]\)]/.test(trimmed);
+    const isAccessSpecifier = /^(public|private|protected)\s*:/.test(trimmed);
+    const isCase = /^(case\s+[^:]+|default)\s*:/.test(trimmed);
 
-    // For C/C++/Java: adjust indent for closing braces on the current line
-    let startsWithClosing = /^[\}\]\)]/.test(trimmed);
+    let effectiveIndent = currentIndent;
     if (startsWithClosing) {
-      currentIndent = Math.max(0, currentIndent - 1);
+      effectiveIndent = Math.max(0, currentIndent - 1);
+      currentIndent = effectiveIndent;
+    } else if (isAccessSpecifier || isCase) {
+      effectiveIndent = Math.max(0, currentIndent - 1);
     }
 
-    const pad = " ".repeat(currentIndent * indentStep);
+    const pad = " ".repeat(effectiveIndent * indentStep);
     aligned.push(pad + trimmed);
 
     // Count net brace change in the line
@@ -87,3 +206,14 @@ export function autoAlignCode(code, lang = "") {
 
   return aligned.join("\n");
 }
+
+/**
+ * Backward compatibility alias for autoAlignCode
+ */
+export const autoAlignCode = (code, lang = "") => {
+  const l = (lang || "").toLowerCase();
+  if (l === "python" || l === "py" || l === "python3") {
+    return autoAlignPython(code);
+  }
+  return autoAlignCLike(code);
+};

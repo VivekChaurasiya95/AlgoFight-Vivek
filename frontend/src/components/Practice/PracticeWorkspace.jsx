@@ -13,6 +13,7 @@ import {
   faShieldHalved,
   faExpand,
   faCompress,
+  faWandMagicSparkles,
 } from "@fortawesome/free-solid-svg-icons";
 import { evaluatePracticeCode, fetchProblemById, recordPracticeProgress } from "../../services/api";
 import { useNotification } from "../../contexts/NotificationContext.jsx";
@@ -43,6 +44,7 @@ export default function PracticeWorkspace() {
 
   const [selectedLanguage, setSelectedLanguage] = useState("javascript");
   const [code, setCode] = useState("");
+  const editorRef = useRef(null);
   const [output, setOutput] = useState("");
   const [lastResult, setLastResult] = useState(null);
   const [submissionCount, setSubmissionCount] = useState(0);
@@ -514,6 +516,16 @@ export default function PracticeWorkspace() {
                     </option>
                   ))}
                 </select>
+                <button
+                  type="button"
+                  className="livebattle-action-btn format-btn"
+                  onClick={() => editorRef.current?.formatCode?.()}
+                  title="Format Code with Prettier (Shift+Alt+F)"
+                  disabled={running}
+                >
+                  <FontAwesomeIcon icon={faWandMagicSparkles} style={{ color: "#ea5e9e" }} />
+                  <span>Format</span>
+                </button>
                 {!isSubmitPanelOpen && (
                   <button
                     className="livebattle-action-btn"
@@ -529,15 +541,30 @@ export default function PracticeWorkspace() {
 
             <div className="code-editor-wrapper">
               <SmartCodeEditor
+                ref={editorRef}
                 value={code}
                 onChange={setCode}
                 language={selectedLanguage}
                 isBlurred={isBlurred}
               />
               <div className="code-editor-statusbar">
-                <span>{code ? code.split("\n").length : 0} Lines</span>
-                <span>{code ? code.length : 0} Chars</span>
-                <span className="syntax-badge">{getLanguageLabel(selectedLanguage)}</span>
+                <div className="statusbar-left">
+                  <button
+                    type="button"
+                    className="statusbar-prettier-badge"
+                    onClick={() => editorRef.current?.formatCode?.()}
+                    title="Format Code with Prettier (Shift+Alt+F)"
+                  >
+                    <FontAwesomeIcon icon={faWandMagicSparkles} />
+                    <span>Prettier</span>
+                    <span className="prettier-shortcut">Shift+Alt+F</span>
+                  </button>
+                </div>
+                <div className="statusbar-right">
+                  <span>{code ? code.split("\n").length : 0} Lines</span>
+                  <span>{code ? code.length : 0} Chars</span>
+                  <span className="syntax-badge">{getLanguageLabel(selectedLanguage)}</span>
+                </div>
               </div>
             </div>
 

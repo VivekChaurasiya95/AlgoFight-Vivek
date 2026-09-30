@@ -32,6 +32,7 @@ import {
   faPaperPlane,
   faSpinner,
   faCheck,
+  faWandMagicSparkles,
 } from "@fortawesome/free-solid-svg-icons";
 import {
   SUPPORTED_LANGUAGES,
@@ -265,6 +266,7 @@ export default function LiveBattle() {
   const [opponentName, setOpponentName] = useState("");
   const [code, setCode] = useState("");
   const [language, setLanguage] = useState("javascript");
+  const editorRef = useRef(null);
   const [timeLeft, setTimeLeft] = useState(() => {
     const targetId = initialMatch?.roomId || initialMatch?.roomCode || initialRoomCode || paramRoomCode;
     if (initialMatch?.persistedTimeRemaining !== undefined && !isNaN(Number(initialMatch.persistedTimeRemaining))) {
@@ -1611,6 +1613,16 @@ export default function LiveBattle() {
                   </option>
                 ))}
               </select>
+              <button
+                type="button"
+                className="livebattle-action-btn format-btn"
+                onClick={() => editorRef.current?.formatCode?.()}
+                title="Format Code with Prettier (Shift+Alt+F)"
+                disabled={status === "finished" || isSelfDisqualified}
+              >
+                <FontAwesomeIcon icon={faWandMagicSparkles} style={{ color: "#ea5e9e" }} />
+                <span>Format</span>
+              </button>
               {!isSubmitPanelOpen && (
                 <button
                   className="livebattle-action-btn"
@@ -1659,6 +1671,7 @@ export default function LiveBattle() {
               </div>
             )}
             <SmartCodeEditor
+              ref={editorRef}
               value={code}
               onChange={handleCodeChange}
               language={language}
@@ -1666,26 +1679,41 @@ export default function LiveBattle() {
               isBlurred={isBlurred}
             />
             <div className="code-editor-statusbar">
-              <span>{code ? code.split('\n').length : 0} Lines</span>
-              <span>{code ? code.length : 0} Chars</span>
-              <span
-                className={`sync-status-indicator ${syncStatus}`}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "4px",
-                  padding: "1px 8px",
-                  borderRadius: "10px",
-                  fontSize: "0.72rem",
-                  fontWeight: 600,
-                  background: syncStatus === "synced" ? "rgba(124, 255, 193, 0.12)" : syncStatus === "pending_sync" ? "rgba(255, 170, 0, 0.15)" : "rgba(255, 77, 77, 0.18)",
-                  color: syncStatus === "synced" ? "#7cffc1" : syncStatus === "pending_sync" ? "#ffbe3b" : "#ff6b6b",
-                  border: `1px solid ${syncStatus === "synced" ? "rgba(124, 255, 193, 0.3)" : syncStatus === "pending_sync" ? "rgba(255, 170, 0, 0.35)" : "rgba(255, 77, 77, 0.35)"}`,
-                }}
-              >
-                {syncStatus === "synced" ? "☁️ Synced" : syncStatus === "pending_sync" ? "💾 Local Saved" : "⚠️ Local Only (Degraded)"}
-              </span>
-              <span className="syntax-badge">{getLanguageLabel(language)}</span>
+              <div className="statusbar-left">
+                <button
+                  type="button"
+                  className="statusbar-prettier-badge"
+                  onClick={() => editorRef.current?.formatCode?.()}
+                  title="Format Code with Prettier (Shift+Alt+F)"
+                  disabled={status === "finished" || isSelfDisqualified}
+                >
+                  <FontAwesomeIcon icon={faWandMagicSparkles} />
+                  <span>Prettier</span>
+                  <span className="prettier-shortcut">Shift+Alt+F</span>
+                </button>
+              </div>
+              <div className="statusbar-right">
+                <span>{code ? code.split('\n').length : 0} Lines</span>
+                <span>{code ? code.length : 0} Chars</span>
+                <span
+                  className={`sync-status-indicator ${syncStatus}`}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "4px",
+                    padding: "1px 8px",
+                    borderRadius: "10px",
+                    fontSize: "0.72rem",
+                    fontWeight: 600,
+                    background: syncStatus === "synced" ? "rgba(124, 255, 193, 0.12)" : syncStatus === "pending_sync" ? "rgba(255, 170, 0, 0.15)" : "rgba(255, 77, 77, 0.18)",
+                    color: syncStatus === "synced" ? "#7cffc1" : syncStatus === "pending_sync" ? "#ffbe3b" : "#ff6b6b",
+                    border: `1px solid ${syncStatus === "synced" ? "rgba(124, 255, 193, 0.3)" : syncStatus === "pending_sync" ? "rgba(255, 170, 0, 0.35)" : "rgba(255, 77, 77, 0.35)"}`,
+                  }}
+                >
+                  {syncStatus === "synced" ? "☁️ Synced" : syncStatus === "pending_sync" ? "💾 Local Saved" : "⚠️ Local Only (Degraded)"}
+                </span>
+                <span className="syntax-badge">{getLanguageLabel(language)}</span>
+              </div>
             </div>
           </div>
           {isBlurred && (
