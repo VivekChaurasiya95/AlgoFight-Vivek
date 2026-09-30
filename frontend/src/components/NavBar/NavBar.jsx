@@ -9,6 +9,7 @@ import { useNotificationInbox } from '../../contexts/NotificationInboxContext';
 import { isAdminUser } from '../../constants/admins';
 import InboxDropdown from './InboxDropdown';
 import logoIcon from '../../assets/algofight-logo.png';
+import mitsLogo from '../../assets/mits-logo.png';
 
 const getInitials = (user) => {
   if (!user) return 'U';
@@ -49,7 +50,7 @@ const Navbar = () => {
   const isAdmin = isAdminUser(user);
   const isFacultyUser = profileData?.userType === "FACULTY";
   const hasFacultyAccess = isFacultyUser || isAdmin;
-  const isExploreActive = ['/about', '/developer', '/admin', '/faculty'].includes(location.pathname);
+  const isExploreActive = ['/about', '/admin', '/faculty'].includes(location.pathname);
 
   return (
     <>
@@ -81,6 +82,12 @@ const Navbar = () => {
                   <li><Link to="/rewards" className={`nav-link-pill ${isActive('/rewards')}`}>Rewards</Link></li>
                 </>
               )}
+              <li>
+                <Link to="/developer" className={`nav-link-pill dev-highlight-pill ${isActive('/developer')}`}>
+                  <FontAwesomeIcon icon={faCode} className="dev-pill-icon" />
+                  Developers
+                </Link>
+              </li>
               <li
                 className="nav-explore-wrapper"
                 onMouseEnter={() => setIsMoreOpen(true)}
@@ -106,10 +113,6 @@ const Navbar = () => {
                       <Link to="/about" className={`explore-item ${isActive('/about')}`}>
                         <FontAwesomeIcon icon={faInfoCircle} className="explore-icon" />
                         <span>About</span>
-                      </Link>
-                      <Link to="/developer" className={`explore-item ${isActive('/developer')}`}>
-                        <FontAwesomeIcon icon={faCode} className="explore-icon" />
-                        <span>Developers</span>
                       </Link>
                       {(hasFacultyAccess && !isFacultyUser) && (
                         <Link to="/faculty" className={`explore-item faculty-item ${isActive('/faculty')}`}>
@@ -196,6 +199,20 @@ const Navbar = () => {
               </div>
             )}
 
+            {/* MITS Institutional Partner Logo */}
+            <div className="navbar-mits-wrapper" title="Madhav Institute of Technology & Science, Gwalior">
+              <span className="navbar-mits-divider" />
+              <a
+                href="https://web.mitsgwalior.in/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="navbar-mits-link"
+                title="Madhav Institute of Technology & Science, Gwalior"
+              >
+                <img src={mitsLogo} alt="MITS Gwalior Logo" className="navbar-mits-logo" />
+              </a>
+            </div>
+
             {/* Mobile Hamburger Toggle Button */}
             <button
               className="mobile-hamburger-btn"
@@ -237,7 +254,12 @@ const Navbar = () => {
                   </>
                 )}
                 <li><Link to="/about" className={isActive('/about')}>About</Link></li>
-                <li><Link to="/developer" className={isActive('/developer')}>Developers</Link></li>
+                <li>
+                  <Link to="/developer" className={`mobile-dev-link ${isActive('/developer')}`}>
+                    <FontAwesomeIcon icon={faCode} style={{ marginRight: '8px' }} />
+                    Developers
+                  </Link>
+                </li>
                 {(hasFacultyAccess && !isFacultyUser) && (
                   <li>
                     <Link to="/faculty" className={`mobile-admin-link ${isActive('/faculty')}`} style={{ borderColor: 'rgba(168, 85, 247, 0.4)', color: '#e9d5ff' }}>
