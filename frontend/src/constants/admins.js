@@ -3,7 +3,8 @@
 export const ADMIN_EMAILS = [
   'vivekchaurasiya943@gmail.com',
   'aringupta2244@gmail.com',
-  'dargarkrish@gmail.com'
+  'dargarkrish@gmail.com',
+  'atul@mitsgwalior.in'
 ];
 
 export function isAdminUser(user) {
