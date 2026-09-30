@@ -803,10 +803,6 @@ function Home() {
               animate={{ opacity: 1 }}
               transition={{ duration: 0.5, delay: 0.6 }}
             >
-              <div className="scroll-arrow-circle">
-                <FontAwesomeIcon icon={faArrowDown} />
-              </div>
-              <span>Scroll to explore</span>
             </motion.div>
           </div>
 
