@@ -87,7 +87,7 @@ export default function BattleArena({ defaultTab }) {
     }
   }, [location.state, user]);
 
-  const { rating, matchesWon, winRate } = normalizeUserStats(profile || {});
+  const { rating, matchesWon, winRate, rankTier } = normalizeUserStats(profile || {});
   const userEmail = (user?.email || profileData?.email || profile?.email || "").toLowerCase().trim();
   const isMitsFaculty = userEmail.endsWith("@mitsgwalior.in") ||
                         userEmail.endsWith(".mitsgwalior.in") ||

@@ -52,14 +52,35 @@ export class ExecutionPipeline {
         
         const firstTestCase = testCases[0];
         const primaryRuntime = runtimes[0];
-        const firstExecution = await this.pistonAdapter.executeCode(
-            language,
-            code,
-            firstTestCase.input,
-            timeLimitMs,
-            memoryLimitBytes,
-            primaryRuntime
-        );
+        let firstExecution;
+        try {
+            firstExecution = await this.pistonAdapter.executeCode(
+                language,
+                code,
+                firstTestCase.input,
+                timeLimitMs,
+                memoryLimitBytes,
+                primaryRuntime
+            );
+        } catch (err: any) {
+            const errorResult: EvaluationResult = {
+                submissionId,
+                verdict: Verdict.SYSTEM_ERROR,
+                compilation: {
+                    success: false,
+                    output: "",
+                    error: err?.message || "Execution engine failure",
+                },
+                testCases: [],
+                resourceUsage: { maxMemory: 0, totalTime: 0 }
+            };
+            onProgress?.({ 
+                submissionId, 
+                stage: "FINISHED", 
+                metrics: { passed: 0, total: testCases.length } 
+            });
+            return errorResult;
+        }
 
         const compilationResult = {
             success: firstExecution.compile.success,
@@ -86,7 +107,6 @@ export class ExecutionPipeline {
         onProgress?.({ submissionId, stage: "TEST_STARTED" });
 
         // Phase 2: Fan-out test cases with multi-node round-robin distribution
-        let overallVerdict = Verdict.ACCEPTED;
         let maxMemory = 0;
         let totalTime = 0;
         let passedCount = 0;
@@ -98,14 +118,34 @@ export class ExecutionPipeline {
                 // Don't re-run the first test case unless it was just compilation
                 if (index !== 0) {
                     const assignedRuntime = runtimes[index % runtimes.length];
-                    execution = await this.pistonAdapter.executeCode(
-                        language,
-                        code,
-                        testCase.input,
-                        timeLimitMs,
-                        memoryLimitBytes,
-                        assignedRuntime
-                    );
+                    try {
+                        execution = await this.pistonAdapter.executeCode(
+                            language,
+                            code,
+                            testCase.input,
+                            timeLimitMs,
+                            memoryLimitBytes,
+                            assignedRuntime
+                        );
+                    } catch (err: any) {
+                        const failedResult: TestCaseResult = {
+                            testCaseId: testCase.id,
+                            status: Verdict.SYSTEM_ERROR,
+                            passed: false,
+                            expectedOutput: mode === "SAMPLE" ? testCase.expectedOutput : undefined,
+                            actualOutput: undefined,
+                            error: err?.message || "Runtime node unreachable",
+                            metrics: {
+                                executionTime: 0,
+                                memoryUsage: 0,
+                                exitCode: -1,
+                                signal: null,
+                                stdout: undefined,
+                                stderr: err?.message,
+                            }
+                        };
+                        return { index, result: failedResult };
+                    }
                 }
 
                 const { run } = execution;
@@ -165,10 +205,6 @@ export class ExecutionPipeline {
             maxMemory = Math.max(maxMemory, res.result.metrics?.memoryUsage || 0);
             totalTime += (res.result.metrics?.executionTime || 0);
             if (res.result.passed) passedCount++;
-            
-            if (!res.result.passed && overallVerdict === Verdict.ACCEPTED) {
-                overallVerdict = res.result.status;
-            }
 
             onProgress?.({ 
                 submissionId, 
@@ -186,6 +222,10 @@ export class ExecutionPipeline {
 
         resolvedResults.sort((a, b) => a.index - b.index);
         resolvedResults.forEach(r => testCaseResults.push(r.result));
+
+        // Deterministic verdict: first failing test case determines the overall verdict
+        const firstFailed = testCaseResults.find(r => !r.passed);
+        const overallVerdict = firstFailed ? firstFailed.status : Verdict.ACCEPTED;
 
         const finalResult: EvaluationResult = {
             submissionId,

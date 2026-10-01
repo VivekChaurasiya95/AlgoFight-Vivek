@@ -590,7 +590,7 @@ export default function FacultyControlHub() {
 
             {/* Header Bar */}
             <div className="faculty-hub-header">
-              <div>
+              <div className="faculty-header-text-col">
                 <div className="faculty-header-badge">
                   <span className="faculty-badge-dot" />
                   <span>FACULTY ACADEMIC CONSOLE</span>
@@ -673,6 +673,9 @@ export default function FacultyControlHub() {
           >
             <FontAwesomeIcon icon={faBullhorn} />
             <span>Reminders & Broadcasts</span>
+            {stats.dispatchedReminders > 0 && (
+              <span className="tab-count-badge amber-badge">{stats.dispatchedReminders}</span>
+            )}
           </button>
 
           <button
@@ -682,6 +685,9 @@ export default function FacultyControlHub() {
           >
             <FontAwesomeIcon icon={faStopwatch} />
             <span>Quiz & Assessment Setter</span>
+            {stats.activeQuizzes > 0 && (
+              <span className="tab-count-badge cyan-badge">{stats.activeQuizzes}</span>
+            )}
           </button>
 
           <button
@@ -691,6 +697,9 @@ export default function FacultyControlHub() {
           >
             <FontAwesomeIcon icon={faUsers} />
             <span>Student Eligibility & Directory</span>
+            {stats.totalStudents > 0 && (
+              <span className="tab-count-badge purple-badge">{stats.totalStudents}</span>
+            )}
           </button>
 
           <button
@@ -700,6 +709,9 @@ export default function FacultyControlHub() {
           >
             <FontAwesomeIcon icon={faFileExcel} />
             <span>Challenge Archive & Import</span>
+            {allProblems.length > 0 && (
+              <span className="tab-count-badge emerald-badge">{allProblems.length}</span>
+            )}
           </button>
         </div>
 

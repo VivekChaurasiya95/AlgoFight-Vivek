@@ -38,7 +38,7 @@ export class UserController {
                 })),
                 prisma.ratingHistory.findMany({
                     where: { userId: user.id },
-                    select: { oldRating: true, newRating: true, delta: true, createdAt: true },
+                    select: { ratingBefore: true, ratingAfter: true, ratingDelta: true, createdAt: true },
                     orderBy: { createdAt: "asc" },
                     take: 20,
                 }).catch(() => []),
@@ -80,14 +80,24 @@ export class UserController {
                 }
             }
 
-            const latestDelta = ratingHistories.length > 0 ? ratingHistories[ratingHistories.length - 1].delta : 0;
+            const latestDelta = ratingHistories.length > 0 ? (ratingHistories[ratingHistories.length - 1] as any).ratingDelta : 0;
+            const formattedRatingHistories = ratingHistories.map((r: any) => ({
+                ...r,
+                ratingBefore: r.ratingBefore,
+                ratingAfter: r.ratingAfter,
+                ratingDelta: r.ratingDelta,
+                oldRating: r.ratingBefore,
+                newRating: r.ratingAfter,
+                delta: r.ratingDelta,
+                createdAt: r.createdAt,
+            }));
 
             return {
                 practiceSolvedProblemIds: practiceData.practiceSolvedProblemIds,
                 practiceSolvedCount,
                 practiceSubmissionCount,
                 totalSubmissions,
-                ratingHistory: ratingHistories,
+                ratingHistory: formattedRatingHistories,
                 ratingDelta: latestDelta,
                 currentStreak: Math.max(currentStreak, (user.wins > 0 ? 1 : 0)),
                 longestStreak: Math.max(currentStreak, (user.wins > 0 ? 1 : 0)),

@@ -295,13 +295,29 @@ class BrowserSocketClient {
       this.connected = false;
       
       // Detach listeners to prevent old events from leaking
-      closingWs.onopen = null;
       closingWs.onmessage = null;
-      closingWs.onerror = null;
-      closingWs.onclose = null;
+      closingWs.onerror = () => {};
+      closingWs.onclose = () => {};
       
       try {
-        closingWs.close();
+        if (closingWs.readyState === WebSocket.CONNECTING) {
+          // Avoid browser error: "WebSocket is closed before the connection is established"
+          closingWs.onopen = () => {
+            try {
+              closingWs.close(1000, "Clean disconnect");
+            } catch (_) {}
+          };
+          setTimeout(() => {
+            try {
+              if (closingWs.readyState === WebSocket.CONNECTING || closingWs.readyState === WebSocket.OPEN) {
+                closingWs.close();
+              }
+            } catch (_) {}
+          }, 3000);
+        } else if (closingWs.readyState === WebSocket.OPEN) {
+          closingWs.onopen = null;
+          closingWs.close(1000, "Clean disconnect");
+        }
       } catch (e) {
         // Ignore close errors on teardown
       }
