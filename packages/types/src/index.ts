@@ -33,17 +33,59 @@ export enum Verdict {
     SYSTEM_ERROR = "SYSTEM_ERROR",
 }
 
-export type UUID = string;
+export enum ErrorType {
+    SYNTAX_ERROR = "SYNTAX_ERROR",
+    COMPILATION_ERROR = "COMPILATION_ERROR",
+    SEMANTIC_ERROR = "SEMANTIC_ERROR",
+    RUNTIME_ERROR = "RUNTIME_ERROR",
+    TIME_LIMIT_EXCEEDED = "TIME_LIMIT_EXCEEDED",
+    MEMORY_LIMIT_EXCEEDED = "MEMORY_LIMIT_EXCEEDED",
+    WRONG_ANSWER = "WRONG_ANSWER",
+    PRESENTATION_ERROR = "PRESENTATION_ERROR",
+    SYSTEM_ERROR = "SYSTEM_ERROR",
+    UNKNOWN_ERROR = "UNKNOWN_ERROR",
+}
+
+export interface CodeContextLine {
+    line: number;
+    content: string;
+    isErrorLine: boolean;
+}
+
+export interface CodeContext {
+    lines: CodeContextLine[];
+    highlightColumn?: number | null;
+}
+
+export interface StructuredError {
+    type: ErrorType;
+    subtype?: string;
+    message: string;
+    line: number | null;
+    column: number | null;
+    file?: string | null;
+    codeLine?: string | null;
+    codeContext?: CodeContext | null;
+    rawMessage?: string;
+    explanation: string;
+    suggestion?: string;
+    additionalErrors?: {
+        line: number | null;
+        message: string;
+        explanation?: string;
+    }[];
+}
 
 export interface ExecutionMetrics {
-    executionTime: number;
-    memoryUsage: number;
-    cpuUsage?: number;
+    executionTime?: number;
+    memoryUsage?: number;
+    executionTimeMs?: number;
+    memoryUsedBytes?: number;
+    cpuTimeMs?: number;
     exitCode?: number | null;
     signal?: string | null;
     stdout?: string;
     stderr?: string;
-    compilationTime?: number;
 }
 
 export interface TestCaseResult {
@@ -53,6 +95,7 @@ export interface TestCaseResult {
     expectedOutput?: string;
     actualOutput?: string;
     error?: string;
+    structuredError?: StructuredError | null;
     metrics?: ExecutionMetrics;
 }
 
@@ -65,6 +108,7 @@ export interface EvaluationResult {
         success: boolean;
         timeMs?: number;
     };
+    error?: StructuredError | null;
     testCases?: TestCaseResult[];
     execution?: ExecutionMetrics;
     resourceUsage?: {

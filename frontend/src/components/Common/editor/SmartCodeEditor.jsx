@@ -10,6 +10,7 @@ export const SmartCodeEditor = forwardRef(({
   language = "javascript",
   disabled = false,
   isBlurred = false,
+  errorLocation = null, // { line: number, column?: number, message?: string }
   className = "livebattle-code-editor",
   style = {},
   showToast = true,
@@ -25,6 +26,32 @@ export const SmartCodeEditor = forwardRef(({
   const [flashClass, setFlashClass] = useState("");
   const [isFormatting, setIsFormatting] = useState(false);
   const toastTimeoutRef = useRef(null);
+
+  // Jump cursor & scroll to error line when errorLocation changes
+  useEffect(() => {
+    if (!errorLocation || !errorLocation.line || !textareaRef.current || !value) return;
+
+    const targetLine = errorLocation.line;
+    const lines = value.split("\n");
+    if (targetLine < 1 || targetLine > lines.length) return;
+
+    let charOffset = 0;
+    for (let i = 0; i < targetLine - 1; i++) {
+      charOffset += lines[i].length + 1; // +1 for newline
+    }
+
+    const col = Math.max(0, (errorLocation.column || 1) - 1);
+    const lineLen = lines[targetLine - 1].length;
+    const finalPos = charOffset + Math.min(col, lineLen);
+
+    const textarea = textareaRef.current;
+    textarea.focus();
+    textarea.setSelectionRange(charOffset, charOffset + lineLen);
+
+    // Approximate scroll height calculation
+    const lineHeight = 20; // approximate font line height
+    textarea.scrollTop = Math.max(0, (targetLine - 3) * lineHeight);
+  }, [errorLocation, value, textareaRef]);
 
   const showToastFeedback = useCallback((message, type = "info") => {
     if (!showToast) return;
@@ -195,6 +222,30 @@ export const SmartCodeEditor = forwardRef(({
           ...style,
         }}
       />
+      {errorLocation && errorLocation.line && (
+        <div className="editor-error-banner" style={{
+          position: "absolute",
+          top: "12px",
+          right: "16px",
+          background: "rgba(255, 42, 122, 0.92)",
+          border: "1px solid rgba(255, 255, 255, 0.3)",
+          boxShadow: "0 0 15px rgba(255, 42, 122, 0.4)",
+          color: "#ffffff",
+          padding: "6px 14px",
+          borderRadius: "8px",
+          fontSize: "0.78rem",
+          fontWeight: "700",
+          fontFamily: "'Space Grotesk', sans-serif",
+          zIndex: 15,
+          pointerEvents: "none",
+          display: "flex",
+          alignItems: "center",
+          gap: "8px"
+        }}>
+          <FontAwesomeIcon icon={faTriangleExclamation} />
+          <span>Line {errorLocation.line}{errorLocation.column ? `:${errorLocation.column}` : ""}: {errorLocation.message || "Error detected"}</span>
+        </div>
+      )}
       {toast && (
         <div className={`editor-prettier-toast ${toast.type}`}>
           <FontAwesomeIcon

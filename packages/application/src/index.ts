@@ -21,4 +21,5 @@ export * from "./runtime-pool/piston-runtime.factory";
 export * from "./runtime-pool/runtime-pool.observer";
 export * from "./runtime-pool/runtime-pool.manager";
 export * from "./workload/workload.classifier";
+export * from "./judge/diagnostics";
 
