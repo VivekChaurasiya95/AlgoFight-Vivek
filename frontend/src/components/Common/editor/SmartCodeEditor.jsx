@@ -3,8 +3,9 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faWandMagicSparkles, faTriangleExclamation, faInfoCircle } from "@fortawesome/free-solid-svg-icons";
 import { handleEditorKeyDown } from "../../../utils/editorSmartTyping";
 import { formatCode } from "../../../utils/codeFormatter";
-import { EditorHistory } from "../../../utils/editorHistory";
+import { EditorHistory, toggleComment } from "../../../utils/editorHistory";
 import KeyboardShortcutsModal from "./KeyboardShortcutsModal";
+import EditorContextMenu from "./EditorContextMenu";
 
 export const SmartCodeEditor = forwardRef(({
   value = "",
@@ -33,6 +34,11 @@ export const SmartCodeEditor = forwardRef(({
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
+
+  // Mouse Context Menu State
+  const [isContextMenuOpen, setIsContextMenuOpen] = useState(false);
+  const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 });
+  const [hasSelection, setHasSelection] = useState(false);
 
   const toastTimeoutRef = useRef(null);
   const historyRef = useRef(new EditorHistory());
@@ -208,11 +214,158 @@ export const SmartCodeEditor = forwardRef(({
     }
   }, [value, disabled, onChange, textareaRef]);
 
+  // --- MOUSE CLICKING COPY / CUT / PASTE / SELECT ALL CAPABILITIES ---
+
+  const handleCopy = useCallback(async () => {
+    const textarea = textareaRef.current;
+    let textToCopy = value;
+    let isSelection = false;
+
+    if (textarea && textarea.selectionStart !== textarea.selectionEnd) {
+      textToCopy = value.substring(textarea.selectionStart, textarea.selectionEnd);
+      isSelection = true;
+    }
+
+    if (!textToCopy) {
+      showToastFeedback("Nothing to copy", "info");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(textToCopy);
+      showToastFeedback(isSelection ? "Selection copied to clipboard 📋" : "Full code copied to clipboard 📋", "success");
+      triggerFlash("info");
+    } catch {
+      // Fallback
+      if (textarea) {
+        textarea.focus();
+        document.execCommand("copy");
+        showToastFeedback("Copied to clipboard 📋", "success");
+        triggerFlash("info");
+      }
+    }
+  }, [value, textareaRef, showToastFeedback, triggerFlash]);
+
+  const handleCut = useCallback(async () => {
+    if (disabled) return;
+    const textarea = textareaRef.current;
+    if (!textarea || textarea.selectionStart === textarea.selectionEnd) {
+      showToastFeedback("No text selected to cut", "info");
+      return;
+    }
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const textToCut = value.substring(start, end);
+
+    try {
+      await navigator.clipboard.writeText(textToCut);
+      historyRef.current.recordTyping(value, start, end, true);
+      const newCode = value.substring(0, start) + value.substring(end);
+      onChange(newCode);
+      historyRef.current.recordTyping(newCode, start, start, true);
+      setCanUndo(historyRef.current.canUndo());
+      setCanRedo(historyRef.current.canRedo());
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.selectionStart = textareaRef.current.selectionEnd = start;
+        }
+      }, 0);
+      showToastFeedback("Selection cut to clipboard ✂️", "success");
+    } catch {
+      document.execCommand("cut");
+    }
+  }, [value, disabled, onChange, textareaRef, showToastFeedback]);
+
+  const handlePasteText = useCallback((cleanText) => {
+    if (disabled || !cleanText) return;
+    const textarea = textareaRef.current;
+    const start = textarea ? textarea.selectionStart : value.length;
+    const end = textarea ? textarea.selectionEnd : value.length;
+
+    historyRef.current.recordTyping(value, start, end, true);
+    const newCode = value.substring(0, start) + cleanText + value.substring(end);
+    onChange(newCode);
+
+    const newPos = start + cleanText.length;
+    historyRef.current.recordTyping(newCode, newPos, newPos, true);
+    setCanUndo(historyRef.current.canUndo());
+    setCanRedo(historyRef.current.canRedo());
+
+    setTimeout(() => {
+      if (textareaRef.current) {
+        textareaRef.current.selectionStart = textareaRef.current.selectionEnd = newPos;
+      }
+    }, 0);
+  }, [value, disabled, onChange, textareaRef]);
+
+  const handlePasteFromClipboard = useCallback(async () => {
+    if (disabled) return;
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text) {
+        showToastFeedback("Clipboard is empty", "info");
+        return;
+      }
+      const clean = text.replace(/\r\n/g, "\n");
+      handlePasteText(clean);
+      showToastFeedback("Pasted from clipboard 📥", "success");
+      triggerFlash("success");
+    } catch {
+      // Browser permission prompt or restriction
+      showToastFeedback("Click inside editor and press Ctrl+V to paste", "info");
+    }
+  }, [disabled, handlePasteText, showToastFeedback, triggerFlash]);
+
+  const handleSelectAll = useCallback(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    textarea.focus();
+    textarea.setSelectionRange(0, value.length);
+    setHasSelection(value.length > 0);
+  }, [value, textareaRef]);
+
+  const handleToggleComment = useCallback(() => {
+    if (disabled) return;
+    const textarea = textareaRef.current;
+    const start = textarea ? textarea.selectionStart : 0;
+    const end = textarea ? textarea.selectionEnd : 0;
+
+    historyRef.current.recordTyping(value, start, end, true);
+    const res = toggleComment(value, start, end, language);
+    onChange(res.newCode);
+    historyRef.current.recordTyping(res.newCode, res.newSelectionStart, res.newSelectionEnd, true);
+    setCanUndo(historyRef.current.canUndo());
+    setCanRedo(historyRef.current.canRedo());
+
+    setTimeout(() => {
+      if (textareaRef.current) {
+        textareaRef.current.selectionStart = res.newSelectionStart;
+        textareaRef.current.selectionEnd = res.newSelectionEnd;
+      }
+    }, 0);
+  }, [value, disabled, language, onChange, textareaRef]);
+
+  // Context Menu Handler on Right-Click
+  const handleContextMenu = (e) => {
+    e.preventDefault();
+    const textarea = textareaRef.current;
+    const isSelected = textarea && textarea.selectionStart !== textarea.selectionEnd;
+    setHasSelection(isSelected);
+    setContextMenuPos({ x: e.clientX, y: e.clientY });
+    setIsContextMenuOpen(true);
+  };
+
   // Expose imperative handle for external buttons/toolbars
   useImperativeHandle(forwardedRef, () => ({
     formatCode: () => executeFormat(true),
     undo: triggerUndo,
     redo: triggerRedo,
+    copy: handleCopy,
+    paste: handlePasteFromClipboard,
+    cut: handleCut,
+    selectAll: handleSelectAll,
+    toggleComment: handleToggleComment,
     canUndo: () => historyRef.current.canUndo(),
     canRedo: () => historyRef.current.canRedo(),
     openShortcuts: () => setIsShortcutsOpen(true),
@@ -220,7 +373,18 @@ export const SmartCodeEditor = forwardRef(({
     focus: () => textareaRef.current?.focus(),
     getTextarea: () => textareaRef.current,
     isFormatting,
-  }), [executeFormat, triggerUndo, triggerRedo, isFormatting, textareaRef]);
+  }), [
+    executeFormat,
+    triggerUndo,
+    triggerRedo,
+    handleCopy,
+    handlePasteFromClipboard,
+    handleCut,
+    handleSelectAll,
+    handleToggleComment,
+    isFormatting,
+    textareaRef,
+  ]);
 
   // Background Idle Self-Alignment via Prettier (zero user intervention)
   useEffect(() => {
@@ -294,9 +458,9 @@ export const SmartCodeEditor = forwardRef(({
     // - Ctrl/Cmd + Shift + I
     // - Ctrl/Cmd + S (Save & Format)
     const isFormatKey =
-      (e.shiftKey && e.altKey && (e.key === "F" || e.key === "f")) ||
-      (modKey && e.altKey && (e.key === "F" || e.key === "f")) ||
-      (modKey && e.shiftKey && (e.key === "I" || e.key === "i"));
+      (e.shiftKey && e.altKey && (e.key === "F" || e.key === "F".toLowerCase())) ||
+      (modKey && e.altKey && (e.key === "F" || e.key === "F".toLowerCase())) ||
+      (modKey && e.shiftKey && (e.key === "I" || e.key === "I".toLowerCase()));
 
     const isSaveKey = modKey && (e.key === "s" || e.key === "S");
 
@@ -367,6 +531,7 @@ export const SmartCodeEditor = forwardRef(({
         onChange={handleChange}
         onKeyDown={handleKeyDown}
         onPaste={handlePaste}
+        onContextMenu={handleContextMenu}
         spellCheck="false"
         disabled={disabled}
         style={{
@@ -417,6 +582,22 @@ export const SmartCodeEditor = forwardRef(({
       <KeyboardShortcutsModal
         isOpen={isShortcutsOpen}
         onClose={() => setIsShortcutsOpen(false)}
+      />
+      <EditorContextMenu
+        isOpen={isContextMenuOpen}
+        position={contextMenuPos}
+        onClose={() => setIsContextMenuOpen(false)}
+        onCut={handleCut}
+        onCopy={handleCopy}
+        onPaste={handlePasteFromClipboard}
+        onUndo={triggerUndo}
+        onRedo={triggerRedo}
+        onSelectAll={handleSelectAll}
+        onFormat={() => executeFormat(true)}
+        onToggleComment={handleToggleComment}
+        hasSelection={hasSelection}
+        canUndo={canUndo}
+        canRedo={canRedo}
       />
     </>
   );
