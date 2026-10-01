@@ -1,9 +1,10 @@
-import React, { useRef, useEffect, useState, forwardRef, useImperativeHandle, useCallback } from "react";
+import React, { useRef, useEffect, useState, forwardRef, useImperativeHandle, useCallback, useMemo } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faWandMagicSparkles, faTriangleExclamation, faInfoCircle, faShieldHalved } from "@fortawesome/free-solid-svg-icons";
 import { handleEditorKeyDown } from "../../../utils/editorSmartTyping";
 import { formatCode } from "../../../utils/codeFormatter";
 import { EditorHistory } from "../../../utils/editorHistory";
+import { highlightCode } from "../../../utils/codeHighlighter";
 import KeyboardShortcutsModal from "./KeyboardShortcutsModal";
 
 export const SmartCodeEditor = forwardRef(({
@@ -26,6 +27,8 @@ export const SmartCodeEditor = forwardRef(({
 }, forwardedRef) => {
   const localRef = useRef(null);
   const textareaRef = externalTextareaRef || localRef;
+  const highlightRef = useRef(null);
+  const gutterRef = useRef(null);
 
   const [toast, setToast] = useState(null);
   const [flashClass, setFlashClass] = useState("");
@@ -36,6 +39,43 @@ export const SmartCodeEditor = forwardRef(({
 
   const toastTimeoutRef = useRef(null);
   const historyRef = useRef(new EditorHistory());
+
+  // Generate array of lines for gutter numbering
+  const lines = useMemo(() => {
+    return (value || "").split("\n");
+  }, [value]);
+
+  // Syntax highlight code into rich semantic tokens
+  const highlightedHtml = useMemo(() => {
+    const html = highlightCode(value || "", language);
+    return value.endsWith("\n") ? html + "\n " : html;
+  }, [value, language]);
+
+  // Sync scroll position between textarea, highlight layer, and gutter
+  const handleScroll = useCallback((e) => {
+    const target = e.target;
+    if (highlightRef.current) {
+      highlightRef.current.scrollTop = target.scrollTop;
+      highlightRef.current.scrollLeft = target.scrollLeft;
+    }
+    if (gutterRef.current) {
+      gutterRef.current.scrollTop = target.scrollTop;
+    }
+  }, []);
+
+  // Sync scroll after value / selection updates
+  useEffect(() => {
+    if (textareaRef.current) {
+      const { scrollTop, scrollLeft } = textareaRef.current;
+      if (highlightRef.current) {
+        highlightRef.current.scrollTop = scrollTop;
+        highlightRef.current.scrollLeft = scrollLeft;
+      }
+      if (gutterRef.current) {
+        gutterRef.current.scrollTop = scrollTop;
+      }
+    }
+  }, [value, textareaRef]);
 
   // Initialize or re-scope history when problemId changes
   useEffect(() => {
@@ -49,25 +89,27 @@ export const SmartCodeEditor = forwardRef(({
     if (!errorLocation || !errorLocation.line || !textareaRef.current || !value) return;
 
     const targetLine = errorLocation.line;
-    const lines = value.split("\n");
-    if (targetLine < 1 || targetLine > lines.length) return;
+    const lineList = value.split("\n");
+    if (targetLine < 1 || targetLine > lineList.length) return;
 
     let charOffset = 0;
     for (let i = 0; i < targetLine - 1; i++) {
-      charOffset += lines[i].length + 1; // +1 for newline
+      charOffset += lineList[i].length + 1; // +1 for newline
     }
 
     const col = Math.max(0, (errorLocation.column || 1) - 1);
-    const lineLen = lines[targetLine - 1].length;
+    const lineLen = lineList[targetLine - 1].length;
     const finalPos = charOffset + Math.min(col, lineLen);
 
     const textarea = textareaRef.current;
     textarea.focus();
     textarea.setSelectionRange(charOffset, finalPos);
 
-    // Approximate scroll height calculation
-    const lineHeight = 20; // approximate font line height
-    textarea.scrollTop = Math.max(0, (targetLine - 3) * lineHeight);
+    const lineHeight = 22; // exact monospace line height
+    const newScrollTop = Math.max(0, (targetLine - 3) * lineHeight);
+    textarea.scrollTop = newScrollTop;
+    if (highlightRef.current) highlightRef.current.scrollTop = newScrollTop;
+    if (gutterRef.current) gutterRef.current.scrollTop = newScrollTop;
   }, [errorLocation, value, textareaRef]);
 
   const showToastFeedback = useCallback((message, type = "info") => {
@@ -288,11 +330,7 @@ export const SmartCodeEditor = forwardRef(({
       return;
     }
 
-    // 6. FORMAT SHORTCUTS:
-    // - Shift + Alt + F (VS Code standard)
-    // - Ctrl/Cmd + Alt + F
-    // - Ctrl/Cmd + Shift + I
-    // - Ctrl/Cmd + S (Save & Format)
+    // 6. FORMAT SHORTCUTS: Shift+Alt+F, Ctrl+Alt+F, Ctrl+Shift+I, Ctrl+S
     const isFormatKey =
       (e.shiftKey && e.altKey && (e.key === "F" || e.key === "f")) ||
       (modKey && e.altKey && (e.key === "F" || e.key === "f")) ||
@@ -383,34 +421,72 @@ export const SmartCodeEditor = forwardRef(({
   };
 
   return (
-    <>
-      <textarea
-        ref={textareaRef}
-        className={`${className} ${flashClass}`}
-        value={value}
-        onChange={handleChange}
-        onKeyDown={handleKeyDown}
-        onPaste={handlePaste}
-        onContextMenu={handleContextMenu}
-        onAuxClick={handleAuxClick}
-        onDrop={handleDrop}
-        onDragOver={(e) => e.preventDefault()}
-        spellCheck="false"
-        disabled={disabled}
-        style={{
-          filter: isBlurred ? "blur(8px)" : "none",
-          transition: "filter 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease",
-          ...style,
-        }}
-      />
+    <div
+      className={`smart-editor-container ${className || ""} ${flashClass}`}
+      style={{
+        filter: isBlurred ? "blur(8px)" : "none",
+        transition: "filter 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease",
+        ...style,
+      }}
+    >
+      {/* Line Number Gutter */}
+      <div className="smart-editor-gutter" ref={gutterRef} aria-hidden="true">
+        <div className="gutter-inner">
+          {lines.map((_, idx) => {
+            const lineNum = idx + 1;
+            const isErrorLine = errorLocation?.line === lineNum;
+            return (
+              <div
+                key={lineNum}
+                className={`gutter-line-number ${isErrorLine ? "has-error" : ""}`}
+              >
+                {lineNum}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Code Canvas Area */}
+      <div className="smart-editor-canvas">
+        {/* Colorful syntax highlighted layer underneath */}
+        <pre
+          ref={highlightRef}
+          className="smart-editor-highlight-layer"
+          aria-hidden="true"
+        >
+          <code dangerouslySetInnerHTML={{ __html: highlightedHtml }} />
+        </pre>
+
+        {/* Interactive editing layer */}
+        <textarea
+          ref={textareaRef}
+          className="smart-editor-input-layer"
+          value={value}
+          onChange={handleChange}
+          onKeyDown={handleKeyDown}
+          onScroll={handleScroll}
+          onPaste={handlePaste}
+          onContextMenu={handleContextMenu}
+          onAuxClick={handleAuxClick}
+          onDrop={handleDrop}
+          onDragOver={(e) => e.preventDefault()}
+          spellCheck="false"
+          autoCapitalize="off"
+          autoComplete="off"
+          autoCorrect="off"
+          disabled={disabled}
+        />
+      </div>
+
       {errorLocation && errorLocation.line && (
         <div className="editor-error-banner" style={{
           position: "absolute",
           top: "12px",
           right: "16px",
-          background: "rgba(255, 42, 122, 0.92)",
+          background: "rgba(255, 42, 122, 0.94)",
           border: "1px solid rgba(255, 255, 255, 0.3)",
-          boxShadow: "0 0 15px rgba(255, 42, 122, 0.4)",
+          boxShadow: "0 0 16px rgba(255, 42, 122, 0.45)",
           color: "#ffffff",
           padding: "6px 14px",
           borderRadius: "8px",
@@ -427,6 +503,7 @@ export const SmartCodeEditor = forwardRef(({
           <span>Line {errorLocation.line}{errorLocation.column ? `:${errorLocation.column}` : ""}: {errorLocation.message || "Error detected"}</span>
         </div>
       )}
+
       {toast && (
         <div className={`editor-prettier-toast ${toast.type}`}>
           <FontAwesomeIcon
@@ -444,11 +521,12 @@ export const SmartCodeEditor = forwardRef(({
           <span className="prettier-toast-text">{toast.message}</span>
         </div>
       )}
+
       <KeyboardShortcutsModal
         isOpen={isShortcutsOpen}
         onClose={() => setIsShortcutsOpen(false)}
       />
-    </>
+    </div>
   );
 });
 

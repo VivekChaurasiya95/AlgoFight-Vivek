@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { connectSocket, disconnectSocket } from "../../services/socket";
@@ -19,7 +19,6 @@ import {
   faFlask,
   faForward,
   faShieldHalved,
-  faUsers,
   faTimes,
   faTrophy,
   faCheckCircle,
@@ -36,6 +35,7 @@ import {
   faRotateLeft,
   faRotateRight,
   faKeyboard,
+  faArrowLeft,
 } from "@fortawesome/free-solid-svg-icons";
 import {
   SUPPORTED_LANGUAGES,
@@ -503,6 +503,31 @@ export default function LiveBattle() {
   }, [status]);
 
   const problem = problems[activeProblemIndex] || null;
+
+  // Ensure both combatants always display in the 1v1 battle header
+  const battlePlayers = useMemo(() => {
+    if (Array.isArray(liveState?.players) && liveState.players.length > 0) {
+      return liveState.players;
+    }
+    if (Array.isArray(initialMatch?.players) && initialMatch.players.length > 0) {
+      return initialMatch.players.map((p, idx) => {
+        if (typeof p === "string") {
+          return {
+            userId: p === username ? (user?.uid || "me") : `p_${idx}`,
+            username: p,
+            points: 0,
+            solvedCount: 0,
+            rating: p === username ? (user?.rating || 1200) : 1200,
+          };
+        }
+        return p;
+      });
+    }
+    return [
+      { userId: user?.uid || "me", username: username || "You", points: 0, solvedCount: 0, rating: user?.rating || 1200 },
+      { userId: "opponent", username: opponentName || "Opponent", points: 0, solvedCount: 0, rating: 1200 }
+    ];
+  }, [liveState?.players, initialMatch?.players, username, user?.uid, user?.rating, opponentName]);
 
   // Fetch full room and problem details from API if problem statement/testcases are missing or on direct match entry
   useEffect(() => {
@@ -1502,73 +1527,151 @@ export default function LiveBattle() {
   if (status === "connecting" || status === "waiting") {
     return (
       <BackgroundPaths>
-        <div className="livebattle-page">
-          <section className="livebattle-header-card">
-            <div className="livebattle-header-copy">
-              <div className="hero-badge">
-                <span className="badge-pulse-dot" />
-                <span>1V1 RANKED ARENA</span>
+        <div className="livebattle-page wait-mode">
+          <section className="livebattle-header-card wait-header-card">
+            <div className="livebattle-header-left">
+              <button 
+                type="button" 
+                className="btn-livebattle-back" 
+                onClick={handleCancelQueue}
+                title="Exit to Arena"
+              >
+                <FontAwesomeIcon icon={faArrowLeft} />
+                <span>Arena</span>
+              </button>
+              <div className="livebattle-header-copy">
+                <div className="hero-kicker-tag arena-kicker">
+                  <span className="kicker-slash">//</span>
+                  <span>1V1 RANKED ARENA</span>
+                  <span className="kicker-cross">✦</span>
+                  <span className="kicker-word word-glow-cyan">MATCHMAKING</span>
+                </div>
+                <h1 className="livebattle-hero-title">
+                  {status === "connecting" ? "Connecting to Arena..." : "Finding Opponent..."}
+                </h1>
+                <p className="livebattle-hero-sub">
+                  Matching you with a contender near your bracket ({user?.rating ?? 1200} ELO). Match starts automatically.
+                </p>
               </div>
-              <h1 className="livebattle-hero-title">{status === "connecting" ? "Connecting to Battle Grid" : "Scanning For Challenger"}</h1>
-              <p>Distributed matchmaking connects combatants across all active nodes based on skill and rating tier.</p>
             </div>
-            <button className="livebattle-leave-btn" onClick={handleCancelQueue}>
-              Cancel Queue
+            <button className="livebattle-leave-btn cancel-queue-btn" onClick={handleCancelQueue}>
+              <FontAwesomeIcon icon={faTimes} />
+              <span>Cancel</span>
             </button>
           </section>
 
-        <section className="livebattle-wait-panel">
-          <div className="livebattle-loader">
-            {status === "connecting" ? "Establishing Secure Uplink..." : `Finding Opponent (${formatTime(searchElapsed)} / 00:25)`}
-          </div>
+          <section className="livebattle-wait-panel">
+            {/* Radar & Search Timer */}
+            <div className="matchmaking-radar-section">
+              <div className="matchmaking-radar-halo">
+                <div className="radar-sweep" />
+                <div className="radar-crosshair-h" />
+                <div className="radar-crosshair-v" />
+                <div className="radar-ring ring-1" />
+                <div className="radar-ring ring-2" />
+                <div className="radar-core-pulse">
+                  <FontAwesomeIcon icon={faBolt} className="radar-bolt-icon" />
+                </div>
+              </div>
 
-          <div className="livebattle-wait-chips">
-            <span className="livebattle-chip chip-bracket">
-              🎯 Bracket: {searchWindow}
-            </span>
-            <span className="livebattle-chip chip-pool">
-              ⚡ Global Redis Pool Active
-            </span>
-          </div>
+              <div className="matchmaking-status-text">
+                <div className="livebattle-timer-chip">
+                  <FontAwesomeIcon icon={faClock} />
+                  <span className="timer-elapsed">{formatTime(searchElapsed)}</span>
+                </div>
+              </div>
+            </div>
 
-          <div className="livebattle-wait-actions">
-            <button
-              type="button"
-              className="livebattle-bot-cta-btn"
-              onClick={handlePlayVsBot}
-            >
-              <span>⚡ Play vs AlgoBot Now (Skip Wait)</span>
-            </button>
-            <button
-              type="button"
-              className="livebattle-cancel-cta-btn"
-              onClick={handleCancelQueue}
-            >
-              Cancel
-            </button>
-          </div>
+            {/* Matchup Duel Preview Cards */}
+            <div className="matchmaking-duel-preview">
+              {/* User Card */}
+              <div className="matchmaking-combatant-card is-user">
+                <div className="combatant-role-tag">YOU</div>
+                <div className="combatant-avatar-wrap">
+                  <RankEmblem rating={user?.rating ?? 1200} size={44} glow={true} />
+                </div>
+                <div className="combatant-name">{username}</div>
+                <div className="combatant-rating-pill">
+                  <span className="rating-num">{user?.rating ?? 1200}</span>
+                  <span className="rating-lbl">ELO</span>
+                </div>
+                <div className="combatant-status ready">
+                  <span className="combatant-pulse-dot" /> Ready
+                </div>
+              </div>
 
-          <div className="livebattle-wait-steps">
-            <article>
-              <FontAwesomeIcon icon={faUsers} />
-              <h3>Distributed Queue</h3>
-              <p>Scanning active nodes. Expanding search window every 5 seconds.</p>
-            </article>
-            <article>
-              <FontAwesomeIcon icon={faShieldHalved} />
-              <h3>Match Integrity</h3>
-              <p>Verifying low latency, sandbox isolation, and fair-play rating bracket.</p>
-            </article>
-            <article>
-              <FontAwesomeIcon icon={faCode} />
-              <h3>Problem Suite</h3>
-              <p>Auto-generating algorithm challenge set & evaluation test vectors.</p>
-            </article>
-          </div>
-        </section>
-      </div>
-      <Footer />
-    </BackgroundPaths>
+              {/* Center VS Indicator */}
+              <div className="matchmaking-vs-node">
+                <div className="vs-badge-glow">VS</div>
+                {searchWindow && (
+                  <div className="vs-window-chip">
+                    <span>{searchWindow}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Opponent Target Card */}
+              <div className="matchmaking-combatant-card is-searching">
+                <div className="combatant-role-tag searching">OPPONENT</div>
+                <div className="combatant-avatar-wrap searching">
+                  <div className="searching-spinner-ring" />
+                  <span className="searching-glyph">?</span>
+                </div>
+                <div className="combatant-name searching-text">Searching...</div>
+                <div className="combatant-status searching">
+                  <FontAwesomeIcon icon={faSpinner} spin className="searching-icon" /> Matching
+                </div>
+              </div>
+            </div>
+
+            {/* Actions Bar */}
+            <div className="livebattle-wait-actions">
+              <button
+                type="button"
+                className="livebattle-bot-cta-btn"
+                onClick={handlePlayVsBot}
+              >
+                <FontAwesomeIcon icon={faBolt} />
+                <span>Play vs Bot</span>
+              </button>
+              <button
+                type="button"
+                className="livebattle-cancel-cta-btn"
+                onClick={handleCancelQueue}
+              >
+                <FontAwesomeIcon icon={faTimes} />
+                <span>Cancel</span>
+              </button>
+            </div>
+
+            {/* Battle Info / Rules HUD Strip */}
+            <div className="matchmaking-rules-strip">
+              <div className="matchmaking-rule-item">
+                <FontAwesomeIcon icon={faBolt} className="rule-icon icon-cyan" />
+                <div className="rule-text">
+                  <strong>Speed & Accuracy</strong>
+                  <span>Fastest correct solution with passing testcases wins.</span>
+                </div>
+              </div>
+              <div className="matchmaking-rule-item">
+                <FontAwesomeIcon icon={faShieldHalved} className="rule-icon icon-purple" />
+                <div className="rule-text">
+                  <strong>Anti-Cheat Active</strong>
+                  <span>Tab switching and code pasting are tracked.</span>
+                </div>
+              </div>
+              <div className="matchmaking-rule-item">
+                <FontAwesomeIcon icon={faTrophy} className="rule-icon icon-amber" />
+                <div className="rule-text">
+                  <strong>Ranked Duel</strong>
+                  <span>Earn ELO rating and unlock prestigious badges.</span>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+        <Footer />
+      </BackgroundPaths>
     );
   }
 
@@ -1627,40 +1730,68 @@ export default function LiveBattle() {
 
         <motion.section initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="livebattle-header-card">
           <div className="livebattle-header-left">
-            <div className="livebattle-room-info">
-              <div className="hero-badge">
-                <span className="badge-pulse-dot" />
-                <span>LIVE BATTLE</span>
-              </div>
-              <h1 className="livebattle-hero-title">
-                Room #{roomId ? (roomId.length > 12 ? roomId.slice(0, 8) : roomId) : "BTL"}
-              </h1>
-              {roomId && (
-                <button 
-                  className="livebattle-copy-code-btn"
-                  onClick={() => {
-                    navigator.clipboard.writeText(roomId);
-                    notify({ type: "success", title: "Copied!", message: `Room code ${roomId} copied.` });
-                  }}
-                  title="Copy full room ID"
-                >
-                  <FontAwesomeIcon icon={faCode} /> Copy ID
-                </button>
-              )}
-            </div>
+            <button 
+              type="button" 
+              className="btn-livebattle-back" 
+              onClick={handleLeaveBattle}
+              title="Exit to Battle Arena"
+            >
+              <FontAwesomeIcon icon={faArrowLeft} />
+              <span>Arena</span>
+            </button>
 
+            <div className="livebattle-room-info">
+              <div className="hero-kicker-tag arena-kicker">
+                <span className="kicker-slash">//</span>
+                <span>LIVE 1V1</span>
+                <span className="kicker-cross">✦</span>
+                <span className="kicker-word word-glow-cyan">DUEL</span>
+              </div>
+              <div className="livebattle-room-pill">
+                <span className="badge-pulse-dot" />
+                <span className="room-code-tag">
+                  #{roomId ? (roomId.length > 12 ? roomId.slice(0, 8) : roomId) : "BTL"}
+                </span>
+                {roomId && (
+                  <button 
+                    className="livebattle-copy-code-btn"
+                    onClick={() => {
+                      navigator.clipboard.writeText(roomId);
+                      notify({ type: "success", title: "Copied!", message: `Room code ${roomId} copied.` });
+                    }}
+                    title="Copy full room ID"
+                  >
+                    <FontAwesomeIcon icon={faCode} />
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Center Matchup Duel Hub */}
+          <div className="livebattle-header-center">
             <div className="livebattle-players-matchup">
-              {liveState?.players?.map((p, idx) => {
+              {battlePlayers.map((p, idx) => {
                 const hasLeft = p.status === 'LEFT' || p.forfeited;
                 const isMe = p.username === username || p.userId === user?.uid;
                 const isWinner = battleResult && (battleResult.winnerId === p.userId || battleResult.winner === p.username);
+                const playerRating = p.rating || (isMe ? (user?.rating || 1200) : 1200);
+                const totalProblemsCount = Math.max(problems.length, 1);
+                const solveProgressPct = Math.min(100, Math.round(((p.solvedCount || 0) / totalProblemsCount) * 100));
+
                 return (
                   <React.Fragment key={p.userId || idx}>
                     {idx > 0 && <div className="matchup-vs-divider">VS</div>}
                     <div className={`player-score-card ${isMe ? 'is-me' : ''} ${hasLeft ? 'is-left' : ''} ${isWinner ? 'is-winner' : ''}`}>
-                      <div className="player-avatar">
-                        {(p.username || "P")[0].toUpperCase()}
+                      <div className="player-avatar-badge-wrap">
+                        <div className="player-avatar">
+                          {(p.username || "P")[0].toUpperCase()}
+                        </div>
+                        <div className="player-rank-emblem-mini">
+                          <RankEmblem rating={playerRating} size={18} glow={false} />
+                        </div>
                       </div>
+
                       <div className="player-info">
                         <div className="player-name-row">
                           <span className="player-username">{p.username}</span>
@@ -1672,7 +1803,7 @@ export default function LiveBattle() {
                           )}
                           {hasLeft && !p.disqualified && <span className="left-badge">LEFT</span>}
                           {isWinner && <span className="winner-badge"><FontAwesomeIcon icon={faTrophy} /> WIN</span>}
-                          {/* Issue 4: Host participant controls */}
+                          {/* Host participant controls */}
                           {((liveState?.hostId && liveState.hostId === user?.uid) || (initialMatch?.hostId && initialMatch.hostId === user?.uid)) && !isMe && (
                             p.disqualified ? (
                               <button
@@ -1722,6 +1853,13 @@ export default function LiveBattle() {
                         <div className="player-score-row">
                           <span className="player-pts">{p.points || 0} pts</span>
                           <span className="player-solved">({p.solvedCount || 0}/{problems.length} solved)</span>
+                          <span className="player-elo-tag">{playerRating} ELO</span>
+                        </div>
+                        <div className="player-solved-progress-bar">
+                          <div 
+                            className="player-solved-progress-fill" 
+                            style={{ width: `${solveProgressPct}%` }}
+                          />
                         </div>
                       </div>
                     </div>
@@ -1732,6 +1870,18 @@ export default function LiveBattle() {
           </div>
 
           <div className="livebattle-header-right">
+            {/* Active Problem Headline in Header */}
+            {problem && (
+              <div className="livebattle-header-problem-info">
+                <span className="problem-index-chip">Q{activeProblemIndex + 1}</span>
+                <span className="problem-title-text">{problem.title || "Challenge Problem"}</span>
+                {problem.difficulty && (
+                  <span className={`problem-diff-badge diff-${problem.difficulty.toLowerCase()}`}>
+                    {problem.difficulty}
+                  </span>
+                )}
+              </div>
+            )}
             <button 
               className="livebattle-fullscreen-btn" 
               onClick={toggleFullScreen}
@@ -1748,7 +1898,8 @@ export default function LiveBattle() {
               <span className="timer-digits">{formatTime(timeLeft)}</span>
             </div>
             <button className="livebattle-leave-btn" onClick={handleLeaveBattle}>
-              {status === "finished" ? "Back to Arena" : "Leave Battle"}
+              <FontAwesomeIcon icon={faTimes} />
+              <span>{status === "finished" ? "Exit Arena" : "Leave Battle"}</span>
             </button>
           </div>
         </motion.section>
@@ -1761,8 +1912,8 @@ export default function LiveBattle() {
           className="livebattle-panel livebattle-problem-panel"
           style={{ flex: `0 0 ${leftWidth}%`, minWidth: "220px", maxWidth: "55%" }}
         >
-          <div className="livebattle-panel-head" style={{ paddingBottom: 0, borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-             <div className="problem-tabs" style={{ display: 'flex', gap: '8px' }}>
+          <div className="livebattle-panel-head problem-panel-head">
+             <div className="problem-tabs">
                 {problems.map((p, idx) => (
                    <button 
                      key={p.id}
@@ -1877,7 +2028,7 @@ export default function LiveBattle() {
               language={language}
               disabled={status === "finished" || isSelfDisqualified}
               isBlurred={isBlurred}
-              problemId={currentProblem?.id}
+              problemId={problem?.id}
               onRun={onTestCode}
               onSubmit={onSubmitCode}
               errorLocation={
