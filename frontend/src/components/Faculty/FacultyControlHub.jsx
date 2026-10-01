@@ -523,7 +523,13 @@ export default function FacultyControlHub() {
                             <span className="faculty-inst-text">{faculty.institutionName || "MITS Gwalior"}</span>
                           </td>
                           <td>
-                            <code className="faculty-code-pill">{faculty.platformCode || "FACULTY"}</code>
+                            <code className="faculty-code-pill">
+                              {faculty.platformCode
+                                ? (faculty.platformCode.startsWith("AF-USR")
+                                    ? faculty.platformCode.replace(/^AF-USR/, "AF-FAC")
+                                    : faculty.platformCode)
+                                : `AF-FAC-${String(faculty.id || "").slice(0, 5).toUpperCase()}`}
+                            </code>
                           </td>
                           <td>
                             <span className="metric-pill quiz-metric">

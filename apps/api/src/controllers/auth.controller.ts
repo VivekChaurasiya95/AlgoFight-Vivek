@@ -1,5 +1,5 @@
 // apps/api/src/controllers/auth.controller.ts
-import { prisma } from "@algofight/database";
+import { prisma, ensureFacultyPlatformCode } from "@algofight/database";
 import { logger } from "@algofight/logger";
 import { googleTokenVerifier } from "../utils/google-auth.util";
 import { hashPassword, verifyPassword } from "../utils/password.util";
@@ -60,6 +60,10 @@ export class AuthController {
         // If existing user by googleSub, ensure faculty or department is synced
         if (user && (isFaculty || institutionalData.department)) {
             const nextUserType = isFaculty ? "FACULTY" : (user.userType === "INDIVIDUAL" ? (institutionalData.userType || "STUDENT") : user.userType);
+            let nextPlatformCode = user.platformCode;
+            if (nextUserType === "FACULTY" && (!nextPlatformCode || !nextPlatformCode.startsWith("AF-FAC-"))) {
+                nextPlatformCode = ensureFacultyPlatformCode(nextPlatformCode);
+            }
             user = await (prisma.user as any).update({
                 where: { id: user.id },
                 data: {
@@ -67,8 +71,12 @@ export class AuthController {
                     institutionName: user.institutionName || institutionalData.institutionName,
                     batchYear: user.batchYear || institutionalData.batchYear,
                     userType: nextUserType,
+                    ...(nextPlatformCode !== user.platformCode ? { platformCode: nextPlatformCode } : {}),
                 },
             });
+            if (nextPlatformCode) {
+                user.platformCode = nextPlatformCode;
+            }
         }
 
         // Link existing account by email if not already linked to googleSub
@@ -78,6 +86,10 @@ export class AuthController {
             });
             if (user) {
                 const nextUserType = isFaculty ? "FACULTY" : (user.userType === "INDIVIDUAL" && institutionalData.userType ? institutionalData.userType : user.userType);
+                let nextPlatformCode = user.platformCode;
+                if (nextUserType === "FACULTY" && (!nextPlatformCode || !nextPlatformCode.startsWith("AF-FAC-"))) {
+                    nextPlatformCode = ensureFacultyPlatformCode(nextPlatformCode);
+                }
                 user = await (prisma.user as any).update({
                     where: { id: user.id },
                     data: {
@@ -86,10 +98,26 @@ export class AuthController {
                         institutionName: user.institutionName || institutionalData.institutionName || null,
                         batchYear: user.batchYear || institutionalData.batchYear || null,
                         userType: nextUserType,
+                        ...(nextPlatformCode !== user.platformCode ? { platformCode: nextPlatformCode } : {}),
                     },
                 });
-                logger.info({ userId: user.id, email: user.email, department: user.department, userType: nextUserType }, "Linked existing account to Google sub and synced institutional identity");
+                if (nextPlatformCode) {
+                    user.platformCode = nextPlatformCode;
+                }
+                logger.info({ userId: user.id, email: user.email, department: user.department, userType: nextUserType, platformCode: nextPlatformCode }, "Linked existing account to Google sub and synced institutional identity");
             }
+        }
+
+        // Ensure any existing faculty record has updated AF-FAC platform code
+        if (user && (isFaculty || user.userType === "FACULTY") && (!user.platformCode || !user.platformCode.startsWith("AF-FAC-"))) {
+            const nextCode = ensureFacultyPlatformCode(user.platformCode);
+            user = await (prisma.user as any).update({
+                where: { id: user.id },
+                data: {
+                    userType: "FACULTY",
+                    platformCode: nextCode,
+                },
+            });
         }
 
         // If new user, create account
@@ -199,20 +227,25 @@ export class AuthController {
             throw { statusCode: 401, message: "Invalid email or password." };
         }
 
-        // Auto-upgrade to FACULTY if email is mitsgwalior.in
+        // Auto-upgrade to FACULTY if email is mitsgwalior.in or user is faculty
         const isFaculty = cleanEmail.endsWith("@mitsgwalior.in") ||
                           cleanEmail.endsWith(".mitsgwalior.in") ||
-                          cleanEmail.includes("mitsgwalior.in");
-        if (isFaculty && user.userType !== "FACULTY") {
+                          cleanEmail.includes("mitsgwalior.in") ||
+                          user.userType === "FACULTY";
+        const needsCodeFix = isFaculty && (!user.platformCode || !user.platformCode.startsWith("AF-FAC-"));
+        if ((isFaculty && user.userType !== "FACULTY") || needsCodeFix) {
+            const nextPlatformCode = needsCodeFix ? ensureFacultyPlatformCode(user.platformCode) : user.platformCode;
             const updated = await prisma.user.update({
                 where: { id: user.id },
                 data: {
                     userType: "FACULTY",
                     institutionName: user.institutionName || "Madhav Institute of Technology & Science",
+                    ...(needsCodeFix ? { platformCode: nextPlatformCode } : {}),
                 },
             });
             user.userType = updated.userType;
             user.institutionName = updated.institutionName;
+            user.platformCode = updated.platformCode;
         }
 
         const isAdmin = isAdminEmail(user.email);
@@ -288,7 +321,8 @@ export class AuthController {
 
         const isFaculty = cleanEmail.endsWith("@mitsgwalior.in") ||
                           cleanEmail.endsWith(".mitsgwalior.in") ||
-                          cleanEmail.includes("mitsgwalior.in");
+                          cleanEmail.includes("mitsgwalior.in") ||
+                          params.userType === "FACULTY";
 
         let institutionalData: {
             userType?: "STUDENT" | "FACULTY";
@@ -320,8 +354,8 @@ export class AuthController {
         }
 
         const passwordHash = hashPassword(params.password);
-        const resolvedUserType = params.userType || institutionalData.userType || "INDIVIDUAL";
-        const platformPrefix = resolvedUserType === "STUDENT" ? "AF-STU" : resolvedUserType === "FACULTY" ? "AF-FAC" : "AF-USR";
+        const resolvedUserType = isFaculty ? "FACULTY" : (params.userType || institutionalData.userType || "INDIVIDUAL");
+        const platformPrefix = resolvedUserType === "FACULTY" ? "AF-FAC" : (resolvedUserType === "STUDENT" ? "AF-STU" : "AF-USR");
         const platformCode = `${platformPrefix}-${Math.floor(10000 + Math.random() * 90000)}`;
 
         const studentIdentityMetadata = (params.school || params.designation || params.department)

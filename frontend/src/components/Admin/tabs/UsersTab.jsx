@@ -142,7 +142,15 @@ export default function UsersTab({
                   <tr key={u.id}>
                     <td>
                       <span className="code-chip">
-                        {u.platformCode || `AF-USR-${String(u.id).slice(0, 5)}`}
+                        {u.platformCode
+                          ? (u.userType === "FACULTY" && u.platformCode.startsWith("AF-USR")
+                              ? u.platformCode.replace(/^AF-USR/, "AF-FAC")
+                              : u.platformCode)
+                          : (u.userType === "FACULTY"
+                              ? `AF-FAC-${String(u.id).slice(0, 5)}`
+                              : u.userType === "STUDENT"
+                              ? `AF-STU-${String(u.id).slice(0, 5)}`
+                              : `AF-USR-${String(u.id).slice(0, 5)}`)}
                       </span>
                     </td>
                     <td className="user-cell">

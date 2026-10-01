@@ -2,7 +2,7 @@
 import { prisma } from "../client/prisma";
 import { CreateUserInput, UserRepository } from "../contracts/user.repository";
 import { UserEntity } from "../entities/user.entity";
-import { generatePlatformCode } from "../utils/platform-code";
+import { generatePlatformCode, ensureFacultyPlatformCode } from "../utils/platform-code";
 
 export class PrismaUserRepository implements UserRepository {
     async createUser(input: CreateUserInput): Promise<UserEntity> {
@@ -11,17 +11,23 @@ export class PrismaUserRepository implements UserRepository {
             ? { ...initialMeta, ...(input.school ? { school: input.school } : {}), ...(input.designation ? { designation: input.designation } : {}) }
             : (input.studentIdentityMetadata || null);
 
+        const isFaculty = input.userType === "FACULTY" || (input.email || "").toLowerCase().includes("mitsgwalior.in");
+        const resolvedUserType = isFaculty ? "FACULTY" : ((input.userType as any) || "INDIVIDUAL");
+        const resolvedPlatformCode = input.platformCode
+            ? (isFaculty && !input.platformCode.startsWith("AF-FAC-") ? ensureFacultyPlatformCode(input.platformCode) : input.platformCode)
+            : (isFaculty ? ensureFacultyPlatformCode(null) : generatePlatformCode(resolvedUserType));
+
         const createData: any = {
             id: input.id,
             username: input.username,
             email: input.email,
-            userType: (input.userType as any) || "INDIVIDUAL",
+            userType: resolvedUserType,
             primaryEmail: input.primaryEmail || input.email,
             secondaryEmail: input.secondaryEmail || null,
             institutionName: input.institutionName || null,
             department: input.department || (input.branch ? input.branch : null),
             batchYear: input.batchYear || (input.admissionYear ? String(input.admissionYear) : null),
-            platformCode: input.platformCode || generatePlatformCode(input.userType),
+            platformCode: resolvedPlatformCode,
             githubUrl: input.githubUrl || null,
             linkedinUrl: input.linkedinUrl || null,
             institutionId: input.institutionId || null,
@@ -79,10 +85,17 @@ export class PrismaUserRepository implements UserRepository {
                 };
             }
 
+            const isFaculty = (input.userType === "FACULTY" || existing.userType === "FACULTY" || (input.email || existing.email)?.toLowerCase().includes("mitsgwalior.in"));
+            const finalUserType = isFaculty ? "FACULTY" : ((input.userType as any) || existing.userType);
+            let finalPlatformCode = existing.platformCode;
+            if (isFaculty && (!finalPlatformCode || !finalPlatformCode.startsWith("AF-FAC-"))) {
+                finalPlatformCode = ensureFacultyPlatformCode(finalPlatformCode);
+            }
+
             const updateData: any = {
                 username: finalUsername,
                 email: finalEmail,
-                userType: (input.userType as any) || existing.userType,
+                userType: finalUserType,
                 institutionName: input.institutionName || existing.institutionName,
                 department: input.department || (input.branch ? input.branch : existing.department),
                 batchYear: input.batchYear || (input.admissionYear ? String(input.admissionYear) : existing.batchYear),
@@ -95,6 +108,7 @@ export class PrismaUserRepository implements UserRepository {
                 branch: input.branch || existing.branch,
                 enrollmentNumber: input.enrollmentNumber || existing.enrollmentNumber,
                 studentIdentityMetadata: updatedMeta,
+                ...(finalPlatformCode !== existing.platformCode ? { platformCode: finalPlatformCode } : {}),
             };
 
             const updated = await prisma.user.update({
@@ -176,12 +190,24 @@ export class PrismaUserRepository implements UserRepository {
             },
         });
         let finalUser = user;
-        if (user && !user.platformCode) {
-            const newCode = generatePlatformCode(user.userType as any);
-            finalUser = await prisma.user.update({
-                where: { id: user.id },
-                data: { platformCode: newCode },
-            });
+        if (user) {
+            const isFaculty = user.userType === "FACULTY" || (user.email || "").toLowerCase().includes("mitsgwalior.in");
+            const needsCodeFix = !user.platformCode || (isFaculty && !user.platformCode.startsWith("AF-FAC-"));
+            const needsTypeFix = isFaculty && user.userType !== "FACULTY";
+
+            if (needsCodeFix || needsTypeFix) {
+                const targetCode = isFaculty
+                    ? ensureFacultyPlatformCode(user.platformCode)
+                    : generatePlatformCode(user.userType as any);
+
+                finalUser = await prisma.user.update({
+                    where: { id: user.id },
+                    data: {
+                        platformCode: targetCode,
+                        ...(needsTypeFix ? { userType: "FACULTY" } : {}),
+                    },
+                });
+            }
         }
         if (!finalUser) return null;
         const meta = (finalUser.studentIdentityMetadata as any) || {};
@@ -197,11 +223,23 @@ export class PrismaUserRepository implements UserRepository {
             where: { username },
         });
         if (!user) return null;
-        const meta = (user.studentIdentityMetadata as any) || {};
+        let finalUser = user;
+        const isFaculty = user.userType === "FACULTY" || (user.email || "").toLowerCase().includes("mitsgwalior.in");
+        if (isFaculty && (!user.platformCode || !user.platformCode.startsWith("AF-FAC-"))) {
+            const newCode = ensureFacultyPlatformCode(user.platformCode);
+            finalUser = await prisma.user.update({
+                where: { id: user.id },
+                data: {
+                    platformCode: newCode,
+                    ...(user.userType !== "FACULTY" ? { userType: "FACULTY" } : {}),
+                },
+            });
+        }
+        const meta = (finalUser.studentIdentityMetadata as any) || {};
         return {
-            ...user,
+            ...finalUser,
             school: meta.school || null,
-            designation: meta.designation || (user.userType === "FACULTY" ? "Faculty Educator" : null),
+            designation: meta.designation || (finalUser.userType === "FACULTY" ? "Faculty Educator" : null),
         } as unknown as UserEntity;
     }
 

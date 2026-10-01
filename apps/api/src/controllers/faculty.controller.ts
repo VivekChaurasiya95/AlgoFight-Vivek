@@ -1,5 +1,5 @@
 // apps/api/src/controllers/faculty.controller.ts
-import { prisma } from "@algofight/database";
+import { prisma, ensureFacultyPlatformCode } from "@algofight/database";
 import { InboxNotificationService } from "../services/inbox-notification.service";
 import { logger } from "@algofight/logger";
 import { isAdminEmail } from "../constants/admins";
@@ -395,6 +395,29 @@ export class FacultyController {
             },
         });
 
+        // Ensure all registered faculty have userType: "FACULTY" and a valid "AF-FAC-" platformCode
+        await Promise.all(
+            faculties.map(async (f) => {
+                const needsCodeFix = !f.platformCode || !f.platformCode.startsWith("AF-FAC-");
+                const needsTypeFix = f.userType !== "FACULTY";
+
+                if (needsCodeFix || needsTypeFix) {
+                    const updatedCode = ensureFacultyPlatformCode(f.platformCode);
+                    await prisma.user.update({
+                        where: { id: f.id },
+                        data: {
+                            platformCode: updatedCode,
+                            userType: "FACULTY",
+                        },
+                    }).catch((err) => {
+                        logger.warn({ err, userId: f.id }, "Auto-syncing faculty platform code encountered error");
+                    });
+                    f.platformCode = updatedCode;
+                    f.userType = "FACULTY" as any;
+                }
+            })
+        );
+
         // Compute counts of quizzes & reminders per faculty
         const facultiesWithCounts = await Promise.all(
             faculties.map(async (f) => {
@@ -449,12 +472,16 @@ export class FacultyController {
             designation: cleanDesignation,
         };
 
+        const needsCodeFix = !user.platformCode || !user.platformCode.startsWith("AF-FAC-");
+        const nextPlatformCode = needsCodeFix ? ensureFacultyPlatformCode(user.platformCode) : user.platformCode;
+
         const updated = await prisma.user.update({
             where: { id: userId },
             data: {
                 userType: "FACULTY",
                 institutionName: data.institutionName || user.institutionName || "Madhav Institute of Technology & Science",
                 department: cleanDept || cleanSchool,
+                platformCode: nextPlatformCode,
                 studentIdentityMetadata: updatedMeta,
             },
         });
@@ -464,6 +491,7 @@ export class FacultyController {
             email: updated.email,
             username: updated.username,
             userType: updated.userType,
+            platformCode: updated.platformCode,
             institutionName: updated.institutionName,
             department: updated.department,
             school: cleanSchool,
