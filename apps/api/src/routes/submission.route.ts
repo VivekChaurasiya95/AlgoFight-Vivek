@@ -74,7 +74,8 @@ export async function submissionRoutes(app: FastifyInstance) {
         },
         async (request) => {
             const body = request.body as any;
-            return submissionController.evaluatePractice(body);
+            const userId = request.user?.id || body.userId;
+            return submissionController.evaluatePractice(body, userId);
         },
     );
 

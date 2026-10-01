@@ -36,8 +36,11 @@ export function normalizeUserStats(profile = {}) {
 
   const tier = getRankTier(rating);
 
+  const arenaPoints = Math.max(0, Number(profile?.arenaPoints ?? 0));
+
   return {
     rating,
+    arenaPoints,
     matchesPlayed,
     matchesWon,
     lossCount,
@@ -84,7 +87,8 @@ export function calculateArenaPointBreakdown(stats) {
   const practiceSolvedPoints = safeStats.practiceSolved * 50;
   const participationPoints = safeStats.lossCount * 20;
 
-  const total = ratingPoints + battleWinPoints + speedEfficiencyPoints + practiceSolvedPoints + participationPoints;
+  const computedTotal = ratingPoints + battleWinPoints + speedEfficiencyPoints + practiceSolvedPoints + participationPoints;
+  const total = safeStats.arenaPoints > 0 ? safeStats.arenaPoints : computedTotal;
 
   return {
     total,

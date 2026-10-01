@@ -28,11 +28,11 @@ export default function CreateRoomModal({ isOpen, onClose }) {
 
   // Mode: "AUTO" (Random Auto-Pick) or "CUSTOM" (User chooses specific problems)
   const [selectionMode, setSelectionMode] = useState("AUTO");
+  const [roomType, setRoomType] = useState("RATED"); // "RATED" or "UNRATED"
   const [maxPlayers, setMaxPlayers] = useState(2);
   const [timeLimit, setTimeLimit] = useState(15);
   const [difficulty, setDifficulty] = useState("MEDIUM");
   const [questionCount, setQuestionCount] = useState(3);
-  const [isFriendly, setIsFriendly] = useState(false);
   const [isPublic, setIsPublic] = useState(true);
   const [creating, setCreating] = useState(false);
 
@@ -140,7 +140,8 @@ export default function CreateRoomModal({ isOpen, onClose }) {
           selectionMode === "CUSTOM"
             ? selectedProblems.map((p) => String(p.id || p._id))
             : undefined,
-        isFriendly,
+        roomType,
+        isFriendly: roomType === "UNRATED",
         isPublic,
       };
 
@@ -188,6 +189,62 @@ export default function CreateRoomModal({ isOpen, onClose }) {
             <button className="modal-close-btn" onClick={onClose}>
               <FontAwesomeIcon icon={faTimes} />
             </button>
+          </div>
+
+          {/* Match Type: Rated vs Unrated */}
+          <div className="match-type-selector-box" style={{ margin: "12px 0 16px" }}>
+            <div className="form-group-header" style={{ marginBottom: "8px" }}>
+              <label style={{ fontSize: "0.85rem", fontWeight: 800, letterSpacing: "0.04em", color: "#cbd5e1" }}>
+                MATCH TYPE
+              </label>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+              <div
+                className={`match-type-card ${roomType === "RATED" ? "active-rated" : ""}`}
+                onClick={() => setRoomType("RATED")}
+                style={{
+                  padding: "12px",
+                  borderRadius: "8px",
+                  border: roomType === "RATED" ? "1px solid #06b6d4" : "1px solid rgba(255,255,255,0.1)",
+                  background: roomType === "RATED" ? "rgba(6, 182, 212, 0.12)" : "rgba(15, 23, 42, 0.5)",
+                  cursor: "pointer",
+                  transition: "all 0.2s ease",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
+                  <span style={{ fontWeight: 800, fontSize: "0.9rem", color: roomType === "RATED" ? "#38bdf8" : "#e2e8f0" }}>
+                    ⚔️ Rated Match
+                  </span>
+                  {roomType === "RATED" && <span style={{ background: "#06b6d4", color: "#0f172a", fontSize: "0.65rem", fontWeight: 900, padding: "2px 6px", borderRadius: "4px" }}>ACTIVE</span>}
+                </div>
+                <p style={{ fontSize: "0.72rem", color: "#94a3b8", margin: 0, lineHeight: 1.35 }}>
+                  Competitive match. Elo rating &amp; competitive statistics are updated. Earn performance Arena Points.
+                </p>
+              </div>
+
+              <div
+                className={`match-type-card ${roomType === "UNRATED" ? "active-unrated" : ""}`}
+                onClick={() => setRoomType("UNRATED")}
+                style={{
+                  padding: "12px",
+                  borderRadius: "8px",
+                  border: roomType === "UNRATED" ? "1px solid #a855f7" : "1px solid rgba(255,255,255,0.1)",
+                  background: roomType === "UNRATED" ? "rgba(168, 85, 247, 0.12)" : "rgba(15, 23, 42, 0.5)",
+                  cursor: "pointer",
+                  transition: "all 0.2s ease",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
+                  <span style={{ fontWeight: 800, fontSize: "0.9rem", color: roomType === "UNRATED" ? "#c084fc" : "#e2e8f0" }}>
+                    🤝 Unrated Practice
+                  </span>
+                  {roomType === "UNRATED" && <span style={{ background: "#a855f7", color: "#ffffff", fontSize: "0.65rem", fontWeight: 900, padding: "2px 6px", borderRadius: "4px" }}>ACTIVE</span>}
+                </div>
+                <p style={{ fontSize: "0.72rem", color: "#94a3b8", margin: 0, lineHeight: 1.35 }}>
+                  Friendly practice. No Elo changes or rating impact. Safe environment for learning &amp; testing.
+                </p>
+              </div>
+            </div>
           </div>
 
           {/* Mode Switcher: Auto-Pick vs Choose Problems */}

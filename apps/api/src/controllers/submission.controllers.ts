@@ -87,7 +87,7 @@ export class SubmissionController {
         return submission;
     }
 
-    async evaluatePractice(body: PracticeEvaluateInput) {
+    async evaluatePractice(body: PracticeEvaluateInput, userId?: string) {
         const problem = body.mode === "test"
             ? await this.problemRepository.getProblemById(body.problemId)
             : await this.problemRepository.getProblemWithAllTestCases(body.problemId);
@@ -167,6 +167,35 @@ export class SubmissionController {
                 };
             });
 
+            let rewardInfo: { awardedPoints: number; reason: string } | undefined;
+
+            if (passed && body.mode === "submit" && userId) {
+                try {
+                    const { PointLedgerService } = await import("@algofight/application");
+                    const { ProblemRewardService } = await import("@algofight/application");
+                    const { ConsistencyRewardService } = await import("@algofight/application");
+                    const { AchievementRewardService } = await import("@algofight/application");
+
+                    const ledger = new PointLedgerService();
+                    const problemReward = new ProblemRewardService(ledger);
+                    const consistency = new ConsistencyRewardService(ledger);
+                    const achievements = new AchievementRewardService(ledger);
+
+                    rewardInfo = await problemReward.processProblemSolve({
+                        userId,
+                        problemId: body.problemId,
+                        submissionId: evalResult.submissionId,
+                        difficulty: problem.difficulty || "EASY",
+                        verdict: evalResult.verdict,
+                    });
+
+                    await consistency.recordActiveDay(userId, "ACCEPTED_PROBLEM");
+                    await achievements.checkAndUnlockAchievements(userId);
+                } catch (rErr) {
+                    logger.error({ error: (rErr as any)?.message, userId, problemId: body.problemId }, "Failed to process problem rewards");
+                }
+            }
+
             return {
                 passed,
                 output: passed 
@@ -180,6 +209,7 @@ export class SubmissionController {
                 error: activeError,
                 structuredError: activeError,
                 testCaseResults: sanitizedTestCaseResults,
+                reward: rewardInfo,
             };
         } catch (err: any) {
             logger.error({ error: err.message, problemId: body.problemId }, "Practice evaluation exception");

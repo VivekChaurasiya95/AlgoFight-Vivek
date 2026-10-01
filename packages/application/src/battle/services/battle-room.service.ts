@@ -199,8 +199,10 @@ export class BattleRoomService {
 
         let eloResults: Record<string, EloResult> | undefined;
 
+        const isRatedMatch = !room.isFriendly && (room as any).roomType !== "UNRATED";
+
         if (this.ratingService) {
-            if (sorted.length >= 2 && !room.isFriendly) {
+            if (sorted.length >= 2 && isRatedMatch) {
                 const shouldApplyElo = forfeitedUserId || sorted.some(p => p.score > 0 || p.solvedAt);
                 if (shouldApplyElo) {
                     const totalProblems = room.questionCount || room.problems?.length || 1;
@@ -224,6 +226,51 @@ export class BattleRoomService {
                     });
 
                     eloResults = await this.ratingService.applyBattleResolution(roomId, participantInputs);
+
+                    // Process Battle Rewards & Consistency for Rated Matches
+                    try {
+                        const {
+                            PointLedgerService,
+                            IntegrityService,
+                            BattleRewardService,
+                            ConsistencyRewardService,
+                            AchievementRewardService
+                        } = await import("../../rewards/index.js");
+
+                        const ledger = new PointLedgerService();
+                        const integrity = new IntegrityService();
+                        const battleReward = new BattleRewardService(ledger, integrity);
+                        const consistency = new ConsistencyRewardService(ledger);
+                        const achievements = new AchievementRewardService(ledger);
+
+                        for (const input of participantInputs) {
+                            if (input.userId && input.userId !== "bot") {
+                                const userResult = eloResults?.[input.userId];
+                                const opponentIds = participantInputs.filter(other => other.userId !== input.userId).map(other => other.userId);
+                                const opponentRatings = opponentIds.map(opId => eloResults?.[opId]?.oldRating ?? 0);
+
+                                await battleReward.processBattleReward({
+                                    roomId,
+                                    userId: input.userId,
+                                    userRating: userResult?.oldRating ?? 0,
+                                    opponentRatings,
+                                    opponentIds,
+                                    placement: input.rank,
+                                    totalParticipants: participantInputs.length,
+                                    performanceScore: userResult?.performanceScore ?? 0.5,
+                                    isFriendly: false,
+                                    roomType: "RATED",
+                                    solvedCount: input.solvedCount,
+                                    timeTakenSeconds: input.timeTakenSeconds,
+                                });
+
+                                await consistency.recordActiveDay(input.userId, "RATED_BATTLE");
+                                await achievements.checkAndUnlockAchievements(input.userId);
+                            }
+                        }
+                    } catch (e) {
+                        console.error("[BattleRoomService] Error processing battle rewards:", e);
+                    }
                 }
             }
         }

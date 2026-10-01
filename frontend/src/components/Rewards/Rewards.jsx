@@ -21,7 +21,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotification } from '../../contexts/NotificationContext';
-import { fetchUserProfile } from '../../services/api';
+import { fetchUserProfile, requestJson } from '../../services/api';
 import {
     calculateArenaPointBreakdown,
     getRankProgressByRating,
@@ -107,8 +107,24 @@ function Rewards() {
     const { user, loading: authLoading } = useAuth();
     const { notify } = useNotification();
     const [profile, setProfile] = useState(null);
+    const [weeklyStatus, setWeeklyStatus] = useState(null);
+    const [historyTransactions, setHistoryTransactions] = useState([]);
     const [isLoadingProfile, setIsLoadingProfile] = useState(false);
     const [profileError, setProfileError] = useState('');
+
+    const loadWeeklyAndHistory = async () => {
+        try {
+            const wStatus = await requestJson('/api/rewards/weekly-status', { includeAuth: true });
+            if (wStatus) setWeeklyStatus(wStatus);
+        } catch {}
+
+        try {
+            const hData = await requestJson('/api/rewards/history?limit=10', { includeAuth: true });
+            if (hData && Array.isArray(hData.transactions)) {
+                setHistoryTransactions(hData.transactions);
+            }
+        } catch {}
+    };
 
     useEffect(() => {
         let active = true;
@@ -127,6 +143,7 @@ function Rewards() {
                 const data = await fetchUserProfile(user.uid);
                 if (!active) return;
                 setProfile(data || null);
+                loadWeeklyAndHistory();
             } catch {
                 if (!active) return;
                 setProfileError('Could not sync reward metrics. Showing computed defaults.');
@@ -204,14 +221,36 @@ function Rewards() {
 
     const redeemableCount = computedRewards.filter((reward) => reward.status === 'redeem').length;
 
-    const handleClaimClick = (reward) => {
+    const handleClaimClick = async (reward) => {
         if (reward.status === 'redeem') {
-            if (notify) {
-                notify({
-                    type: 'success',
-                    title: 'Claim Request Registered',
-                    message: `Your request for "${reward.title}" has been placed in the fulfillment queue.`,
+            try {
+                const res = await requestJson('/api/rewards/redeem', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cost: reward.cost, rewardTitle: reward.title }),
+                    includeAuth: true,
                 });
+
+                if (notify) {
+                    notify({
+                        type: 'success',
+                        title: 'Reward Redeemed!',
+                        message: res.message || `Your request for "${reward.title}" has been placed in the fulfillment queue.`,
+                    });
+                }
+                
+                // Refresh profile & transactions
+                const updatedProfile = await fetchUserProfile(user.uid);
+                if (updatedProfile) setProfile(updatedProfile);
+                loadWeeklyAndHistory();
+            } catch (err) {
+                if (notify) {
+                    notify({
+                        type: 'error',
+                        title: 'Redemption Failed',
+                        message: err.message || 'Could not process redemption.',
+                    });
+                }
             }
         } else if (reward.status === 'locked') {
             const needed = reward.cost - arenaPoints;
@@ -219,7 +258,38 @@ function Rewards() {
                 notify({
                     type: 'warning',
                     title: 'Points Required',
-                    message: `You need ${numberFormatter.format(needed)} more points to unlock this reward. Win battles or solve challenges to earn points!`,
+                    message: `You need ${numberFormatter.format(needed)} more points to unlock this reward. Win rated battles or solve challenges to earn points!`,
+                });
+            }
+        }
+    };
+
+    const handleClaimWeekly = async (daysRequired) => {
+        try {
+            const res = await requestJson('/api/rewards/claim-weekly', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ daysRequired }),
+                includeAuth: true,
+            });
+
+            if (notify) {
+                notify({
+                    type: 'success',
+                    title: 'Consistency Bonus Claimed!',
+                    message: `Claimed +${res.rewardPoints} Arena Points for completing ${daysRequired} active days!`,
+                });
+            }
+
+            const updatedProfile = await fetchUserProfile(user.uid);
+            if (updatedProfile) setProfile(updatedProfile);
+            loadWeeklyAndHistory();
+        } catch (err) {
+            if (notify) {
+                notify({
+                    type: 'error',
+                    title: 'Claim Failed',
+                    message: err.message || 'Could not claim weekly consistency reward.',
                 });
             }
         }
@@ -524,7 +594,91 @@ function Rewards() {
                             </ul>
                         </motion.section>
 
-                        {/* Recent Redeems */}
+                        {/* Weekly Consistency Activity Tracker */}
+                        <motion.section
+                            className="dash-card rewards-side-card"
+                            initial={{ opacity: 0, x: 16 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ duration: 0.5, delay: 0.3 }}
+                        >
+                            <div className="side-card-header">
+                                <div className="dash-card-title-group">
+                                    <div className="dash-icon-box icon-pink">
+                                        <FontAwesomeIcon icon={faFire} />
+                                    </div>
+                                    <h2 className="side-card-title">Weekly Consistency</h2>
+                                </div>
+                                <span className="dash-pill-tag tag-pink">
+                                    {weeklyStatus?.activeDaysCount || 0} / 7 Active Days
+                                </span>
+                            </div>
+
+                            {/* Mon-Sun Day Bullets */}
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '6px', margin: '14px 0' }}>
+                                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((dayName, index) => {
+                                    const isActive = weeklyStatus?.activeDays?.includes(index);
+                                    return (
+                                        <div
+                                            key={dayName}
+                                            style={{
+                                                textAlign: 'center',
+                                                padding: '8px 2px',
+                                                borderRadius: '6px',
+                                                background: isActive ? 'rgba(6, 182, 212, 0.2)' : 'rgba(255, 255, 255, 0.03)',
+                                                border: isActive ? '1px solid #06b6d4' : '1px solid rgba(255, 255, 255, 0.06)',
+                                            }}
+                                        >
+                                            <div style={{ fontSize: '0.65rem', color: isActive ? '#38bdf8' : '#64748b', fontWeight: 800 }}>{dayName}</div>
+                                            <div style={{ fontSize: '0.8rem', color: isActive ? '#00e5ff' : '#475569', marginTop: '2px' }}>
+                                                {isActive ? '✓' : '•'}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Weekly Milestones Claim List */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                {(weeklyStatus?.milestones || [
+                                    { daysRequired: 3, rewardPoints: 10 },
+                                    { daysRequired: 5, rewardPoints: 20 },
+                                    { daysRequired: 7, rewardPoints: 30 },
+                                ]).map((m) => (
+                                    <div
+                                        key={m.daysRequired}
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justify: 'space-between',
+                                            padding: '8px 12px',
+                                            borderRadius: '6px',
+                                            background: 'rgba(255, 255, 255, 0.02)',
+                                            border: '1px solid rgba(255, 255, 255, 0.06)',
+                                        }}
+                                    >
+                                        <span style={{ fontSize: '0.78rem', color: '#cbd5e1' }}>
+                                            {m.daysRequired} Active Days (+{m.rewardPoints} Pts)
+                                        </span>
+                                        {m.isClaimed ? (
+                                            <span style={{ fontSize: '0.7rem', color: '#4ade80', fontWeight: 800 }}>CLAIMED</span>
+                                        ) : m.canClaim ? (
+                                            <button
+                                                type="button"
+                                                className="btn-hud-primary"
+                                                style={{ padding: '2px 10px', fontSize: '0.7rem' }}
+                                                onClick={() => handleClaimWeekly(m.daysRequired)}
+                                            >
+                                                Claim
+                                            </button>
+                                        ) : (
+                                            <span style={{ fontSize: '0.7rem', color: '#64748b' }}>LOCKED</span>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </motion.section>
+
+                        {/* Audited Point Transaction History */}
                         <motion.section
                             className="dash-card rewards-side-card"
                             initial={{ opacity: 0, x: 16 }}
@@ -536,24 +690,29 @@ function Rewards() {
                                     <div className="dash-icon-box icon-blue">
                                         <FontAwesomeIcon icon={faClockRotateLeft} />
                                     </div>
-                                    <h2 className="side-card-title">Recent Activity</h2>
+                                    <h2 className="side-card-title">Point History Ledger</h2>
                                 </div>
                             </div>
 
                             <ul className="redeem-list">
-                                {recentRedeems.length > 0 ? (
-                                    recentRedeems.map((redeem) => (
-                                        <li key={`${redeem.title}-${redeem.time}`} className="redeem-item">
-                                            <div className="redeem-left">
-                                                <span>{redeem.title}</span>
-                                                <small>{redeem.time}</small>
-                                            </div>
-                                            <span className="redeem-cost">{redeem.points}</span>
-                                        </li>
-                                    ))
+                                {historyTransactions.length > 0 ? (
+                                    historyTransactions.map((tx) => {
+                                        const isPositive = tx.amount > 0;
+                                        return (
+                                            <li key={tx.id} className="redeem-item">
+                                                <div className="redeem-left">
+                                                    <span>{tx.type.replace('_', ' ')}</span>
+                                                    <small>{new Date(tx.createdAt).toLocaleDateString()}</small>
+                                                </div>
+                                                <span className="redeem-cost" style={{ color: isPositive ? '#4ade80' : '#f87171' }}>
+                                                    {isPositive ? `+${tx.amount}` : tx.amount}
+                                                </span>
+                                            </li>
+                                        );
+                                    })
                                 ) : (
                                     <li className="redeem-empty">
-                                        <span>No recent reward redemptions found.</span>
+                                        <span>No recent point transactions found in ledger.</span>
                                     </li>
                                 )}
                             </ul>
