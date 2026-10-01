@@ -714,6 +714,59 @@
 	text-transform: none;
 }
 
+/* Statusbar Action Buttons (Undo, Redo, Shortcuts) */
+.statusbar-editor-action-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	background: rgba(255, 255, 255, 0.05);
+	border: 1px solid rgba(255, 255, 255, 0.12);
+	color: #cbd5e1;
+	padding: 2px 8px;
+	border-radius: 6px;
+	font-size: 0.68rem;
+	font-weight: 600;
+	letter-spacing: 0.02em;
+	cursor: pointer;
+	transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+	font-family: 'Space Grotesk', sans-serif;
+}
+
+.statusbar-editor-action-btn:hover:not(:disabled) {
+	background: rgba(255, 255, 255, 0.12);
+	border-color: rgba(255, 255, 255, 0.25);
+	color: #ffffff;
+	box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+}
+
+.statusbar-editor-action-btn.shortcuts-btn {
+	background: rgba(56, 189, 248, 0.08);
+	border-color: rgba(56, 189, 248, 0.25);
+	color: #38bdf8;
+}
+
+.statusbar-editor-action-btn.shortcuts-btn:hover:not(:disabled) {
+	background: rgba(56, 189, 248, 0.2);
+	border-color: #38bdf8;
+	color: #ffffff;
+	box-shadow: 0 0 12px rgba(56, 189, 248, 0.3);
+}
+
+.statusbar-editor-action-btn:disabled {
+	opacity: 0.35;
+	cursor: not-allowed;
+}
+
+.statusbar-editor-action-btn .editor-shortcut-hint {
+	color: #94a3b8;
+	font-size: 0.6rem;
+	font-weight: 600;
+	background: rgba(0, 0, 0, 0.4);
+	padding: 1px 5px;
+	border-radius: 4px;
+	border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
 /* Prettier Feedback Toast */
 .editor-prettier-toast {
 	position: absolute;

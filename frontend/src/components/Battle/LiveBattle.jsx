@@ -33,6 +33,9 @@ import {
   faSpinner,
   faCheck,
   faWandMagicSparkles,
+  faRotateLeft,
+  faRotateRight,
+  faKeyboard,
 } from "@fortawesome/free-solid-svg-icons";
 import {
   SUPPORTED_LANGUAGES,
@@ -1874,6 +1877,9 @@ export default function LiveBattle() {
               language={language}
               disabled={status === "finished" || isSelfDisqualified}
               isBlurred={isBlurred}
+              problemId={currentProblem?.id}
+              onRun={onTestCode}
+              onSubmit={onSubmitCode}
               errorLocation={
                 (lastResult?.error?.line || lastResult?.structuredError?.line)
                   ? {
@@ -1896,6 +1902,38 @@ export default function LiveBattle() {
                   <FontAwesomeIcon icon={faWandMagicSparkles} />
                   <span>Prettier</span>
                   <span className="prettier-shortcut">Shift+Alt+F</span>
+                </button>
+                <button
+                  type="button"
+                  className="statusbar-editor-action-btn"
+                  onClick={() => editorRef.current?.undo?.()}
+                  title="Undo (Ctrl+Z / ⌘Z)"
+                  disabled={status === "finished" || isSelfDisqualified}
+                >
+                  <FontAwesomeIcon icon={faRotateLeft} />
+                  <span>Undo</span>
+                  <span className="editor-shortcut-hint">Ctrl+Z</span>
+                </button>
+                <button
+                  type="button"
+                  className="statusbar-editor-action-btn"
+                  onClick={() => editorRef.current?.redo?.()}
+                  title="Redo (Ctrl+Y / ⌘Shift+Z)"
+                  disabled={status === "finished" || isSelfDisqualified}
+                >
+                  <FontAwesomeIcon icon={faRotateRight} />
+                  <span>Redo</span>
+                  <span className="editor-shortcut-hint">Ctrl+Y</span>
+                </button>
+                <button
+                  type="button"
+                  className="statusbar-editor-action-btn shortcuts-btn"
+                  onClick={() => editorRef.current?.openShortcuts?.()}
+                  title="Keyboard Shortcuts Guide (F1)"
+                >
+                  <FontAwesomeIcon icon={faKeyboard} />
+                  <span>Shortcuts</span>
+                  <span className="editor-shortcut-hint">F1</span>
                 </button>
               </div>
               <div className="statusbar-right">
