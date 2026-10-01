@@ -107,6 +107,7 @@ export class PistonAdapter {
 
         const prepared = CodeHarness.prepare(language, code, pistonLang.fileExtension);
         const safeRunTimeout = Math.min(Math.max(100, timeLimitMs), 10000);
+        const safeMemoryBytes = this.normalizeMemoryLimitBytes(memoryLimitBytes);
 
         const requestBody: PistonExecuteRequest = {
             language: pistonLang.language,
@@ -120,7 +121,7 @@ export class PistonAdapter {
             stdin: stdin,
             run_timeout: safeRunTimeout,
             compile_timeout: 10000,
-            run_memory_limit: memoryLimitBytes,
+            run_memory_limit: safeMemoryBytes,
         };
 
         const candidates: string[] = [];
@@ -181,6 +182,15 @@ export class PistonAdapter {
         );
     }
 
+    private normalizeMemoryLimitBytes(memoryLimitBytes: number): number {
+        if (!memoryLimitBytes || memoryLimitBytes <= 0) return -1;
+        // If passed as MB (< 10000), convert to Bytes
+        if (memoryLimitBytes < 10000) {
+            return memoryLimitBytes * 1024 * 1024;
+        }
+        return memoryLimitBytes;
+    }
+
     private normalizeResponse(
         response: PistonExecuteResponse,
         timeLimitMs: number,
@@ -195,12 +205,14 @@ export class PistonAdapter {
             run.signal === "SIGXCPU" ||
             (run.message?.toLowerCase().includes("time limit") ?? false);
 
+        const safeMemoryBytes = this.normalizeMemoryLimitBytes(memoryLimitBytes);
+
         const isMemoryLimit =
             run.status === "MLE" ||
             (run.message?.toLowerCase().includes("memory limit") ?? false) ||
             (!isExplicitTimeout && (
                 (run.code === 137 && (run.stderr?.includes("Killed") || run.output?.includes("Killed"))) ||
-                (memoryLimitBytes > 0 && (run.memory ?? 0) >= memoryLimitBytes)
+                (safeMemoryBytes > 0 && (run.memory ?? 0) >= safeMemoryBytes)
             ));
 
         const isTimeout = isExplicitTimeout || (!isMemoryLimit && run.signal === "SIGKILL");

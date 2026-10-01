@@ -560,6 +560,16 @@
   font-size: 0.74rem;
 }
 
+.chip-icon-gray {
+  color: #64748b;
+  font-size: 0.74rem;
+}
+
+.tab-skip {
+  opacity: 0.7;
+  border-color: rgba(255, 255, 255, 0.05);
+}
+
 /* Active Test Case Detail Viewer */
 .active-test-container {
   flex: 1;
@@ -615,6 +625,12 @@
   background: rgba(255, 42, 122, 0.12);
   color: #ff8db9;
   border: 1px solid rgba(255, 42, 122, 0.35);
+}
+
+.pill-skip {
+  background: rgba(148, 163, 184, 0.12);
+  color: #94a3b8;
+  border: 1px solid rgba(148, 163, 184, 0.3);
 }
 
 .test-meta-right {

@@ -24,27 +24,25 @@ export default function DetailedAnalysisModal({ isOpen, onClose, result, problem
 
   const [copied, setCopied] = useState(false);
 
-  // 1. Live test cases from execution or problem
+  // 1. Real test cases strictly from execution or problem definition
   const rawTestResults = result?.testCaseResults || result?.results || [];
   const problemCases = Array.isArray(problem?.testCases) ? problem.testCases : [];
-  const totalTests = Math.max(
-    result?.totalTestCases || 0,
+  const totalCount = Math.max(
     rawTestResults.length,
     problemCases.length,
-    3
+    result?.totalTestCases || 0
   );
+  const totalTests = totalCount > 0 ? totalCount : 1;
 
   const passedTests =
     result?.passedTestCases ??
-    (rawTestResults.length > 0
-      ? rawTestResults.filter((r) => r.passed).length
-      : result?.passed ? totalTests : Math.max(0, totalTests - 1));
+    rawTestResults.filter((r) => r.passed).length;
 
   const failedTests = Math.max(0, totalTests - passedTests);
   const isAllPassed = Boolean(result?.passed || (totalTests > 0 && passedTests === totalTests));
 
-  // 2. Real execution time and memory
-  const totalExecutionTimeMs = result?.executionTime ?? (isAllPassed ? 180 : 6945);
+  // 2. Real execution time and memory (no fake ms or MB injection)
+  const totalExecutionTimeMs = result?.executionTime ?? 0;
   const timeLimitMs = problem?.timeLimit ?? 2000;
   const memoryLimitMb = problem?.memoryLimit ?? 244;
 
@@ -52,7 +50,7 @@ export default function DetailedAnalysisModal({ isOpen, onClose, result, problem
   const rawMemoryBytes = result?.memoryUsage ?? 0;
   const measuredMemoryMb = rawMemoryBytes > 0
     ? Number((rawMemoryBytes / (1024 * 1024)).toFixed(1))
-    : 2.1;
+    : 0.0;
 
   // 3. Dynamic Verdict Classification
   const rawVerdict = String(result?.verdict || result?.status || "").toUpperCase();
@@ -60,9 +58,9 @@ export default function DetailedAnalysisModal({ isOpen, onClose, result, problem
 
   if (rawVerdict.includes("COMPILE") || rawVerdict.includes("COMPILATION")) {
     verdictType = "COMPILATION_ERROR";
-  } else if (rawVerdict.includes("TIME") || rawVerdict.includes("TLE") || totalExecutionTimeMs > timeLimitMs) {
+  } else if (rawVerdict.includes("TIME") || rawVerdict.includes("TLE") || (totalExecutionTimeMs > 0 && totalExecutionTimeMs > timeLimitMs)) {
     verdictType = "TIME_LIMIT_EXCEEDED";
-  } else if (rawVerdict.includes("MEM") || rawVerdict.includes("MLE") || measuredMemoryMb > memoryLimitMb) {
+  } else if (rawVerdict.includes("MEM") || rawVerdict.includes("MLE") || (measuredMemoryMb > 0 && measuredMemoryMb > memoryLimitMb)) {
     verdictType = "MEMORY_LIMIT_EXCEEDED";
   } else if (rawVerdict.includes("RUNTIME") || rawVerdict.includes("EXCEPTION") || rawVerdict.includes("ERROR") || result?.error) {
     verdictType = "RUNTIME_ERROR";
@@ -123,34 +121,39 @@ export default function DetailedAnalysisModal({ isOpen, onClose, result, problem
 
   const verdictCard = getVerdictCardData();
 
-  // Per-testcase list computation
+  // Per-testcase list computation strictly using real output (never mock Two-Sum data)
   const testList = Array.from({ length: totalTests }).map((_, idx) => {
     const rawRes = rawTestResults[idx];
     const pCase = problemCases[idx];
 
-    const isPass = rawRes ? Boolean(rawRes.passed) : (isAllPassed ? true : idx !== 0);
+    const isExecuted = Boolean(rawRes);
+    const isPass = Boolean(rawRes?.passed);
 
-    const defaultInputs = [
-      "nums = [2, 7, 11, 15], target = 9",
-      "nums = [3, 2, 4], target = 6",
-      "nums = [3, 3], target = 6"
-    ];
-    const defaultExpected = ["[0, 1]", "[1, 2]", "[0, 1]"];
-    const defaultActual = ["[0, 3]", "[1, 2]", "[0, 1]"];
-    const defaultRuntimes = ["2790 ms", "2085 ms", "2064 ms"];
-    const defaultMems = ["1.1 MB", "1.4 MB", "1.7 MB"];
+    const input = rawRes?.input ?? pCase?.input ?? "No input data provided";
+    const expected = rawRes?.expectedOutput ?? rawRes?.expected ?? pCase?.expectedOutput ?? pCase?.output ?? "N/A";
 
-    const input = rawRes?.input || pCase?.input || defaultInputs[idx % defaultInputs.length];
-    const expected = rawRes?.expectedOutput || rawRes?.expected || pCase?.expectedOutput || pCase?.output || defaultExpected[idx % defaultExpected.length];
-    const actual = rawRes?.actualOutput || rawRes?.actual || (isPass ? expected : defaultActual[idx % defaultActual.length]);
+    let actual = "";
+    if (rawRes?.actualOutput !== undefined && rawRes?.actualOutput !== null && rawRes.actualOutput !== "") {
+      actual = rawRes.actualOutput;
+    } else if (rawRes?.actual !== undefined && rawRes?.actual !== null && rawRes.actual !== "") {
+      actual = rawRes.actual;
+    } else if (rawRes?.metrics?.stdout) {
+      actual = rawRes.metrics.stdout;
+    } else if (rawRes?.error) {
+      actual = `[Error]: ${rawRes.error}`;
+    } else if (!isExecuted) {
+      actual = "(Not executed - test batch stopped after earlier failure)";
+    } else {
+      actual = "(No output produced)";
+    }
 
     const tcTime = rawRes?.executionTime || rawRes?.metrics?.executionTime
       ? `${rawRes?.executionTime || rawRes?.metrics?.executionTime} ms`
-      : defaultRuntimes[idx % defaultRuntimes.length];
+      : (isExecuted ? "0 ms" : "--");
 
     const tcMem = rawRes?.memoryUsage || rawRes?.metrics?.memoryUsage
       ? `${(Number(rawRes?.memoryUsage || rawRes?.metrics?.memoryUsage) / (1024 * 1024)).toFixed(1)} MB`
-      : defaultMems[idx % defaultMems.length];
+      : (isExecuted ? "0.0 MB" : "--");
 
     const inputStr = typeof input === "object" ? JSON.stringify(input, null, 2) : String(input);
     const expectedStr = typeof expected === "object" ? JSON.stringify(expected, null, 2) : String(expected);
@@ -162,6 +165,7 @@ export default function DetailedAnalysisModal({ isOpen, onClose, result, problem
 
     return {
       id: idx + 1,
+      isExecuted,
       passed: isPass,
       input: inputStr,
       expected: expectedStr,
@@ -378,15 +382,18 @@ export default function DetailedAnalysisModal({ isOpen, onClose, result, problem
             <div className="test-tabs-scroll-row">
               {filteredTests.map((t) => {
                 const isSelected = t.id === activeTest.id;
+                const tabStatusClass = !t.isExecuted ? "tab-skip" : (t.passed ? "tab-pass" : "tab-fail");
+                const iconClass = !t.isExecuted ? "chip-icon-gray" : (t.passed ? "chip-icon-green" : "chip-icon-red");
+                const iconObj = !t.isExecuted ? faClock : (t.passed ? faCheckCircle : faExclamationCircle);
                 return (
                   <button
                     key={t.id}
-                    className={`test-tab-chip ${isSelected ? "selected" : ""} ${t.passed ? "tab-pass" : "tab-fail"}`}
+                    className={`test-tab-chip ${isSelected ? "selected" : ""} ${tabStatusClass}`}
                     onClick={() => setActiveTestId(t.id)}
                   >
                     <FontAwesomeIcon
-                      icon={t.passed ? faCheckCircle : faExclamationCircle}
-                      className={t.passed ? "chip-icon-green" : "chip-icon-red"}
+                      icon={iconObj}
+                      className={iconClass}
                     />
                     <span>Test #{t.id}</span>
                   </button>
@@ -399,9 +406,9 @@ export default function DetailedAnalysisModal({ isOpen, onClose, result, problem
               <div className="test-meta-strip">
                 <div className="test-meta-left">
                   <span className="test-id-heading">Test Case #{activeTest.id}</span>
-                  <span className={`status-badge-pill ${activeTest.passed ? "pill-pass" : "pill-fail"}`}>
-                    <FontAwesomeIcon icon={activeTest.passed ? faCheckCircle : faExclamationCircle} />
-                    {activeTest.passed ? "Passed" : "Wrong Output"}
+                  <span className={`status-badge-pill ${!activeTest.isExecuted ? "pill-skip" : (activeTest.passed ? "pill-pass" : "pill-fail")}`}>
+                    <FontAwesomeIcon icon={!activeTest.isExecuted ? faClock : (activeTest.passed ? faCheckCircle : faExclamationCircle)} />
+                    {!activeTest.isExecuted ? "Skipped" : (activeTest.passed ? "Passed" : "Wrong Output")}
                   </span>
                 </div>
                 <div className="test-meta-right">

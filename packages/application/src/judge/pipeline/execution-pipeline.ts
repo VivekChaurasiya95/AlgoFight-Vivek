@@ -132,7 +132,7 @@ export class ExecutionPipeline {
                             testCaseId: testCase.id,
                             status: Verdict.SYSTEM_ERROR,
                             passed: false,
-                            expectedOutput: mode === "SAMPLE" ? testCase.expectedOutput : undefined,
+                            expectedOutput: testCase.expectedOutput,
                             actualOutput: undefined,
                             error: err?.message || "Runtime node unreachable",
                             metrics: {
@@ -179,17 +179,16 @@ export class ExecutionPipeline {
                     testCaseId: testCase.id,
                     status,
                     passed,
-                    // Hide sensitive data if in SUBMIT mode
-                    expectedOutput: mode === "SAMPLE" ? testCase.expectedOutput : undefined,
-                    actualOutput: mode === "SAMPLE" ? run.stdout : undefined,
+                    expectedOutput: testCase.expectedOutput,
+                    actualOutput: run.stdout,
                     error: currentError,
                     metrics: { 
                         executionTime: run.timeMs || 0, 
                         memoryUsage: run.memoryBytes || 0, 
                         exitCode: run.code, 
                         signal: run.signal, 
-                        stdout: mode === "SAMPLE" ? run.stdout : undefined, 
-                        stderr: mode === "SAMPLE" ? run.stderr : undefined 
+                        stdout: run.stdout, 
+                        stderr: run.stderr 
                     }
                 };
 

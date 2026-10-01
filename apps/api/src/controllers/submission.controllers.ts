@@ -38,11 +38,12 @@ export class SubmissionController {
         );
 
         // 1. Workload Classification (LIGHT vs HEAVY)
+        const memoryLimitBytes = (problem.memoryLimit || 256) * 1024 * 1024;
         const workload = WorkloadClassifier.classify({
             language: body.language,
             sourceCode: body.code,
             timeLimitMs: problem.timeLimit,
-            memoryLimitBytes: problem.memoryLimit,
+            memoryLimitBytes,
         });
 
         // 2. Intelligent Runtime Routing Strategy (or explicit allowlisted REST override)
@@ -125,7 +126,7 @@ export class SubmissionController {
                     expectedOutput: tc.expectedOutput,
                 })),
                 timeLimitMs: problem.timeLimit,
-                memoryLimitBytes: problem.memoryLimit,
+                memoryLimitBytes: (problem.memoryLimit || 256) * 1024 * 1024,
                 targetRuntimeUrl,
             } as any, undefined, body.mode === "submit" ? "SUBMIT" : "SAMPLE");
 
@@ -137,12 +138,13 @@ export class SubmissionController {
             // 🔐 Mask hidden test case input/output so secrets never leak to the client
             const sanitizedTestCaseResults = tcs.map((tc: any, idx: number) => {
                 const isHidden = Boolean(testCases[idx]?.isHidden);
+                const realActual = tc.actualOutput !== undefined ? tc.actualOutput : (tc.metrics?.stdout ?? "");
                 return {
                     testCaseId: tc.testCaseId,
                     passed: tc.passed,
                     input: isHidden ? "[Hidden Test Case]" : (testCases[idx]?.input || ""),
                     expectedOutput: isHidden ? "[Hidden Expected Output]" : (tc.expectedOutput || testCases[idx]?.expectedOutput || ""),
-                    actualOutput: isHidden ? (tc.passed ? "[Hidden Output Match]" : "[Hidden Output Mismatch]") : tc.actualOutput,
+                    actualOutput: isHidden ? (tc.passed ? "[Hidden Output Match]" : "[Hidden Output Mismatch]") : realActual,
                     error: tc.error,
                     metrics: tc.metrics,
                 };

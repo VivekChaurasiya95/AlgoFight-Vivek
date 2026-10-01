@@ -117,11 +117,13 @@ export const SmartCodeEditor = forwardRef(({
 
   // Background Idle Self-Alignment via Prettier (zero user intervention)
   useEffect(() => {
-    if (!enableAutoFormat || !value || disabled) return;
+    // Only auto-format C-like or JS/TS languages; do not aggressively re-indent whitespace-sensitive Python while the user is actively typing!
+    const isPy = ["python", "py", "python3"].includes((language || "").toLowerCase());
+    if (isPy || !enableAutoFormat || !value || disabled) return;
 
     const timer = setTimeout(() => {
       executeFormat(false);
-    }, 1800);
+    }, 2500);
 
     return () => clearTimeout(timer);
   }, [value, language, disabled, enableAutoFormat, executeFormat]);

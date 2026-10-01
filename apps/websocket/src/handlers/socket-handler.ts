@@ -1119,8 +1119,8 @@ export class SocketHandler {
                         code,
                         testCases: problem.testCases,
                         timeLimitMs: problem.timeLimit,
-                        memoryLimitBytes: problem.memoryLimit,
-                    });
+                        memoryLimitBytes: (problem.memoryLimit || 256) * 1024 * 1024,
+                    }, undefined, "SAMPLE");
 
                     this.send(socket, "code_result", {
                         action: "test_result",
@@ -1132,7 +1132,7 @@ export class SocketHandler {
                             testCaseId: tc.testCaseId,
                             input: problem.testCases.find(p => p.id === tc.testCaseId)?.input || "",
                             expected: problem.testCases.find(p => p.id === tc.testCaseId)?.expectedOutput || "",
-                            actual: tc.actualOutput,
+                            actual: tc.actualOutput !== undefined ? tc.actualOutput : (tc.metrics?.stdout ?? ""),
                             passed: tc.passed,
                             error: tc.error,
                             metrics: tc.metrics,
@@ -1163,8 +1163,8 @@ export class SocketHandler {
                         code,
                         testCases: problem.testCases,
                         timeLimitMs: problem.timeLimit,
-                        memoryLimitBytes: problem.memoryLimit,
-                    });
+                        memoryLimitBytes: (problem.memoryLimit || 256) * 1024 * 1024,
+                    }, undefined, "SUBMIT");
 
                     const isAccepted = result.verdict === "ACCEPTED";
                     

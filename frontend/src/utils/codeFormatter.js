@@ -123,34 +123,40 @@ export async function autoFormatCode(rawCode, language = "javascript") {
 }
 
 /**
- * Python indentation and block alignment
+ * Python indentation and structural alignment
+ * Preserves user's manual block scoping while normalizing tabs, trailing whitespace, and semicolons
  */
 export function autoAlignPython(code) {
   if (!code) return code;
   const lines = code.split(/\r?\n/);
-  const indentStep = 4;
-  let currentIndent = 0;
   const aligned = [];
-  const dedentKeywords = /^\s*(elif\b|else:|except\b|finally:)/;
 
   for (let i = 0; i < lines.length; i++) {
     const rawLine = lines[i];
-    const trimmed = rawLine.trim();
+    // Convert tabs to 4 spaces
+    const tabExpanded = rawLine.replace(/\t/g, "    ");
+    const trimmed = tabExpanded.trim();
 
     if (!trimmed) {
       aligned.push("");
       continue;
     }
 
-    if (dedentKeywords.test(trimmed)) {
-      currentIndent = Math.max(0, currentIndent - 1);
+    // Preserve the user's deliberate block indentation level
+    const leadingSpacesMatch = tabExpanded.match(/^( *)/);
+    const leadingSpaces = leadingSpacesMatch ? leadingSpacesMatch[1].length : 0;
+    
+    // Normalize to clean 4-space steps
+    const indentLevel = Math.round(leadingSpaces / 4);
+    const normalizedIndent = "    ".repeat(indentLevel);
+
+    // Clean up accidental trailing semicolons in Python
+    let cleanLine = trimmed;
+    if (cleanLine.endsWith(";") && !cleanLine.includes('";') && !cleanLine.includes("';")) {
+      cleanLine = cleanLine.slice(0, -1).trimEnd();
     }
 
-    aligned.push(" ".repeat(currentIndent * indentStep) + trimmed);
-
-    if (trimmed.endsWith(":")) {
-      currentIndent++;
-    }
+    aligned.push(normalizedIndent + cleanLine);
   }
 
   return aligned.join("\n");

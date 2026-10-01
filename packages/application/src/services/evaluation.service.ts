@@ -11,13 +11,16 @@ export class EvaluationService implements EvaluationServiceContract {
         mode: "SAMPLE" | "SUBMIT" = "SUBMIT"
     ): Promise<EvaluationResult> {
         
+        const rawMem = payload.memoryLimitBytes || 256 * 1024 * 1024;
+        const memoryLimitBytes = rawMem > 0 && rawMem < 10000 ? rawMem * 1024 * 1024 : rawMem;
+
         const request: ExecuteRequest = {
             submissionId: payload.submissionId,
             language: payload.language,
             code: payload.code,
             testCases: payload.testCases,
             timeLimitMs: payload.timeLimitMs || 2000,
-            memoryLimitBytes: payload.memoryLimitBytes || 256 * 1024 * 1024,
+            memoryLimitBytes,
             mode,
             targetRuntimeUrl: (payload as any).targetRuntimeUrl,
         };

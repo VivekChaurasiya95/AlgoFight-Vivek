@@ -72,7 +72,7 @@ export class ExecutionService {
                     expectedOutput: tc.expectedOutput,
                 })),
                 timeLimitMs: problem.timeLimit,
-                memoryLimitBytes: problem.memoryLimit,
+                memoryLimitBytes: (problem.memoryLimit || 256) * 1024 * 1024,
                 targetRuntimeUrl,
             } as any, onProgress, mode);
 
