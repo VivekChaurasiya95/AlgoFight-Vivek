@@ -135,16 +135,17 @@ export class SubmissionController {
             const passedCount = tcs.filter((tc: any) => tc.passed).length;
             const totalCount = tcs.length;
 
-            // 🔐 Mask hidden test case input/output so secrets never leak to the client
+            // Transparent Test Case Output: Always display real input, expected output, and produced output
             const sanitizedTestCaseResults = tcs.map((tc: any, idx: number) => {
-                const isHidden = Boolean(testCases[idx]?.isHidden);
                 const realActual = tc.actualOutput !== undefined ? tc.actualOutput : (tc.metrics?.stdout ?? "");
+                const realInput = testCases[idx]?.input || tc.input || "";
+                const realExpected = tc.expectedOutput || testCases[idx]?.expectedOutput || "";
                 return {
                     testCaseId: tc.testCaseId,
                     passed: tc.passed,
-                    input: isHidden ? "[Hidden Test Case]" : (testCases[idx]?.input || ""),
-                    expectedOutput: isHidden ? "[Hidden Expected Output]" : (tc.expectedOutput || testCases[idx]?.expectedOutput || ""),
-                    actualOutput: isHidden ? (tc.passed ? "[Hidden Output Match]" : "[Hidden Output Mismatch]") : realActual,
+                    input: realInput,
+                    expectedOutput: realExpected,
+                    actualOutput: realActual,
                     error: tc.error,
                     metrics: tc.metrics,
                 };

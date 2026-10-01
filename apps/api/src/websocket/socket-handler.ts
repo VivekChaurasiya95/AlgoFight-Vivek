@@ -1145,6 +1145,9 @@ export class SocketHandler {
                         memoryUsage: result.resourceUsage?.maxMemory || 0,
                         results: (result.testCases || []).map((tc) => ({
                             testCaseId: tc.testCaseId,
+                            input: problem.testCases.find(p => p.id === tc.testCaseId)?.input || "",
+                            expected: problem.testCases.find(p => p.id === tc.testCaseId)?.expectedOutput || "",
+                            actual: tc.actualOutput !== undefined ? tc.actualOutput : (tc.metrics?.stdout ?? ""),
                             passed: tc.passed,
                             error: tc.error,
                             metrics: tc.metrics,

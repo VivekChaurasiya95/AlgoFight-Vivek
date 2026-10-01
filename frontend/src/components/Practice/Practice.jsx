@@ -20,7 +20,12 @@ import {
   faArrowRight,
   faLayerGroup,
 } from "@fortawesome/free-solid-svg-icons";
-import { fetchPracticeProblems, fetchUserProfile, toApiUrl } from "../../services/api";
+import {
+  fetchPracticeProblems,
+  fetchUserProfile,
+  invalidateApiCache,
+  toApiUrl,
+} from "../../services/api";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import { isAdminUser } from "../../constants/admins";
 import ProblemReadPanel from "./ProblemReadPanel.jsx";
@@ -127,6 +132,7 @@ export default function Practice() {
       }
 
       try {
+        invalidateApiCache("/api/users");
         const profile = await fetchUserProfile(user.uid);
         if (!active) return;
 

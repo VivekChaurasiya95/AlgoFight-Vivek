@@ -116,17 +116,33 @@ export async function problemRoutes(app: FastifyInstance) {
                 });
             }
             const body = request.body as any;
+            const { prisma } = await import("@algofight/database");
             const userRepo = new (await import("@algofight/database")).PrismaUserRepository();
+
+            // Persist the practice submission into PostgreSQL
+            if (body.problemId) {
+                try {
+                    await prisma.submission.create({
+                        data: {
+                            userId: uid,
+                            problemId: body.problemId,
+                            code: body.code || "",
+                            language: body.language || "javascript",
+                            status: "FINALIZED",
+                            verdict: body.passed ? "ACCEPTED" : "WRONG_ANSWER",
+                            executionTime: typeof body.executionTime === "number" ? body.executionTime : 0,
+                        },
+                    });
+                } catch (err: any) {
+                    request.log.error(err, "Failed to persist practice submission record");
+                }
+            }
+
             const progress = await userRepo.getPracticeProgress(uid);
 
             return {
                 newlySolved: Boolean(body.passed),
-                progress: {
-                    practiceSubmissionCount: progress.practiceSubmissionCount + (body.passed ? 1 : 0),
-                    practiceSolvedProblemIds: body.passed && !progress.practiceSolvedProblemIds.includes(body.problemId)
-                        ? [...progress.practiceSolvedProblemIds, body.problemId]
-                        : progress.practiceSolvedProblemIds,
-                },
+                progress,
             };
         },
     );

@@ -299,32 +299,17 @@ if __name__ == '__main__':
 
         res = None
         if has_varargs or param_count == len(parsed_args):
-            try:
-                res = fn(*parsed_args)
-            except TypeError:
-                res = fn(parsed_args)
+            res = fn(*parsed_args)
         elif param_count == 1:
             # Smart arity matching: If user expects 1 arg and input was e.g. [5, [3,7,2,9,4]], pass array!
             if len(parsed_args) == 2 and isinstance(parsed_args[0], int) and isinstance(parsed_args[1], list):
-                try:
-                    res = fn(parsed_args[1])
-                except Exception:
-                    try:
-                        res = fn(parsed_args)
-                    except Exception:
-                        res = fn(raw_input)
+                res = fn(parsed_args[1])
             elif len(parsed_args) == 1:
                 res = fn(parsed_args[0])
             else:
-                try:
-                    res = fn(parsed_args)
-                except Exception:
-                    res = fn(raw_input)
+                res = fn(parsed_args)
         else:
-            try:
-                res = fn(*parsed_args)
-            except Exception:
-                res = fn(raw_input)
+            res = fn(*parsed_args)
 
         if res is not None:
             if isinstance(res, (list, tuple, dict)):

@@ -285,11 +285,13 @@ export async function fetchProblemById(problemId) {
 /**
  * Record a practice submission for the current user.
  */
-export async function recordPracticeProgress({ uid, problemId, passed }) {
+export async function recordPracticeProgress({ uid, problemId, passed, code, language, executionTime }) {
+  invalidateApiCache("/api/users");
+  invalidateApiCache("/api/problems");
   return requestJson(`/api/users/${uid}/practice-progress`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ problemId, passed }),
+    body: JSON.stringify({ problemId, passed, code, language, executionTime }),
     includeAuth: true,
   });
 }

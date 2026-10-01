@@ -283,8 +283,10 @@ export default function PracticeWorkspace() {
           : result?.output || "Test run completed."
       );
 
-      if (mode === "submit") {
-        setSubmissionCount((prev) => prev + 1);
+      const isSubmitOrAllPassed = mode === "submit" || (passed && result?.passedTestCases === result?.totalTestCases && (result?.totalTestCases || 0) > 0);
+
+      if (isSubmitOrAllPassed) {
+        if (mode === "submit") setSubmissionCount((prev) => prev + 1);
 
         try {
           if (user?.uid) {
@@ -292,6 +294,9 @@ export default function PracticeWorkspace() {
               uid: user.uid,
               problemId,
               passed,
+              code,
+              language: selectedLanguage,
+              executionTime: result?.executionTime || 0,
             });
 
             const backendSubmissionCount = Number(progressResult?.progress?.practiceSubmissionCount);
@@ -306,7 +311,7 @@ export default function PracticeWorkspace() {
                 message: "Solved practice problem added to your profile progress.",
                 duration: 2300,
               });
-            } else if (passed) {
+            } else if (passed && mode === "submit") {
               notify({
                 type: "info",
                 title: "Already Counted",
@@ -316,11 +321,13 @@ export default function PracticeWorkspace() {
             }
           }
         } catch {
-          notify({
-            type: "warning",
-            title: "Progress Not Synced",
-            message: "Code was evaluated, but profile progress could not be updated right now.",
-          });
+          if (mode === "submit") {
+            notify({
+              type: "warning",
+              title: "Progress Not Synced",
+              message: "Code was evaluated, but profile progress could not be updated right now.",
+            });
+          }
         }
       } else if (passed) {
         notify({
