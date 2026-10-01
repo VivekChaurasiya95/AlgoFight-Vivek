@@ -26,6 +26,7 @@ model User {
   batchYear       String?
   platformCode    String?      @unique // e.g. "AF-STU-74921" or "AF-FAC-10293"
   rating          Int          @default(0) // Base ELO rating (starts at 0)
+  arenaPoints     Int          @default(0) // Independent redeemable reward balance
   ewma            Float        @default(0.50) // Exponentially Weighted Moving Average of recent performance
   highestRating   Int          @default(0)
   highestRank     String       @default("ROOKIE")
@@ -38,6 +39,9 @@ model User {
   hostedRooms     BattleRoom[] @relation("HostedRooms")
   ratingHistories RatingHistory[]
   quizzes         Quiz[]
+  arenaPointTransactions ArenaPointTransaction[]
+  achievements           UserAchievement[]
+  weeklyActivities       WeeklyActivity[]
   githubUrl       String?
   linkedinUrl     String?
 
@@ -180,6 +184,7 @@ model BattleRoom {
   questionCount    Int              @default(3)
   // ▲ ----------------------------------------------- ▲
   isFriendly       Boolean          @default(false)
+  roomType         String           @default("RATED") // "RATED" or "UNRATED"
   
   timeLimitMinutes Int              @default(15)
   startedAt        DateTime?
@@ -275,5 +280,50 @@ model Quiz {
   @@index([department])
   @@index([status])
 }
+
+model ArenaPointTransaction {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount    Int      // Positive for earnings, negative for redemptions
+  type      String   // PROBLEM_SOLVED, RATED_BATTLE, CONSISTENCY_REWARD, MILESTONE_REWARD, REWARD_REDEMPTION, ADMIN_ADJUSTMENT
+  source    String?  // Context identifier, e.g. "PROBLEM", "BATTLE", "WEEKLY", "ACHIEVEMENT"
+  sourceId  String?  // Id of the underlying problem, room, week, etc.
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model UserAchievement {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievementKey String
+  title          String
+  rewardAmount   Int
+  unlockedAt     DateTime @default(now())
+  metadata       Json?
+
+  @@unique([userId, achievementKey])
+  @@index([userId])
+}
+
+model WeeklyActivity {
+  id                String   @id @default(uuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  weekKey           String   // e.g. "2026-W40"
+  activeDays        Int[]    @default([]) // Array of day indices 0-6 (Sun-Sat)
+  claimedMilestones Int[]    @default([]) // Thresholds claimed, e.g. [3, 5, 7]
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([userId, weekKey])
+  @@index([userId])
+}
+
 
 
