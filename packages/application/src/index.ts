@@ -22,4 +22,5 @@ export * from "./runtime-pool/runtime-pool.observer";
 export * from "./runtime-pool/runtime-pool.manager";
 export * from "./workload/workload.classifier";
 export * from "./judge/diagnostics";
+export * from "./battle/services/diff-matcher";
 

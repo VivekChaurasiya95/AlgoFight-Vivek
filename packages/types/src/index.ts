@@ -227,3 +227,32 @@ export function getRankKeyFromRating(rating: number): RankTierKey {
     return getRankTierFromRating(rating).key;
 }
 
+export interface CodeCheckpoint {
+    problemId: string;
+    code: string;
+    language: string;
+    revision: number;
+    updatedAt: number;
+    isDirty?: boolean;
+}
+
+export type CheckpointsMap = Record<string, CodeCheckpoint>;
+
+export function reconcileCheckpoint(
+    local?: CodeCheckpoint | null,
+    server?: CodeCheckpoint | null
+): CodeCheckpoint | null {
+    if (!local && !server) return null;
+    if (!local) return server!;
+    if (!server) return local!;
+    const localRev = local.revision ?? 0;
+    const serverRev = server.revision ?? 0;
+    if (localRev > serverRev) return local;
+    if (serverRev > localRev) return server;
+    const localUpdated = local.updatedAt ?? 0;
+    const serverUpdated = server.updatedAt ?? 0;
+    if (localUpdated > serverUpdated) return local;
+    return server;
+}
+
+

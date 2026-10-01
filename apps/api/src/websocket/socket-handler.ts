@@ -769,6 +769,34 @@ export class SocketHandler {
                             });
                         }
 
+                        // 🛡️ AF-CHK: Restore participant's saved code checkpoints from Redis
+                        try {
+                            const rawCheckpoints = await this.redis.get(`battle_checkpoints:${roomCode}:${actualUserId}`);
+                            let myCheckpoints: Record<string, any> = rawCheckpoints ? JSON.parse(rawCheckpoints) : {};
+
+                            const singleKeys = await this.redis.keys(`battle_checkpoint:${roomCode}:${actualUserId}:*`);
+                            for (const k of singleKeys) {
+                                const rawSingle = await this.redis.get(k);
+                                if (rawSingle) {
+                                    try {
+                                        const p = JSON.parse(rawSingle);
+                                        if (p.problemId && !myCheckpoints[p.problemId]) {
+                                            myCheckpoints[p.problemId] = p;
+                                        }
+                                    } catch (_) {}
+                                }
+                            }
+
+                            if (Object.keys(myCheckpoints).length > 0) {
+                                this.send(socket, "checkpoints_restored", {
+                                    roomId: roomCode,
+                                    checkpoints: myCheckpoints
+                                });
+                            }
+                        } catch (chkErr) {
+                            logger.warn({ chkErr, roomCode, userId: actualUserId }, "Failed to restore Redis checkpoints on join");
+                        }
+
                         this.connectionManager.broadcastToRoom(roomCode, "player_joined", {
                             userId: session.userId,
                             username: session.username,
@@ -1580,30 +1608,128 @@ export class SocketHandler {
                 case "checkpoint_sync": {
                     const session = this.socketUsers.get(socket);
                     const userId = session?.userId || currentUserId.value;
-                    const { roomId, problemId, code, language, revision } = data;
-                    if (userId && roomId && problemId !== undefined) {
-                        const checkpoint = {
-                            userId,
-                            roomId,
-                            problemId,
-                            code: code || "",
-                            language: language || "javascript",
-                            revision: revision || 1,
-                            updatedAt: Date.now(),
-                        };
-                        // Store checkpoint in Redis (Issue 1)
-                        await this.redis.set(`battle_checkpoint:${roomId}:${userId}:${problemId}`, JSON.stringify(checkpoint), "EX", 3600);
+                    const { roomId, problemId, code, language, revision, checkpoints } = data;
+                    if (userId && roomId) {
+                        const incoming: Record<string, any> = {};
+                        if (checkpoints && typeof checkpoints === "object") {
+                            for (const [pId, item] of Object.entries(checkpoints)) {
+                                if (item && typeof item === "object") {
+                                    incoming[pId] = {
+                                        problemId: (item as any).problemId || pId,
+                                        code: (item as any).code || "",
+                                        language: (item as any).language || "javascript",
+                                        revision: (item as any).revision || 1,
+                                        updatedAt: (item as any).updatedAt || Date.now(),
+                                    };
+                                }
+                            }
+                        } else if (problemId !== undefined) {
+                            incoming[problemId] = {
+                                problemId,
+                                code: code || "",
+                                language: language || "javascript",
+                                revision: revision || 1,
+                                updatedAt: Date.now(),
+                            };
+                        }
 
-                        // Return ACK with confirmed revision
-                        this.send(socket, "checkpoint_ack", {
-                            roomId,
-                            problemId,
-                            revision: revision || 1,
-                            timestamp: Date.now(),
-                        });
+                        if (Object.keys(incoming).length > 0) {
+                            const redisKey = `battle_checkpoints:${roomId}:${userId}`;
+                            // Atomic Lua script merge comparing revisions
+                            const luaScript = `
+                                local key = KEYS[1]
+                                local incomingJson = ARGV[1]
+                                local ttl = tonumber(ARGV[2]) or 7200
+                                local incoming = cjson.decode(incomingJson)
+                                local currentRaw = redis.call('GET', key)
+                                local current = {}
+                                if currentRaw then
+                                    local status, parsed = pcall(cjson.decode, currentRaw)
+                                    if status and type(parsed) == "table" then
+                                        current = parsed
+                                    end
+                                end
+                                for probId, item in pairs(incoming) do
+                                    local existing = current[probId]
+                                    if not existing then
+                                        current[probId] = item
+                                    else
+                                        local exRev = tonumber(existing.revision) or 0
+                                        local inRev = tonumber(item.revision) or 0
+                                        if inRev > exRev then
+                                            current[probId] = item
+                                        elseif inRev == exRev then
+                                            local exUpdated = tonumber(existing.updatedAt) or 0
+                                            local inUpdated = tonumber(item.updatedAt) or 0
+                                            if inUpdated >= exUpdated then
+                                                current[probId] = item
+                                            end
+                                        end
+                                    end
+                                end
+                                local serialized = cjson.encode(current)
+                                redis.call('SET', key, serialized, 'EX', ttl)
+                                return serialized
+                            `;
+
+                            try {
+                                await this.redis.eval(luaScript, 1, redisKey, JSON.stringify(incoming), 7200);
+                            } catch (evalErr) {
+                                // Fallback safe merge
+                                const currentRaw = await this.redis.get(redisKey);
+                                const current = currentRaw ? JSON.parse(currentRaw) : {};
+                                for (const [pId, item] of Object.entries(incoming)) {
+                                    const ex = current[pId];
+                                    if (!ex || (item.revision || 0) >= (ex.revision || 0)) {
+                                        current[pId] = item;
+                                    }
+                                }
+                                await this.redis.set(redisKey, JSON.stringify(current), "EX", 7200);
+                            }
+
+                            // Also persist single keys for backward compatibility
+                            for (const [pId, item] of Object.entries(incoming)) {
+                                await this.redis.set(`battle_checkpoint:${roomId}:${userId}:${pId}`, JSON.stringify({
+                                    userId,
+                                    roomId,
+                                    problemId: pId,
+                                    code: item.code,
+                                    language: item.language,
+                                    revision: item.revision,
+                                    updatedAt: item.updatedAt
+                                }), "EX", 7200).catch(() => {});
+                            }
+
+                            this.send(socket, "checkpoint_ack", {
+                                roomId,
+                                problemId: problemId || Object.keys(incoming)[0],
+                                revision: revision || 1,
+                                timestamp: Date.now(),
+                            });
+                        }
                     }
                     break;
                 }
+
+                case "get_checkpoints": {
+                    const session = this.socketUsers.get(socket);
+                    const userId = session?.userId || currentUserId.value;
+                    const { roomId } = data;
+                    if (userId && roomId) {
+                        try {
+                            const raw = await this.redis.get(`battle_checkpoints:${roomId}:${userId}`);
+                            const myCheckpoints = raw ? JSON.parse(raw) : {};
+                            this.send(socket, "checkpoints_restored", {
+                                roomId,
+                                checkpoints: myCheckpoints
+                            });
+                        } catch (err) {
+                            logger.warn({ err, roomId, userId }, "Failed to get checkpoints on demand");
+                        }
+                    }
+                    break;
+                }
+
 
                 case "check_active_battle": {
                     const session = this.socketUsers.get(socket);

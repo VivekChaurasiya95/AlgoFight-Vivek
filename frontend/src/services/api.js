@@ -309,6 +309,30 @@ export async function evaluatePracticeCode({ problemId, code, language, mode }) 
 }
 
 /**
+ * Fetch saved practice checkpoint (Redis -> PostgreSQL -> null)
+ */
+export async function fetchPracticeCheckpoint(problemId) {
+  if (!problemId) return null;
+  return requestJson(`/api/practice/checkpoints/${encodeURIComponent(problemId)}`, {
+    includeAuth: true,
+  });
+}
+
+/**
+ * Save practice checkpoint to Redis
+ */
+export async function savePracticeCheckpoint({ problemId, code, language, revision }) {
+  if (!problemId) return null;
+  return requestJson(`/api/practice/checkpoints/${encodeURIComponent(problemId)}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code, language, revision }),
+    includeAuth: true,
+  });
+}
+
+
+/**
  * Fetch available players from backend
  */
 export async function fetchAvailablePlayers({ search = "", status = "", limit = 50, excludeUserId = "" } = {}) {
