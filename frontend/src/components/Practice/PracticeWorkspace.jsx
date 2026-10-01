@@ -17,8 +17,6 @@ import {
   faRotateLeft,
   faRotateRight,
   faKeyboard,
-  faCopy,
-  faPaste,
 } from "@fortawesome/free-solid-svg-icons";
 import { evaluatePracticeCode, fetchProblemById, recordPracticeProgress, fetchPracticeCheckpoint, savePracticeCheckpoint } from "../../services/api";
 import { saveLocalDraft, getLocalDraft, reconcileCheckpoints } from "../../services/storage/indexedDbRecovery.js";
@@ -600,28 +598,6 @@ export default function PracticeWorkspace() {
                   <FontAwesomeIcon icon={faWandMagicSparkles} style={{ color: "#ea5e9e" }} />
                   <span>Format</span>
                 </button>
-                <button
-                  type="button"
-                  className="livebattle-action-btn"
-                  onClick={() => editorRef.current?.copy?.()}
-                  title="Copy Code to Clipboard"
-                  disabled={running}
-                  style={{ padding: "4px 10px", minHeight: "30px" }}
-                >
-                  <FontAwesomeIcon icon={faCopy} style={{ color: "#38bdf8" }} />
-                  <span>Copy</span>
-                </button>
-                <button
-                  type="button"
-                  className="livebattle-action-btn"
-                  onClick={() => editorRef.current?.paste?.()}
-                  title="Paste from Clipboard"
-                  disabled={running}
-                  style={{ padding: "4px 10px", minHeight: "30px" }}
-                >
-                  <FontAwesomeIcon icon={faPaste} style={{ color: "#a78bfa" }} />
-                  <span>Paste</span>
-                </button>
                 {!isSubmitPanelOpen && (
                   <button
                     className="livebattle-action-btn"
@@ -686,24 +662,6 @@ export default function PracticeWorkspace() {
                     <FontAwesomeIcon icon={faRotateRight} />
                     <span>Redo</span>
                     <span className="editor-shortcut-hint">Ctrl+Y</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="statusbar-editor-action-btn"
-                    onClick={() => editorRef.current?.copy?.()}
-                    title="Copy Selection or All (Ctrl+C)"
-                  >
-                    <FontAwesomeIcon icon={faCopy} />
-                    <span>Copy</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="statusbar-editor-action-btn"
-                    onClick={() => editorRef.current?.paste?.()}
-                    title="Paste from Clipboard (Ctrl+V)"
-                  >
-                    <FontAwesomeIcon icon={faPaste} />
-                    <span>Paste</span>
                   </button>
                   <button
                     type="button"
