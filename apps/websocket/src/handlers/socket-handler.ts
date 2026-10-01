@@ -1126,6 +1126,8 @@ export class SocketHandler {
                         action: "test_result",
                         success: result.verdict === "ACCEPTED",
                         verdict: result.verdict,
+                        error: result.error || null,
+                        structuredError: result.error || null,
                         executionTime: result.resourceUsage?.totalTime || 0,
                         memoryUsage: result.resourceUsage?.maxMemory || 0,
                         results: (result.testCases || []).map((tc) => ({
@@ -1135,6 +1137,7 @@ export class SocketHandler {
                             actual: tc.actualOutput !== undefined ? tc.actualOutput : (tc.metrics?.stdout ?? ""),
                             passed: tc.passed,
                             error: tc.error,
+                            structuredError: tc.structuredError || null,
                             metrics: tc.metrics,
                         })),
                     });
@@ -1172,15 +1175,18 @@ export class SocketHandler {
                         action: "submit_result",
                         success: isAccepted,
                         verdict: result.verdict,
+                        error: result.error || null,
+                        structuredError: result.error || null,
                         executionTime: result.resourceUsage?.totalTime || 0,
                         memoryUsage: result.resourceUsage?.maxMemory || 0,
                         results: (result.testCases || []).map((tc) => ({
                             testCaseId: tc.testCaseId,
-                            input: problem.testCases.find(p => p.id === tc.testCaseId)?.input || "",
-                            expected: problem.testCases.find(p => p.id === tc.testCaseId)?.expectedOutput || "",
+                            input: tc.passed ? (problem.testCases.find(p => p.id === tc.testCaseId)?.input || "") : undefined,
+                            expected: tc.passed ? (problem.testCases.find(p => p.id === tc.testCaseId)?.expectedOutput || "") : undefined,
                             actual: tc.actualOutput !== undefined ? tc.actualOutput : (tc.metrics?.stdout ?? ""),
                             passed: tc.passed,
                             error: tc.error,
+                            structuredError: tc.structuredError || null,
                             metrics: tc.metrics,
                         })),
                     });

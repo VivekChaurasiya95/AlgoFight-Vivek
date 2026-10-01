@@ -1,7 +1,9 @@
 import { ExecuteRequest, PipelineProgressEvent } from "../models/execute-request";
-import { EvaluationResult, TestCaseResult, Verdict } from "@algofight/types";
+import { EvaluationResult, TestCaseResult, Verdict, StructuredError } from "@algofight/types";
 import { WorkerPool } from "./worker-pool";
 import { PistonAdapter } from "../../services/piston.adapter";
+import { CodeHarness } from "../harness/code-harness";
+import { DiagnosticParser } from "../diagnostics/diagnostic-parser";
 import { normalizeOutput } from "../comparators/exact-comparator";
 
 export type PipelineEventCallback = (event: PipelineProgressEvent) => void;
@@ -34,18 +36,27 @@ export class ExecutionPipeline {
         onProgress?.({ submissionId, stage: "PREPARE" });
 
         if (!testCases || testCases.length === 0) {
+            const systemErr = DiagnosticParser.createSystemError("No test cases were provided for evaluation.");
             return {
                 submissionId,
                 verdict: Verdict.SYSTEM_ERROR,
+                error: systemErr,
                 resourceUsage: { maxMemory: 0, totalTime: 0 }
             };
         }
 
         const runtimes = this.getAvailableRuntimeUrls(targetRuntimeUrl);
         const isCompiled = ["cpp", "c++", "c", "java", "rust"].includes(language.toLowerCase().trim());
-        // Bounded concurrency: 2 for heavy compiled languages to protect CPU, 4 for interpreted scripts
         const concurrency = isCompiled ? 2 : 4;
         const workerPool = new WorkerPool(concurrency);
+
+        // Pre-compute harness line offset for accurate line-mapping
+        const extMap: Record<string, string> = {
+            cpp: "cpp", "c++": "cpp", c: "c", java: "java", python: "py", py: "py", python3: "py", javascript: "js", js: "js", typescript: "ts", ts: "ts"
+        };
+        const defaultExt = extMap[language.toLowerCase().trim()] || "txt";
+        const preparedHarness = CodeHarness.prepare(language, code, defaultExt);
+        const lineOffset = preparedHarness.lineOffset;
 
         // Phase 1: Compile/Canary Run with Test Case 0
         onProgress?.({ submissionId, stage: "COMPILE" });
@@ -63,9 +74,11 @@ export class ExecutionPipeline {
                 primaryRuntime
             );
         } catch (err: any) {
+            const systemErr = DiagnosticParser.createSystemError(err?.message || "Execution engine failure");
             const errorResult: EvaluationResult = {
                 submissionId,
                 verdict: Verdict.SYSTEM_ERROR,
+                error: systemErr,
                 compilation: {
                     success: false,
                     output: "",
@@ -89,10 +102,18 @@ export class ExecutionPipeline {
         };
 
         if (!compilationResult.success) {
+            const structuredErr = DiagnosticParser.parseCompilationError(
+                language,
+                code,
+                compilationResult.error || compilationResult.output || "Compilation Error",
+                lineOffset
+            );
+
             const errorResult: EvaluationResult = {
                 submissionId,
                 verdict: Verdict.COMPILATION_ERROR,
                 compilation: compilationResult,
+                error: structuredErr,
                 testCases: [],
                 resourceUsage: { maxMemory: 0, totalTime: 0 }
             };
@@ -128,13 +149,15 @@ export class ExecutionPipeline {
                             assignedRuntime
                         );
                     } catch (err: any) {
+                        const sysErr = DiagnosticParser.createSystemError(err?.message || "Runtime node unreachable");
                         const failedResult: TestCaseResult = {
                             testCaseId: testCase.id,
                             status: Verdict.SYSTEM_ERROR,
                             passed: false,
-                            expectedOutput: testCase.expectedOutput,
+                            expectedOutput: mode === "SUBMIT" ? undefined : testCase.expectedOutput,
                             actualOutput: undefined,
                             error: err?.message || "Runtime node unreachable",
+                            structuredError: sysErr,
                             metrics: {
                                 executionTime: 0,
                                 memoryUsage: 0,
@@ -150,18 +173,28 @@ export class ExecutionPipeline {
 
                 const { run } = execution;
                 let status = Verdict.ACCEPTED;
-                let currentError = undefined;
+                let currentErrorStr = undefined;
+                let tcStructuredError: StructuredError | null = null;
                 let passed = false;
 
                 if (run.isTimeout) {
                     status = Verdict.TIME_LIMIT_EXCEEDED;
-                    currentError = "Time Limit Exceeded";
+                    currentErrorStr = "Time Limit Exceeded";
+                    tcStructuredError = DiagnosticParser.createTimeoutError(timeLimitMs);
                 } else if (run.isMemoryLimit) {
                     status = Verdict.MEMORY_LIMIT_EXCEEDED;
-                    currentError = "Memory Limit Exceeded";
+                    currentErrorStr = "Memory Limit Exceeded";
+                    tcStructuredError = DiagnosticParser.createMemoryError(memoryLimitBytes);
                 } else if (run.isRuntimeError || !run.success) {
                     status = Verdict.RUNTIME_ERROR;
-                    currentError = run.stderr || "Runtime Error";
+                    currentErrorStr = run.stderr || "Runtime Error";
+                    tcStructuredError = DiagnosticParser.parseRuntimeError(
+                        language,
+                        code,
+                        run.stderr || run.stdout || "Runtime Error",
+                        lineOffset,
+                        run.signal
+                    );
                 } else {
                     const actualNorm = normalizeOutput(run.stdout);
                     const expectedNorm = normalizeOutput(testCase.expectedOutput);
@@ -171,7 +204,14 @@ export class ExecutionPipeline {
                     } else {
                         passed = false;
                         status = Verdict.WRONG_ANSWER;
-                        currentError = "Wrong Answer";
+                        currentErrorStr = "Wrong Answer";
+                        tcStructuredError = DiagnosticParser.createWrongAnswerError(
+                            index + 1,
+                            testCase.input,
+                            testCase.expectedOutput,
+                            run.stdout,
+                            mode === "SUBMIT"
+                        );
                     }
                 }
 
@@ -179,9 +219,10 @@ export class ExecutionPipeline {
                     testCaseId: testCase.id,
                     status,
                     passed,
-                    expectedOutput: testCase.expectedOutput,
+                    expectedOutput: mode === "SUBMIT" && !passed ? undefined : testCase.expectedOutput,
                     actualOutput: run.stdout,
-                    error: currentError,
+                    error: currentErrorStr,
+                    structuredError: tcStructuredError,
                     metrics: { 
                         executionTime: run.timeMs || 0, 
                         memoryUsage: run.memoryBytes || 0, 
@@ -200,7 +241,6 @@ export class ExecutionPipeline {
         const resolvedResults = await Promise.all(executionPromises.map(async p => {
             const res = await p;
             
-            // Streaming event per test case completion
             maxMemory = Math.max(maxMemory, res.result.metrics?.memoryUsage || 0);
             totalTime += (res.result.metrics?.executionTime || 0);
             if (res.result.passed) passedCount++;
@@ -222,7 +262,7 @@ export class ExecutionPipeline {
         resolvedResults.sort((a, b) => a.index - b.index);
         resolvedResults.forEach(r => testCaseResults.push(r.result));
 
-        // Deterministic verdict: first failing test case determines the overall verdict
+        // Deterministic verdict: first failing test case determines the overall verdict and error
         const firstFailed = testCaseResults.find(r => !r.passed);
         const overallVerdict = firstFailed ? firstFailed.status : Verdict.ACCEPTED;
 
@@ -230,6 +270,7 @@ export class ExecutionPipeline {
             submissionId,
             verdict: overallVerdict,
             compilation: compilationResult,
+            error: firstFailed ? firstFailed.structuredError || null : null,
             testCases: testCaseResults,
             resourceUsage: { maxMemory, totalTime }
         };

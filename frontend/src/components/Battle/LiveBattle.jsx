@@ -1677,6 +1677,15 @@ export default function LiveBattle() {
               language={language}
               disabled={status === "finished" || isSelfDisqualified}
               isBlurred={isBlurred}
+              errorLocation={
+                (lastResult?.error?.line || lastResult?.structuredError?.line)
+                  ? {
+                      line: lastResult?.error?.line || lastResult?.structuredError?.line,
+                      column: lastResult?.error?.column || lastResult?.structuredError?.column,
+                      message: lastResult?.error?.message || lastResult?.structuredError?.message,
+                    }
+                  : null
+              }
             />
             <div className="code-editor-statusbar">
               <div className="statusbar-left">

@@ -227,6 +227,16 @@ export default function DetailedAnalysisModal({ isOpen, onClose, result, problem
   const runtimePercent = Math.min(100, Math.max(8, Math.round((totalExecutionTimeMs / timeLimitMs) * 100)));
   const memoryPercent = Math.min(100, Math.max(6, Math.round((measuredMemoryMb / memoryLimitMb) * 100)));
 
+  const [showRawOutput, setShowRawOutput] = useState(false);
+
+  // Active structured error object
+  const activeStructuredError =
+    result?.error ||
+    result?.structuredError ||
+    rawTestResults[activeTestId - 1]?.structuredError ||
+    rawTestResults.find((r) => r.structuredError)?.structuredError ||
+    null;
+
   const handleCopyOutput = () => {
     const textToCopy = result?.output || activeTest?.actual || "";
     if (textToCopy) {
@@ -403,6 +413,76 @@ export default function DetailedAnalysisModal({ isOpen, onClose, result, problem
 
             {/* Active Test Case Detail Viewer */}
             <div className="active-test-container">
+              {/* STRUCTURED DIAGNOSTIC ERROR CARD */}
+              {activeStructuredError && (
+                <div className="structured-error-card">
+                  <div className="structured-error-header">
+                    <span className="structured-error-badge">
+                      <FontAwesomeIcon icon={faBug} />
+                      {activeStructuredError.type || "JUDGE ERROR"}
+                      {activeStructuredError.subtype ? ` (${activeStructuredError.subtype})` : ""}
+                    </span>
+                    <span className="structured-error-loc">
+                      {activeStructuredError.line !== null && activeStructuredError.line !== undefined
+                        ? `Line: ${activeStructuredError.line}${activeStructuredError.column ? ` Column: ${activeStructuredError.column}` : ""}`
+                        : "Line: Unable to determine"}
+                    </span>
+                  </div>
+
+                  <div className="structured-error-message-box">
+                    <strong>Message:</strong> {activeStructuredError.message}
+                  </div>
+
+                  {activeStructuredError.codeContext?.lines && activeStructuredError.codeContext.lines.length > 0 && (
+                    <div className="structured-error-section">
+                      <span className="structured-section-label">Code Context</span>
+                      <div className="code-context-box">
+                        {activeStructuredError.codeContext.lines.map((l) => (
+                          <div key={l.line} className={`code-context-line ${l.isErrorLine ? "error-line" : ""}`}>
+                            <span className="code-line-num">{l.line} |</span>
+                            <span className="code-line-text">{l.content}</span>
+                          </div>
+                        ))}
+                        {activeStructuredError.codeContext.highlightColumn && (
+                          <div className="code-context-caret">
+                            {" ".repeat(Math.max(0, activeStructuredError.codeContext.highlightColumn - 1)) + "^"}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {activeStructuredError.explanation && (
+                    <div className="structured-error-section">
+                      <span className="structured-section-label">Explanation</span>
+                      <div className="structured-explanation-text">{activeStructuredError.explanation}</div>
+                    </div>
+                  )}
+
+                  {activeStructuredError.suggestion && (
+                    <div className="structured-error-section">
+                      <span className="structured-section-label">Suggested Fix</span>
+                      <div className="structured-suggestion-box">{activeStructuredError.suggestion}</div>
+                    </div>
+                  )}
+
+                  {activeStructuredError.rawMessage && (
+                    <div>
+                      <button
+                        type="button"
+                        className="raw-output-toggle-btn"
+                        onClick={() => setShowRawOutput(!showRawOutput)}
+                      >
+                        {showRawOutput ? "▲ Hide Technical Details" : "▼ Show Technical Details (Raw Output)"}
+                      </button>
+                      {showRawOutput && (
+                        <pre className="raw-output-pre">{activeStructuredError.rawMessage}</pre>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="test-meta-strip">
                 <div className="test-meta-left">
                   <span className="test-id-heading">Test Case #{activeTest.id}</span>
@@ -418,7 +498,7 @@ export default function DetailedAnalysisModal({ isOpen, onClose, result, problem
               </div>
 
               {/* Genuine error strip if runtime error exists */}
-              {activeTest.errorMessage && (
+              {activeTest.errorMessage && !activeStructuredError && (
                 <div className="test-error-strip">
                   <FontAwesomeIcon icon={faBug} className="error-strip-icon" />
                   <span>{activeTest.errorMessage}</span>

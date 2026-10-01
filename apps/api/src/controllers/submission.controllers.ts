@@ -135,11 +135,26 @@ export class SubmissionController {
             const passedCount = tcs.filter((tc: any) => tc.passed).length;
             const totalCount = tcs.length;
 
-            // Transparent Test Case Output: Always display real input, expected output, and produced output
+            const firstFailed = tcs.find((tc: any) => !tc.passed);
+            const activeError = evalResult.error || firstFailed?.structuredError || null;
+
+            // Log structured server-side diagnostic entry
+            logger.info({
+                submissionId: evalResult.submissionId,
+                problemId: body.problemId,
+                language: body.language,
+                status: evalResult.verdict,
+                errorType: activeError?.type || (passed ? null : "UNKNOWN_ERROR"),
+                line: activeError?.line || null,
+                column: activeError?.column || null,
+                executionTime: evalResult.resourceUsage?.totalTime || 0,
+                timestamp: new Date().toISOString(),
+            }, "Practice execution completed");
+
             const sanitizedTestCaseResults = tcs.map((tc: any, idx: number) => {
                 const realActual = tc.actualOutput !== undefined ? tc.actualOutput : (tc.metrics?.stdout ?? "");
-                const realInput = testCases[idx]?.input || tc.input || "";
-                const realExpected = tc.expectedOutput || testCases[idx]?.expectedOutput || "";
+                const realInput = body.mode === "submit" && !tc.passed ? undefined : (testCases[idx]?.input || tc.input || "");
+                const realExpected = body.mode === "submit" && !tc.passed ? undefined : (tc.expectedOutput || testCases[idx]?.expectedOutput || "");
                 return {
                     testCaseId: tc.testCaseId,
                     passed: tc.passed,
@@ -147,20 +162,27 @@ export class SubmissionController {
                     expectedOutput: realExpected,
                     actualOutput: realActual,
                     error: tc.error,
+                    structuredError: tc.structuredError || null,
                     metrics: tc.metrics,
                 };
             });
 
             return {
                 passed,
-                output: passed ? "All test cases passed successfully!" : (evalResult.compilation?.error || tcs.find((tc: any) => !tc.passed)?.error || "Output mismatch."),
+                output: passed 
+                    ? "All test cases passed successfully!" 
+                    : (activeError?.message || evalResult.compilation?.error || firstFailed?.error || "Output mismatch."),
                 passedTestCases: passedCount,
                 totalTestCases: totalCount,
                 executionTime: evalResult.resourceUsage?.totalTime || 0,
+                memoryUsage: evalResult.resourceUsage?.maxMemory || 0,
                 verdict: evalResult.verdict,
+                error: activeError,
+                structuredError: activeError,
                 testCaseResults: sanitizedTestCaseResults,
             };
         } catch (err: any) {
+            logger.error({ error: err.message, problemId: body.problemId }, "Practice evaluation exception");
             return {
                 passed: false,
                 output: `Execution error: ${err.message || "Failed to evaluate code"}`,

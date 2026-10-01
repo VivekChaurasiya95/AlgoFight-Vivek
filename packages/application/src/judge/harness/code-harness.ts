@@ -11,11 +11,12 @@
 export interface PreparedCodeResult {
     code: string;
     fileName: string;
+    lineOffset: number;
 }
 
 export class CodeHarness {
     /**
-     * Prepares user code and determines the correct filename for Piston execution.
+     * Prepares user code and determines the correct filename and header line offset for Piston execution.
      */
     public static prepare(language: string, rawCode: string, defaultExt: string): PreparedCodeResult {
         const lang = language.toLowerCase().trim();
@@ -26,33 +27,46 @@ export class CodeHarness {
             case "javascript":
             case "js":
             case "typescript":
-            case "ts":
+            case "ts": {
+                const prep = this.prepareJavaScript(rawCode);
                 return {
-                    code: this.prepareJavaScript(rawCode),
+                    code: prep.code,
                     fileName: `main.${defaultExt}`,
+                    lineOffset: prep.lineOffset,
                 };
+            }
             case "python":
             case "py":
-            case "python3":
+            case "python3": {
+                const prep = this.preparePython(rawCode);
                 return {
-                    code: this.preparePython(rawCode),
+                    code: prep.code,
                     fileName: `main.${defaultExt}`,
+                    lineOffset: prep.lineOffset,
                 };
+            }
             case "cpp":
-            case "c++":
+            case "c++": {
+                const prep = this.prepareCpp(rawCode);
                 return {
-                    code: this.prepareCpp(rawCode),
+                    code: prep.code,
                     fileName: `main.${defaultExt}`,
+                    lineOffset: prep.lineOffset,
                 };
-            case "c":
+            }
+            case "c": {
+                const prep = this.prepareC(rawCode);
                 return {
-                    code: this.prepareC(rawCode),
+                    code: prep.code,
                     fileName: `main.${defaultExt}`,
+                    lineOffset: prep.lineOffset,
                 };
+            }
             default:
                 return {
                     code: rawCode,
                     fileName: `main.${defaultExt}`,
+                    lineOffset: 0,
                 };
         }
     }
@@ -68,8 +82,7 @@ export class CodeHarness {
 
         // If user wrote class Solution without main(), auto-generate the Main driver with reflection
         if (!hasMain && hasSolutionClass) {
-            const wrappedCode = `
-import java.util.*;
+            const wrappedCode = `import java.util.*;
 import java.lang.reflect.*;
 
 ${rawCode}
@@ -157,7 +170,7 @@ public class Main {
     }
 }
 `;
-            return { code: wrappedCode, fileName: `Main.${defaultExt}` };
+            return { code: wrappedCode, fileName: `Main.${defaultExt}`, lineOffset: 3 };
         }
 
         let code = rawCode;
@@ -171,24 +184,18 @@ public class Main {
             code = code.replace(/public\s+class\s+([A-Za-z0-9_$]+)/, "class $1");
         }
 
-        return { code, fileName };
+        return { code, fileName, lineOffset: 0 };
     }
 
-    /**
-     * JavaScript / TypeScript wrapping:
-     * If the code defines a `solution` function or `Solution` class and doesn't already read from stdin,
-     * inject stdin reading, smart arity mapping, and console.log output harness.
-     */
-    private static prepareJavaScript(rawCode: string): string {
+    private static prepareJavaScript(rawCode: string): { code: string; lineOffset: number } {
         const hasStdin = rawCode.includes("process.stdin") || rawCode.includes("fs.readFileSync");
         const hasSolutionFn = /(?:function\s+solution\b|const\s+solution\s*=|let\s+solution\s*=|var\s+solution\s*=|class\s+Solution\b)/.test(rawCode);
 
         if (!hasSolutionFn || hasStdin) {
-            return rawCode;
+            return { code: rawCode, lineOffset: 0 };
         }
 
-        return `
-const fs = require("fs");
+        const code = `const fs = require("fs");
 const __af_input = fs.readFileSync(0, "utf-8");
 
 ${rawCode}
@@ -230,7 +237,6 @@ ${rawCode}
         } else if (expectedLen > 1) {
             try { res = fn(...parsedArgs); } catch(e) { res = fn(parsedArgs); }
         } else {
-            // Function has 0 formal parameters or uses rest (...args)
             try { res = fn(...parsedArgs); } catch(e) { res = fn(raw); }
         }
 
@@ -240,23 +246,18 @@ ${rawCode}
     }
 })();
 `;
+        return { code, lineOffset: 3 };
     }
 
-    /**
-     * Python wrapping:
-     * If the code defines `def solution(` or `class Solution` and doesn't already read from stdin,
-     * inject stdin reading, smart arity inspection via inspect.signature, and print output harness.
-     */
-    private static preparePython(rawCode: string): string {
+    private static preparePython(rawCode: string): { code: string; lineOffset: number } {
         const hasStdin = rawCode.includes("sys.stdin") || rawCode.includes("input(");
         const hasSolution = /(?:def\s+solution\s*\(|class\s+Solution\b)/.test(rawCode);
 
         if (!hasSolution || hasStdin) {
-            return rawCode;
+            return { code: rawCode, lineOffset: 0 };
         }
 
-        return `
-import sys, json, inspect
+        const code = `import sys, json, inspect
 
 ${rawCode}
 
@@ -301,7 +302,6 @@ if __name__ == '__main__':
         if has_varargs or param_count == len(parsed_args):
             res = fn(*parsed_args)
         elif param_count == 1:
-            # Smart arity matching: If user expects 1 arg and input was e.g. [5, [3,7,2,9,4]], pass array!
             if len(parsed_args) == 2 and isinstance(parsed_args[0], int) and isinstance(parsed_args[1], list):
                 res = fn(parsed_args[1])
             elif len(parsed_args) == 1:
@@ -317,24 +317,18 @@ if __name__ == '__main__':
             else:
                 print(res)
 `;
+        return { code, lineOffset: 2 };
     }
 
-    /**
-     * C++ wrapping:
-     * If user writes class Solution or standalone solution() without main(),
-     * auto-generate an optimized main driver.
-     */
-    private static prepareCpp(rawCode: string): string {
+    private static prepareCpp(rawCode: string): { code: string; lineOffset: number } {
         const hasMain = /\b(int|void)\s+main\s*\(/.test(rawCode);
         const hasSolution = /\b(class\s+Solution|solution\s*\()/.test(rawCode);
 
         if (hasMain || !hasSolution) {
-            return rawCode;
+            return { code: rawCode, lineOffset: 0 };
         }
 
-        // If user defined class Solution without main(), wrap with a driver that instantiates Solution
-        return `
-#include <iostream>
+        const code = `#include <iostream>
 #include <vector>
 #include <string>
 #include <sstream>
@@ -345,28 +339,19 @@ ${rawCode}
 int main() {
     std::ios_base::sync_with_stdio(false);
     std::cin.tie(NULL);
-    
-    // Auto-driver for Solution class
-    #if defined(Solution) || defined(__has_include)
-    // Runs user code untouched if compiled directly
-    #endif
     return 0;
 }
 `;
+        return { code, lineOffset: 6 };
     }
 
-    /**
-     * C wrapping:
-     * If user writes standalone solution() without main(), provide main driver.
-     */
-    private static prepareC(rawCode: string): string {
+    private static prepareC(rawCode: string): { code: string; lineOffset: number } {
         const hasMain = /\b(int|void)\s+main\s*\(/.test(rawCode);
         if (hasMain) {
-            return rawCode;
+            return { code: rawCode, lineOffset: 0 };
         }
 
-        return `
-#include <stdio.h>
+        const code = `#include <stdio.h>
 #include <stdlib.h>
 
 ${rawCode}
@@ -375,5 +360,6 @@ int main() {
     return 0;
 }
 `;
+        return { code, lineOffset: 3 };
     }
 }
