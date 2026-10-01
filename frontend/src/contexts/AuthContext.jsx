@@ -53,6 +53,7 @@ export const formatUser = (userData, token) => {
     department: userData.department || identityMeta.department,
     school: userData.school || identityMeta.school,
     designation: computedDesignation,
+    enrollmentNumber: (userData.enrollmentNumber || identityMeta.enrollmentNumber || null)?.toUpperCase() || null,
     rating: Number(userData.rating ?? 0),
     highestRating: Number(userData.highestRating ?? userData.rating ?? 0),
     highestRank: userData.highestRank || "ROOKIE",

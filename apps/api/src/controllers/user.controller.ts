@@ -1,6 +1,6 @@
 // apps/api/src/controllers/user.controller.ts
 import { PrismaUserRepository, prisma } from "@algofight/database";
-import { defaultStudentIdentityService } from "@algofight/institutional-identity";
+import { defaultStudentIdentityService, parseInstitutionalName } from "@algofight/institutional-identity";
 
 export interface SyncUserPayload {
     id?: string;
@@ -119,7 +119,13 @@ export class UserController {
     async syncUser(payload: SyncUserPayload) {
         const userId = payload.id || payload.uid;
         const email = payload.email || `${userId}@algofight.local`;
-        const username = payload.displayName || payload.username || email.split("@")[0];
+        const cleanEmail = email.trim().toLowerCase();
+        const parsedName = parseInstitutionalName(payload.displayName || payload.username, cleanEmail);
+
+        let username = payload.username;
+        if (!username || parseInstitutionalName(username).hasEnrollmentPrefix) {
+            username = parsedName.cleanUsernameBase || payload.displayName || cleanEmail.split("@")[0];
+        }
 
         let userType = payload.userType || "INDIVIDUAL";
         let institutionName = payload.institutionName;
@@ -128,10 +134,9 @@ export class UserController {
         let department = payload.department;
         let branch = payload.branch;
         let admissionYear = payload.admissionYear;
-        let enrollmentNumber = payload.enrollmentNumber;
+        let enrollmentNumber = payload.enrollmentNumber ? payload.enrollmentNumber.toUpperCase() : (parsedName.enrollmentNumber ? parsedName.enrollmentNumber.toUpperCase() : undefined);
         let studentIdentityMetadata = payload.studentIdentityMetadata;
 
-        const cleanEmail = email.trim().toLowerCase();
         const isFacultyEmail = cleanEmail.endsWith("@mitsgwalior.in") ||
                                cleanEmail.endsWith(".mitsgwalior.in") ||
                                cleanEmail.includes("mitsgwalior.in");
@@ -157,7 +162,7 @@ export class UserController {
                     department = resolution.identity.department || resolution.identity.branchName;
                     branch = resolution.identity.branch;
                     admissionYear = resolution.identity.admissionYear;
-                    enrollmentNumber = resolution.identity.enrollmentNumber;
+                    enrollmentNumber = enrollmentNumber || (resolution.identity.enrollmentNumber ? resolution.identity.enrollmentNumber.toUpperCase() : undefined);
                     studentIdentityMetadata = resolution.identity.instituteSpecificIdentifiers;
                 }
             } catch {
@@ -207,6 +212,7 @@ export class UserController {
         const syncMeta = (user.studentIdentityMetadata as any) || {};
         return {
             ...user,
+            enrollmentNumber: user.enrollmentNumber ? user.enrollmentNumber.toUpperCase() : null,
             school: user.school || syncMeta.school || null,
             designation: user.designation || syncMeta.designation || (user.userType === "FACULTY" ? "Faculty Educator" : null),
             photoURL: (user as any).photoURL || syncMeta.photoURL || payload.photoURL || null,
@@ -286,7 +292,7 @@ export class UserController {
                     user.department = user.department || resolution.identity.department || resolution.identity.branchName;
                     user.branch = user.branch || resolution.identity.branch;
                     user.admissionYear = user.admissionYear || resolution.identity.admissionYear;
-                    user.enrollmentNumber = user.enrollmentNumber || resolution.identity.enrollmentNumber;
+                    user.enrollmentNumber = user.enrollmentNumber ? user.enrollmentNumber.toUpperCase() : (resolution.identity.enrollmentNumber ? resolution.identity.enrollmentNumber.toUpperCase() : null);
                     if (!academicProfile) {
                         academicProfile = resolution.academicProfile || defaultStudentIdentityService.calculateDynamicProfile(
                             resolution.institute.id || "mits-gwalior",
@@ -303,6 +309,7 @@ export class UserController {
         const userMeta = (user.studentIdentityMetadata as any) || {};
         return {
             ...user,
+            enrollmentNumber: user.enrollmentNumber ? user.enrollmentNumber.toUpperCase() : null,
             school: user.school || userMeta.school || null,
             designation: user.designation || userMeta.designation || (user.userType === "FACULTY" ? "Faculty Educator" : null),
             photoURL: (user as any).photoURL || userMeta.photoURL || null,
@@ -328,6 +335,7 @@ export class UserController {
                 userType: u.userType,
                 institutionName: u.institutionName,
                 department: u.department,
+                enrollmentNumber: u.enrollmentNumber ? u.enrollmentNumber.toUpperCase() : null,
                 rating: u.rating,
                 wins: u.wins,
                 losses: u.losses,

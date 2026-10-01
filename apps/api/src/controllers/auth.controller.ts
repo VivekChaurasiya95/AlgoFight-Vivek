@@ -5,7 +5,7 @@ import { googleTokenVerifier } from "../utils/google-auth.util";
 import { hashPassword, verifyPassword } from "../utils/password.util";
 import { userSessionStore } from "../gateway/session/user-session";
 import { isAdminEmail } from "../constants/admins";
-import { defaultStudentIdentityService } from "@algofight/institutional-identity";
+import { defaultStudentIdentityService, parseInstitutionalName } from "@algofight/institutional-identity";
 
 export class AuthController {
     public async loginWithGoogle(params: {
@@ -20,6 +20,7 @@ export class AuthController {
 
         // Check if user email is a faculty or institutional email (e.g. atul@mitsgwalior.in or 24ai10ar16@mitsgwl.ac.in)
         const cleanGoogleEmail = (googleUser.email || "").trim().toLowerCase();
+        const parsedName = parseInstitutionalName(googleUser.name, cleanGoogleEmail);
         const isFaculty = cleanGoogleEmail.endsWith("@mitsgwalior.in") ||
                           cleanGoogleEmail.endsWith(".mitsgwalior.in") ||
                           cleanGoogleEmail.includes("mitsgwalior.in");
@@ -29,13 +30,19 @@ export class AuthController {
             institutionName?: string;
             department?: string;
             batchYear?: string;
+            enrollmentNumber?: string;
         } = {};
+
+        if (parsedName.enrollmentNumber) {
+            institutionalData.enrollmentNumber = parsedName.enrollmentNumber.toUpperCase();
+        }
 
         if (isFaculty) {
             institutionalData = {
                 userType: "FACULTY",
                 institutionName: "Madhav Institute of Technology & Science",
                 department: "School of Computer Science & Engineering",
+                ...(institutionalData.enrollmentNumber ? { enrollmentNumber: institutionalData.enrollmentNumber } : {}),
             };
         } else if (cleanGoogleEmail.includes("@")) {
             try {
@@ -46,6 +53,7 @@ export class AuthController {
                         institutionName: resolution.institute.name,
                         department: resolution.identity.department || resolution.identity.branchName,
                         batchYear: String(resolution.identity.admissionYear),
+                        enrollmentNumber: institutionalData.enrollmentNumber || (resolution.identity.enrollmentNumber ? resolution.identity.enrollmentNumber.toUpperCase() : undefined),
                     };
                 }
             } catch {
@@ -120,11 +128,54 @@ export class AuthController {
             });
         }
 
+        // If existing user, check for enrollmentNumber backfill or contaminated username cleanup
+        if (user) {
+            const targetEnrollment = institutionalData.enrollmentNumber
+                ? institutionalData.enrollmentNumber.toUpperCase()
+                : (user.enrollmentNumber ? user.enrollmentNumber.toUpperCase() : null);
+
+            let cleanUsernameToUpdate: string | undefined = undefined;
+            const parsedExistingUsername = parseInstitutionalName(user.username);
+            if (parsedExistingUsername.hasEnrollmentPrefix) {
+                let targetBase = parsedName.actualName
+                    ? parseInstitutionalName(parsedName.actualName).cleanUsernameBase
+                    : parsedExistingUsername.cleanUsernameBase;
+                if (!targetBase || targetBase.length < 3) {
+                    targetBase = `player_${Math.floor(1000 + Math.random() * 9000)}`;
+                }
+                let candidate = targetBase;
+                let counter = 1;
+                while (await (prisma.user as any).findFirst({ where: { username: candidate, id: { not: user.id } } })) {
+                    candidate = `${targetBase}_${Math.floor(100 + Math.random() * 900)}`;
+                    counter++;
+                    if (counter > 10) break;
+                }
+                cleanUsernameToUpdate = candidate;
+                logger.info({ userId: user.id, oldUsername: user.username, newUsername: cleanUsernameToUpdate }, "Cleaned enrollment prefix from existing user username");
+            }
+
+            const needsEnrollmentUpdate = targetEnrollment && user.enrollmentNumber !== targetEnrollment;
+            const needsUsernameUpdate = Boolean(cleanUsernameToUpdate);
+
+            if (needsEnrollmentUpdate || needsUsernameUpdate) {
+                user = await (prisma.user as any).update({
+                    where: { id: user.id },
+                    data: {
+                        ...(needsEnrollmentUpdate ? { enrollmentNumber: targetEnrollment } : {}),
+                        ...(needsUsernameUpdate ? { username: cleanUsernameToUpdate } : {}),
+                    },
+                });
+            }
+        }
+
         // If new user, create account
         if (!user) {
-            let baseUsername = (googleUser.name || googleUser.email.split("@")[0])
-                .toLowerCase()
-                .replace(/[^a-z0-9_]/g, "");
+            let baseUsername = parsedName.cleanUsernameBase;
+            if (!baseUsername || baseUsername.length < 3) {
+                baseUsername = (googleUser.name || googleUser.email.split("@")[0])
+                    .toLowerCase()
+                    .replace(/[^a-z0-9_]/g, "");
+            }
             if (!baseUsername || baseUsername.length < 3) baseUsername = `player_${Math.floor(1000 + Math.random() * 9000)}`;
 
             let uniqueUsername = baseUsername;
@@ -138,6 +189,7 @@ export class AuthController {
             const userType = isFaculty ? "FACULTY" : (institutionalData.userType || "INDIVIDUAL");
             const platformPrefix = userType === "FACULTY" ? "AF-FAC" : (userType === "STUDENT" ? "AF-STU" : "AF-USR");
             const platformCode = `${platformPrefix}-${Math.floor(10000 + Math.random() * 90000)}`;
+            const finalEnrollment = institutionalData.enrollmentNumber || (parsedName.enrollmentNumber ? parsedName.enrollmentNumber.toUpperCase() : null);
 
             user = await (prisma.user as any).create({
                 data: {
@@ -149,6 +201,7 @@ export class AuthController {
                     institutionName: institutionalData.institutionName || (isFaculty ? "Madhav Institute of Technology & Science" : null),
                     department: institutionalData.department || null,
                     batchYear: institutionalData.batchYear || null,
+                    enrollmentNumber: finalEnrollment ? finalEnrollment.toUpperCase() : null,
                     platformCode,
                     studentIdentityMetadata: {
                         ...(googleUser.picture ? { photoURL: googleUser.picture } : {}),
@@ -156,7 +209,7 @@ export class AuthController {
                     },
                 },
             });
-            logger.info({ userId: user.id, username: user.username, department: user.department, userType }, "Created new user via Google authentication");
+            logger.info({ userId: user.id, username: user.username, enrollmentNumber: user.enrollmentNumber, department: user.department, userType }, "Created new user via Google authentication");
         } else if (googleUser.picture) {
             const existingMeta = (user.studentIdentityMetadata as any) || {};
             if (existingMeta.photoURL !== googleUser.picture) {
@@ -197,6 +250,7 @@ export class AuthController {
                 platformCode: user.platformCode,
                 institutionName: user.institutionName,
                 department: user.department,
+                enrollmentNumber: user.enrollmentNumber ? user.enrollmentNumber.toUpperCase() : (institutionalData.enrollmentNumber || null),
                 school: identityMeta.school || null,
                 designation: identityMeta.designation || (user.userType === "FACULTY" ? "Faculty Educator" : null),
                 batchYear: user.batchYear,
@@ -273,6 +327,7 @@ export class AuthController {
                 platformCode: user.platformCode,
                 institutionName: user.institutionName,
                 department: user.department,
+                enrollmentNumber: user.enrollmentNumber ? user.enrollmentNumber.toUpperCase() : null,
                 school: manualMeta.school || null,
                 designation: manualMeta.designation || (user.userType === "FACULTY" ? "Faculty Educator" : null),
                 batchYear: user.batchYear,
@@ -304,9 +359,12 @@ export class AuthController {
             throw { statusCode: 400, message: "An account with this email already exists." };
         }
 
-        let baseUsername = (params.username || params.displayName || cleanEmail.split("@")[0])
-            .toLowerCase()
-            .replace(/[^a-z0-9_]/g, "");
+        const parsedManual = parseInstitutionalName(params.displayName || params.username, cleanEmail);
+
+        let baseUsername = (params.username && !parseInstitutionalName(params.username).hasEnrollmentPrefix)
+            ? params.username.toLowerCase().replace(/[^a-z0-9_]/g, "")
+            : parsedManual.cleanUsernameBase;
+
         if (!baseUsername || baseUsername.length < 3) {
             baseUsername = `user_${Math.floor(1000 + Math.random() * 9000)}`;
         }
@@ -329,13 +387,19 @@ export class AuthController {
             institutionName?: string;
             department?: string;
             batchYear?: string;
+            enrollmentNumber?: string;
         } = {};
+
+        if (parsedManual.enrollmentNumber) {
+            institutionalData.enrollmentNumber = parsedManual.enrollmentNumber.toUpperCase();
+        }
 
         if (isFaculty) {
             institutionalData = {
                 userType: "FACULTY",
                 institutionName: params.institutionName || "Madhav Institute of Technology & Science",
                 department: params.department || "School of Computer Science & Engineering",
+                ...(institutionalData.enrollmentNumber ? { enrollmentNumber: institutionalData.enrollmentNumber } : {}),
             };
         } else if (cleanEmail.includes("@")) {
             try {
@@ -346,6 +410,7 @@ export class AuthController {
                         institutionName: resolution.institute.name,
                         department: resolution.identity.department || resolution.identity.branchName,
                         batchYear: String(resolution.identity.admissionYear),
+                        enrollmentNumber: institutionalData.enrollmentNumber || (resolution.identity.enrollmentNumber ? resolution.identity.enrollmentNumber.toUpperCase() : undefined),
                     };
                 }
             } catch {
@@ -366,6 +431,8 @@ export class AuthController {
             }
             : undefined;
 
+        const finalManualEnrollment = institutionalData.enrollmentNumber || (parsedManual.enrollmentNumber ? parsedManual.enrollmentNumber.toUpperCase() : null);
+
         const user = await (prisma.user as any).create({
             data: {
                 email: cleanEmail,
@@ -376,6 +443,7 @@ export class AuthController {
                 institutionName: params.institutionName || institutionalData.institutionName || (resolvedUserType === "FACULTY" ? "Madhav Institute of Technology & Science" : null),
                 department: params.department || params.school || institutionalData.department || null,
                 batchYear: institutionalData.batchYear || null,
+                enrollmentNumber: finalManualEnrollment ? finalManualEnrollment.toUpperCase() : null,
                 platformCode,
                 studentIdentityMetadata,
             },
@@ -406,6 +474,7 @@ export class AuthController {
                 platformCode: user.platformCode,
                 institutionName: user.institutionName,
                 department: user.department,
+                enrollmentNumber: user.enrollmentNumber ? user.enrollmentNumber.toUpperCase() : null,
                 school: signupMeta.school || null,
                 designation: signupMeta.designation || (user.userType === "FACULTY" ? "Faculty Educator" : null),
                 batchYear: user.batchYear,

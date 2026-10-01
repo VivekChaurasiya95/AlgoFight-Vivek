@@ -34,7 +34,7 @@ export class PrismaUserRepository implements UserRepository {
             institutionDomain: input.institutionDomain || null,
             admissionYear: input.admissionYear || null,
             branch: input.branch || null,
-            enrollmentNumber: input.enrollmentNumber || null,
+            enrollmentNumber: input.enrollmentNumber ? input.enrollmentNumber.toUpperCase() : null,
             studentIdentityMetadata,
         };
 
@@ -106,7 +106,7 @@ export class PrismaUserRepository implements UserRepository {
                 institutionDomain: input.institutionDomain || existing.institutionDomain,
                 admissionYear: input.admissionYear || existing.admissionYear,
                 branch: input.branch || existing.branch,
-                enrollmentNumber: input.enrollmentNumber || existing.enrollmentNumber,
+                enrollmentNumber: input.enrollmentNumber ? input.enrollmentNumber.toUpperCase() : (existing.enrollmentNumber ? existing.enrollmentNumber.toUpperCase() : null),
                 studentIdentityMetadata: updatedMeta,
                 ...(finalPlatformCode !== existing.platformCode ? { platformCode: finalPlatformCode } : {}),
             };
@@ -148,7 +148,7 @@ export class PrismaUserRepository implements UserRepository {
                         institutionDomain: input.institutionDomain || retryExisting.institutionDomain,
                         admissionYear: input.admissionYear || retryExisting.admissionYear,
                         branch: input.branch || retryExisting.branch,
-                        enrollmentNumber: input.enrollmentNumber || retryExisting.enrollmentNumber,
+                        enrollmentNumber: input.enrollmentNumber ? input.enrollmentNumber.toUpperCase() : (retryExisting.enrollmentNumber ? retryExisting.enrollmentNumber.toUpperCase() : null),
                         studentIdentityMetadata: input.studentIdentityMetadata !== undefined ? input.studentIdentityMetadata : retryExisting.studentIdentityMetadata,
                     };
 
