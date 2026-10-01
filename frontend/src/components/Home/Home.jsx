@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import './Home.css';
 import heroCharacterVideo from '../../assets/watermark-removed-gemini_generated_video_a46fd70e.mp4';
@@ -253,6 +253,55 @@ function Home() {
 
   // Fetch actual enrolled platform coders count
   const [liveFeedbackList, setLiveFeedbackList] = useState([]);
+
+  // 🚀 Optimized Hero Video loading: deferred until after initial paint & viewport intersection
+  const [videoSrc, setVideoSrc] = useState(null);
+  const [isVideoReady, setIsVideoReady] = useState(false);
+  const videoRef = useRef(null);
+  const videoContainerRef = useRef(null);
+
+  useEffect(() => {
+    let idleTimer;
+    let observer;
+
+    const startVideoLoad = () => {
+      setVideoSrc(heroCharacterVideo);
+    };
+
+    // Use IntersectionObserver to start loading only when approaching viewport
+    if (typeof IntersectionObserver !== 'undefined' && videoContainerRef.current) {
+      observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              startVideoLoad();
+              if (videoRef.current && videoRef.current.paused) {
+                videoRef.current.play().catch(() => {});
+              }
+            } else if (videoRef.current && !videoRef.current.paused) {
+              videoRef.current.pause();
+            }
+          });
+        },
+        { rootMargin: '250px 0px' }
+      );
+      observer.observe(videoContainerRef.current);
+    } else {
+      // Fallback: defer load until browser is idle or after short timeout
+      if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+        const idleId = window.requestIdleCallback(startVideoLoad, { timeout: 1200 });
+        idleTimer = () => window.cancelIdleCallback(idleId);
+      } else {
+        const timeoutId = setTimeout(startVideoLoad, 250);
+        idleTimer = () => clearTimeout(timeoutId);
+      }
+    }
+
+    return () => {
+      if (observer) observer.disconnect();
+      if (idleTimer) idleTimer();
+    };
+  }, []);
 
   useEffect(() => {
     fetchPlatformStats()
@@ -775,6 +824,7 @@ function Home() {
 
             {/* 3D Animated Character Hero Video */}
             <motion.div 
+              ref={videoContainerRef}
               className="hero-video-container"
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -782,16 +832,20 @@ function Home() {
             >
               <div className="hero-video-glow" />
               <div className="hero-video-wrap">
-                <video
-                  className="hero-video-character"
-                  src={heroCharacterVideo}
-                  autoPlay
-                  loop
-                  muted
-                  playsInline
-                  controls={false}
-                  preload="auto"
-                />
+                {videoSrc && (
+                  <video
+                    ref={videoRef}
+                    className={`hero-video-character ${isVideoReady ? 'is-ready' : ''}`}
+                    src={videoSrc}
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    controls={false}
+                    preload="metadata"
+                    onCanPlay={() => setIsVideoReady(true)}
+                  />
+                )}
                 <div className="hero-video-vignette" />
               </div>
             </motion.div>

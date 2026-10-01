@@ -998,6 +998,12 @@ body::before {
   pointer-events: none !important;
   user-select: none !important;
   background: transparent;
+  opacity: 0;
+  transition: opacity 0.6s ease-in-out;
+}
+
+.hero-video-character.is-ready {
+  opacity: 1;
 }
 
 .hero-video-vignette {
