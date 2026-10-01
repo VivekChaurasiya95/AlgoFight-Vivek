@@ -753,12 +753,6 @@ export default function ControlHub() {
             transition={{ duration: 0.25 }}
             className="lock-terminal dash-card"
           >
-            <div className="hero-kicker-tag arena-kicker lock-kicker">
-              <span className="kicker-word word-glow-cyan">/// RESTRICTED ACCESS</span>
-              <span className="kicker-slash">/</span>
-              <span className="kicker-cross">+</span>
-              <span>CLEARANCE LEVEL 5</span>
-            </div>
             <div className="lock-icon-crest">
               <div className="dash-icon-box icon-cyan lock-icon-box">
                 <FontAwesomeIcon icon={faShieldHalved} />
@@ -1023,12 +1017,6 @@ export default function ControlHub() {
           {/* View Header */}
           <div className="main-view-header arena-compact-header">
             <div className="arena-header-left">
-              <div className="hero-kicker-tag arena-kicker">
-                <span className="kicker-word word-glow-cyan">/// SUPERADMIN CONSOLE</span>
-                <span className="kicker-slash">/</span>
-                <span className="kicker-cross">+</span>
-                <span>{currentItem?.title?.toUpperCase()}</span>
-              </div>
               <h1 className="view-title arena-header-title">
                 {currentItem?.icon && (
                   <FontAwesomeIcon icon={currentItem.icon} className="view-title-icon" />

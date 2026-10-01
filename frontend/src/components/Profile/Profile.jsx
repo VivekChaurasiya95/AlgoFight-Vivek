@@ -621,13 +621,6 @@ function Profile() {
                             </div>
 
                             <div className="profile-identity-copy">
-                                <div className="hero-kicker-tag profile-kicker-tag">
-                                    <span className="kicker-slash">//</span>
-                                    <span className="kicker-word">{isFacultyProfile ? "FACULTY PORTAL" : (isOwnProfile ? "VERIFIED PLAYER" : "COMPETITOR")}</span>
-                                    <span className="kicker-cross">•</span>
-                                    <span className="kicker-word word-glow-cyan">PROFILE IDENTITY</span>
-                                    <span className="kicker-slash">//</span>
-                                </div>
                                 <h1 className="profile-display-name">{displayName}</h1>
                             <p className="profile-email-label">{email || (isFacultyProfile ? 'Faculty Member' : 'Competitor')}</p>
                             {(profile?.platformCode || (isOwnProfile ? user?.platformCode : null)) && (

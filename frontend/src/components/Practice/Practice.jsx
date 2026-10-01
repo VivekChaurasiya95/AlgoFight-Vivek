@@ -285,13 +285,6 @@ export default function Practice() {
             className="practice-compact-header"
           >
             <div className="practice-header-left">
-              <div className="hero-kicker-tag practice-kicker">
-                <span className="kicker-slash">//</span>
-                <span className="kicker-word">ALGORITHM ARCHIVE</span>
-                <span className="kicker-cross">•</span>
-                <span className="kicker-word word-glow-cyan">PRACTICE LAB</span>
-                <span className="kicker-slash">//</span>
-              </div>
               <h1 className="practice-header-title">
                 PRACTICE <span className="text-cyan-gradient">PROBLEM LAB</span>
               </h1>

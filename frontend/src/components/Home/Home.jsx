@@ -746,22 +746,6 @@ function Home() {
           {/* ========== CENTER COLUMN: HERO HEADLINE & 3D ANIMATED CHARACTERS ========== */}
           <div className="hero-center-col">
             
-            {/* Monospace Kicker */}
-            <motion.div 
-              className="hero-kicker-tag"
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              <span className="kicker-slash">//</span>
-              <span className="kicker-word">CODE</span>
-              <span className="kicker-cross">×</span>
-              <span className="kicker-word">COMPETE</span>
-              <span className="kicker-cross">×</span>
-              <span className="kicker-word word-glow-cyan">GROW</span>
-              <span className="kicker-slash">//</span>
-            </motion.div>
-
             {/* Main Title */}
             <motion.h1 
               className="hero-main-heading"

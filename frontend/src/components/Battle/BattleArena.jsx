@@ -106,13 +106,6 @@ export default function BattleArena({ defaultTab }) {
             className="arena-compact-header"
           >
             <div className="arena-header-left">
-              <div className="hero-kicker-tag arena-kicker">
-                <span className="kicker-slash">//</span>
-                <span className="kicker-word">BATTLE ARENA</span>
-                <span className="kicker-cross">•</span>
-                <span className="kicker-word word-glow-cyan">ACTIVE SECTOR</span>
-                <span className="kicker-slash">//</span>
-              </div>
               <h1 className="arena-header-title">
                 REAL-TIME <span className="text-cyan-gradient">CODE COMBAT</span>
               </h1>

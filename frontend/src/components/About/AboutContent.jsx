@@ -124,14 +124,6 @@ export default function AboutContent({ isModal = false, onCloseModal }) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45 }}
       >
-        <div className="hero-kicker-tag about-kicker-tag">
-          <span className="kicker-slash">//</span>
-          <span className="kicker-word">PLATFORM</span>
-          <span className="kicker-cross">•</span>
-          <span className="kicker-word word-glow-cyan">ECOSYSTEM OVERVIEW</span>
-          <span className="kicker-slash">//</span>
-        </div>
-
         <h1 className="learn-hero-title">
           THE FUN WAY TO <span className="word-glow-cyan">LEARN, PRACTICE & BATTLE</span> IN CODE
         </h1>

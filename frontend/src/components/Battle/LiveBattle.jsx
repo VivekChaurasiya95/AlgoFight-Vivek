@@ -1540,12 +1540,6 @@ export default function LiveBattle() {
                 <span>Arena</span>
               </button>
               <div className="livebattle-header-copy">
-                <div className="hero-kicker-tag arena-kicker">
-                  <span className="kicker-slash">//</span>
-                  <span>1V1 RANKED ARENA</span>
-                  <span className="kicker-cross">✦</span>
-                  <span className="kicker-word word-glow-cyan">MATCHMAKING</span>
-                </div>
                 <h1 className="livebattle-hero-title">
                   {status === "connecting" ? "Connecting to Arena..." : "Finding Opponent..."}
                 </h1>
@@ -1741,12 +1735,6 @@ export default function LiveBattle() {
             </button>
 
             <div className="livebattle-room-info">
-              <div className="hero-kicker-tag arena-kicker">
-                <span className="kicker-slash">//</span>
-                <span>LIVE 1V1</span>
-                <span className="kicker-cross">✦</span>
-                <span className="kicker-word word-glow-cyan">DUEL</span>
-              </div>
               <div className="livebattle-room-pill">
                 <span className="badge-pulse-dot" />
                 <span className="room-code-tag">

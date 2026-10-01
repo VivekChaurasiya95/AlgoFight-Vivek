@@ -134,14 +134,6 @@ function Developer() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45, ease: "easeOut" }}
         >
-          <div className="hero-kicker-tag developer-kicker-tag">
-            <span className="kicker-slash">//</span>
-            <span className="kicker-word">ENGINEERING</span>
-            <span className="kicker-cross">•</span>
-            <span className="kicker-word word-glow-cyan">CORE ARCHITECTURE</span>
-            <span className="kicker-slash">//</span>
-          </div>
-
           <h1 className="developer-hero-title">
             BUILT BY <span className="word-glow-cyan">ALGOFIGHT ARCHITECTS</span>
           </h1>

@@ -94,13 +94,6 @@ export default function Leaderboard() {
             className="leaderboard-compact-header"
           >
             <div className="leaderboard-header-left">
-              <div className="hero-kicker-tag leaderboard-kicker">
-                <span className="kicker-slash">//</span>
-                <span className="kicker-word">GLOBAL RANKINGS</span>
-                <span className="kicker-cross">•</span>
-                <span className="kicker-word word-glow-cyan">HALL OF FAME</span>
-                <span className="kicker-slash">//</span>
-              </div>
               <h1 className="leaderboard-header-title">
                 COMPETITIVE <span className="text-yellow-gradient">HALL OF FAME</span>
               </h1>

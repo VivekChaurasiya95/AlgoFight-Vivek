@@ -192,14 +192,6 @@ export default function ProblemReadPanel({ problemId, onClose, initialProblem = 
         {/* Header */}
         <header className="read-drawer-header">
           <div className="read-drawer-header-left">
-            <div className="hero-kicker-tag read-drawer-kicker">
-              <span className="kicker-slash">//</span>
-              <span className="kicker-word">SPECIFICATION</span>
-              <span className="kicker-cross">•</span>
-              <span className="kicker-word word-glow-cyan">OFFLINE LAB</span>
-              <span className="kicker-slash">//</span>
-            </div>
-
             <h2 className="read-drawer-title">
               {problem?.title || (loading ? "Loading..." : "Problem Statement")}
             </h2>

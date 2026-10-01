@@ -319,14 +319,6 @@ function Rewards() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5 }}
                 >
-                    <div className="hero-kicker-tag rewards-kicker-tag">
-                        <span className="kicker-slash">//</span>
-                        <span className="kicker-word">VAULT</span>
-                        <span className="kicker-cross">•</span>
-                        <span className="kicker-word word-glow-cyan">UNIVERSAL MERIT</span>
-                        <span className="kicker-slash">//</span>
-                    </div>
-
                     <h1 className="rewards-hero-title">
                         REDEEM SKILLS INTO <span className="word-glow-cyan">REAL REWARDS</span>
                     </h1>
