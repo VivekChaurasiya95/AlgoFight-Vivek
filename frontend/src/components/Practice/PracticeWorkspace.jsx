@@ -14,8 +14,12 @@ import {
   faExpand,
   faCompress,
   faWandMagicSparkles,
+  faRotateLeft,
+  faRotateRight,
+  faKeyboard,
 } from "@fortawesome/free-solid-svg-icons";
-import { evaluatePracticeCode, fetchProblemById, recordPracticeProgress } from "../../services/api";
+import { evaluatePracticeCode, fetchProblemById, recordPracticeProgress, fetchPracticeCheckpoint, savePracticeCheckpoint } from "../../services/api";
+import { saveLocalDraft, getLocalDraft, reconcileCheckpoints } from "../../services/storage/indexedDbRecovery.js";
 import { useNotification } from "../../contexts/NotificationContext.jsx";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import { useAntiCheat } from "../../hooks/useAntiCheat";
@@ -45,6 +49,8 @@ export default function PracticeWorkspace() {
   const [selectedLanguage, setSelectedLanguage] = useState("javascript");
   const [code, setCode] = useState("");
   const editorRef = useRef(null);
+  const saveDebounceTimer = useRef(null);
+  const revisionRef = useRef(1);
   const [output, setOutput] = useState("");
   const [lastResult, setLastResult] = useState(null);
   const [submissionCount, setSubmissionCount] = useState(0);
@@ -212,9 +218,32 @@ export default function PracticeWorkspace() {
 
         const data = await fetchProblemById(problemId);
         if (!active) return;
-
         setProblem(data);
-        setCode(getStarterCodeForLanguage(data, "javascript"));
+
+        // 🛡️ AF-CHK: Multi-tier draft hydration (IndexedDB <-> Redis <-> DB <-> Starter)
+        let localDraft = null;
+        if (user?.uid) {
+          localDraft = await getLocalDraft("practice", problemId, problemId, user.uid).catch(() => null);
+        }
+
+        let remoteDraft = null;
+        try {
+          const remote = await fetchPracticeCheckpoint(problemId);
+          if (remote && remote.code) {
+            remoteDraft = remote;
+          }
+        } catch (_) {}
+
+        const reconciled = reconcileCheckpoints(localDraft, remoteDraft);
+        if (!active) return;
+
+        if (reconciled && reconciled.code && reconciled.code.trim().length > 0) {
+          setCode(reconciled.code);
+          if (reconciled.language) setSelectedLanguage(reconciled.language);
+          revisionRef.current = reconciled.revision || reconciled.localRevision || 1;
+        } else {
+          setCode(getStarterCodeForLanguage(data, selectedLanguage || "javascript"));
+        }
       } catch (error) {
         if (!active) return;
         const message = error?.message || "Unable to load the practice problem.";
@@ -236,14 +265,50 @@ export default function PracticeWorkspace() {
     return () => {
       active = false;
     };
-  }, [notify, problemId]);
+  }, [notify, problemId, user?.uid]);
 
-  useEffect(() => {
+  const handleLanguageChange = (newLang) => {
+    setSelectedLanguage(newLang);
     if (!problem) return;
-    setCode(getStarterCodeForLanguage(problem, selectedLanguage));
-    setOutput("");
-    setLastResult(null);
-  }, [problem, selectedLanguage]);
+    const currentStarter = getStarterCodeForLanguage(problem, selectedLanguage);
+    const isStarterOrEmpty = !code.trim() || code.trim() === currentStarter.trim();
+    if (isStarterOrEmpty) {
+      setCode(getStarterCodeForLanguage(problem, newLang));
+    }
+  };
+
+  const handleCodeChange = (newCode) => {
+    setCode(newCode);
+    revisionRef.current = (revisionRef.current || 1) + 1;
+
+    if (saveDebounceTimer.current) {
+      clearTimeout(saveDebounceTimer.current);
+    }
+
+    saveDebounceTimer.current = setTimeout(async () => {
+      if (!problemId) return;
+      const rev = revisionRef.current;
+
+      if (user?.uid) {
+        saveLocalDraft({
+          activityType: "practice",
+          activityId: problemId,
+          problemId,
+          userId: user.uid,
+          code: newCode,
+          language: selectedLanguage,
+        }).catch(() => {});
+      }
+
+      savePracticeCheckpoint({
+        problemId,
+        code: newCode,
+        language: selectedLanguage,
+        revision: rev,
+      }).catch(() => {});
+    }, 1500);
+  };
+
 
   const evaluateCode = async (mode) => {
     if (!problem || !code.trim()) return;
@@ -514,7 +579,7 @@ export default function PracticeWorkspace() {
                 <select
                   className="livebattle-language-select"
                   value={selectedLanguage}
-                  onChange={(event) => setSelectedLanguage(event.target.value)}
+                  onChange={(event) => handleLanguageChange(event.target.value)}
                   disabled={running}
                 >
                   {SUPPORTED_LANGUAGES.map((languageOption) => (
@@ -550,9 +615,12 @@ export default function PracticeWorkspace() {
               <SmartCodeEditor
                 ref={editorRef}
                 value={code}
-                onChange={setCode}
+                onChange={handleCodeChange}
                 language={selectedLanguage}
                 isBlurred={isBlurred}
+                problemId={problem?.id || problemId}
+                onRun={() => evaluateCode("test")}
+                onSubmit={() => evaluateCode("submit")}
                 errorLocation={
                   (lastResult?.error?.line || lastResult?.structuredError?.line)
                     ? {
@@ -574,6 +642,36 @@ export default function PracticeWorkspace() {
                     <FontAwesomeIcon icon={faWandMagicSparkles} />
                     <span>Prettier</span>
                     <span className="prettier-shortcut">Shift+Alt+F</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="statusbar-editor-action-btn"
+                    onClick={() => editorRef.current?.undo?.()}
+                    title="Undo (Ctrl+Z / ⌘Z)"
+                  >
+                    <FontAwesomeIcon icon={faRotateLeft} />
+                    <span>Undo</span>
+                    <span className="editor-shortcut-hint">Ctrl+Z</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="statusbar-editor-action-btn"
+                    onClick={() => editorRef.current?.redo?.()}
+                    title="Redo (Ctrl+Y / ⌘Shift+Z)"
+                  >
+                    <FontAwesomeIcon icon={faRotateRight} />
+                    <span>Redo</span>
+                    <span className="editor-shortcut-hint">Ctrl+Y</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="statusbar-editor-action-btn shortcuts-btn"
+                    onClick={() => editorRef.current?.openShortcuts?.()}
+                    title="Keyboard Shortcuts Guide (F1)"
+                  >
+                    <FontAwesomeIcon icon={faKeyboard} />
+                    <span>Shortcuts</span>
+                    <span className="editor-shortcut-hint">F1</span>
                   </button>
                 </div>
                 <div className="statusbar-right">

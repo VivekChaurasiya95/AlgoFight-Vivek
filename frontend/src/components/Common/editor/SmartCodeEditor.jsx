@@ -1,8 +1,10 @@
 import React, { useRef, useEffect, useState, forwardRef, useImperativeHandle, useCallback } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faWandMagicSparkles, faCircleCheck, faTriangleExclamation, faInfoCircle } from "@fortawesome/free-solid-svg-icons";
+import { faWandMagicSparkles, faTriangleExclamation, faInfoCircle, faShieldHalved } from "@fortawesome/free-solid-svg-icons";
 import { handleEditorKeyDown } from "../../../utils/editorSmartTyping";
 import { formatCode } from "../../../utils/codeFormatter";
+import { EditorHistory } from "../../../utils/editorHistory";
+import KeyboardShortcutsModal from "./KeyboardShortcutsModal";
 
 export const SmartCodeEditor = forwardRef(({
   value = "",
@@ -17,6 +19,9 @@ export const SmartCodeEditor = forwardRef(({
   enableAutoFormat = true,
   onFormatResult,
   onKeyDown,
+  onRun,
+  onSubmit,
+  problemId = null,
   textareaRef: externalTextareaRef,
 }, forwardedRef) => {
   const localRef = useRef(null);
@@ -25,7 +30,19 @@ export const SmartCodeEditor = forwardRef(({
   const [toast, setToast] = useState(null);
   const [flashClass, setFlashClass] = useState("");
   const [isFormatting, setIsFormatting] = useState(false);
+  const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+
   const toastTimeoutRef = useRef(null);
+  const historyRef = useRef(new EditorHistory());
+
+  // Initialize or re-scope history when problemId changes
+  useEffect(() => {
+    historyRef.current.init(value, 0, 0);
+    setCanUndo(false);
+    setCanRedo(false);
+  }, [problemId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Jump cursor & scroll to error line when errorLocation changes
   useEffect(() => {
@@ -46,7 +63,7 @@ export const SmartCodeEditor = forwardRef(({
 
     const textarea = textareaRef.current;
     textarea.focus();
-    textarea.setSelectionRange(charOffset, charOffset + lineLen);
+    textarea.setSelectionRange(charOffset, finalPos);
 
     // Approximate scroll height calculation
     const lineHeight = 20; // approximate font line height
@@ -75,12 +92,18 @@ export const SmartCodeEditor = forwardRef(({
 
     try {
       if (isManual) setIsFormatting(true);
+
+      const textarea = textareaRef.current;
+      const prevStart = textarea ? textarea.selectionStart : 0;
+      const prevEnd = textarea ? textarea.selectionEnd : 0;
+
+      // Commit pre-format state to history so Ctrl+Z undoes format immediately
+      historyRef.current.recordTyping(value, prevStart, prevEnd, true);
+
       const res = await formatCode(value, language);
 
       if (res.success) {
         if (res.changed) {
-          const textarea = textareaRef.current;
-          let prevStart = textarea ? textarea.selectionStart : undefined;
           let lineNum = 1;
           let colNum = 0;
 
@@ -92,17 +115,26 @@ export const SmartCodeEditor = forwardRef(({
 
           onChange(res.formatted);
 
+          const newLines = res.formatted.split("\n");
+          let newPos = 0;
+          for (let i = 0; i < Math.min(lineNum - 1, newLines.length); i++) {
+            newPos += newLines[i].length + 1;
+          }
+          if (lineNum <= newLines.length) {
+            newPos += Math.min(colNum, newLines[lineNum - 1].length);
+          }
+          newPos = Math.min(newPos, res.formatted.length);
+
+          // Push formatted state to history
+          historyRef.current.recordTyping(res.formatted, newPos, newPos, true);
+          setCanUndo(historyRef.current.canUndo());
+          setCanRedo(historyRef.current.canRedo());
+
           if (textarea && prevStart !== undefined) {
             requestAnimationFrame(() => {
-              const newLines = res.formatted.split("\n");
-              let newPos = 0;
-              for (let i = 0; i < Math.min(lineNum - 1, newLines.length); i++) {
-                newPos += newLines[i].length + 1;
+              if (textareaRef.current) {
+                textareaRef.current.selectionStart = textareaRef.current.selectionEnd = newPos;
               }
-              if (lineNum <= newLines.length) {
-                newPos += Math.min(colNum, newLines[lineNum - 1].length);
-              }
-              textarea.selectionStart = textarea.selectionEnd = Math.min(newPos, res.formatted.length);
             });
           }
 
@@ -134,17 +166,64 @@ export const SmartCodeEditor = forwardRef(({
     }
   }, [value, language, disabled, onChange, textareaRef, showToastFeedback, triggerFlash, onFormatResult]);
 
+  // Undo implementation
+  const triggerUndo = useCallback(() => {
+    if (disabled) return;
+    const textarea = textareaRef.current;
+    const curStart = textarea ? textarea.selectionStart : 0;
+    const curEnd = textarea ? textarea.selectionEnd : 0;
+
+    const prevState = historyRef.current.undo(value, curStart, curEnd);
+    if (prevState) {
+      onChange(prevState.code);
+      requestAnimationFrame(() => {
+        if (textareaRef.current) {
+          textareaRef.current.selectionStart = prevState.selectionStart;
+          textareaRef.current.selectionEnd = prevState.selectionEnd;
+        }
+      });
+      setCanUndo(historyRef.current.canUndo());
+      setCanRedo(historyRef.current.canRedo());
+    }
+  }, [value, disabled, onChange, textareaRef]);
+
+  // Redo implementation
+  const triggerRedo = useCallback(() => {
+    if (disabled) return;
+    const textarea = textareaRef.current;
+    const curStart = textarea ? textarea.selectionStart : 0;
+    const curEnd = textarea ? textarea.selectionEnd : 0;
+
+    const nextState = historyRef.current.redo(value, curStart, curEnd);
+    if (nextState) {
+      onChange(nextState.code);
+      requestAnimationFrame(() => {
+        if (textareaRef.current) {
+          textareaRef.current.selectionStart = nextState.selectionStart;
+          textareaRef.current.selectionEnd = nextState.selectionEnd;
+        }
+      });
+      setCanUndo(historyRef.current.canUndo());
+      setCanRedo(historyRef.current.canRedo());
+    }
+  }, [value, disabled, onChange, textareaRef]);
+
   // Expose imperative handle for external buttons/toolbars
   useImperativeHandle(forwardedRef, () => ({
     formatCode: () => executeFormat(true),
+    undo: triggerUndo,
+    redo: triggerRedo,
+    canUndo: () => historyRef.current.canUndo(),
+    canRedo: () => historyRef.current.canRedo(),
+    openShortcuts: () => setIsShortcutsOpen(true),
+    closeShortcuts: () => setIsShortcutsOpen(false),
     focus: () => textareaRef.current?.focus(),
     getTextarea: () => textareaRef.current,
     isFormatting,
-  }), [executeFormat, isFormatting, textareaRef]);
+  }), [executeFormat, triggerUndo, triggerRedo, isFormatting, textareaRef]);
 
   // Background Idle Self-Alignment via Prettier (zero user intervention)
   useEffect(() => {
-    // Only auto-format C-like or JS/TS languages; do not aggressively re-indent whitespace-sensitive Python while the user is actively typing!
     const isPy = ["python", "py", "python3"].includes((language || "").toLowerCase());
     if (isPy || !enableAutoFormat || !value || disabled) return;
 
@@ -163,17 +242,63 @@ export const SmartCodeEditor = forwardRef(({
   }, []);
 
   const handleKeyDown = (e) => {
-    // 1. Keyboard shortcuts for Format:
+    const isMac = typeof navigator !== "undefined" && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
+    const modKey = isMac ? e.metaKey : e.ctrlKey;
+
+    // 1. UNDO: Ctrl+Z or Cmd+Z (without Shift)
+    if (modKey && (e.key === "z" || e.key === "Z") && !e.shiftKey) {
+      e.preventDefault();
+      e.stopPropagation();
+      triggerUndo();
+      return;
+    }
+
+    // 2. REDO: Ctrl+Y or Ctrl+Shift+Z or Cmd+Shift+Z
+    if (
+      (modKey && (e.key === "y" || e.key === "Y")) ||
+      (modKey && e.shiftKey && (e.key === "z" || e.key === "Z"))
+    ) {
+      e.preventDefault();
+      e.stopPropagation();
+      triggerRedo();
+      return;
+    }
+
+    // 3. KEYBOARD SHORTCUTS HELP: F1 or (Ctrl/Cmd + Alt + H)
+    if (e.key === "F1" || (modKey && e.altKey && (e.key === "h" || e.key === "H"))) {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsShortcutsOpen((prev) => !prev);
+      return;
+    }
+
+    // 4. RUN TESTS: Ctrl+Enter or Cmd+Enter (without Shift)
+    if (modKey && !e.shiftKey && e.key === "Enter" && onRun) {
+      e.preventDefault();
+      e.stopPropagation();
+      onRun();
+      return;
+    }
+
+    // 5. SUBMIT CODE: Ctrl+Shift+Enter or Cmd+Shift+Enter
+    if (modKey && e.shiftKey && e.key === "Enter" && onSubmit) {
+      e.preventDefault();
+      e.stopPropagation();
+      onSubmit();
+      return;
+    }
+
+    // 6. FORMAT SHORTCUTS:
     // - Shift + Alt + F (VS Code standard)
     // - Ctrl/Cmd + Alt + F
     // - Ctrl/Cmd + Shift + I
     // - Ctrl/Cmd + S (Save & Format)
     const isFormatKey =
       (e.shiftKey && e.altKey && (e.key === "F" || e.key === "f")) ||
-      ((e.ctrlKey || e.metaKey) && e.altKey && (e.key === "F" || e.key === "f")) ||
-      ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === "I" || e.key === "i"));
+      (modKey && e.altKey && (e.key === "F" || e.key === "f")) ||
+      (modKey && e.shiftKey && (e.key === "I" || e.key === "i"));
 
-    const isSaveKey = (e.ctrlKey || e.metaKey) && (e.key === "s" || e.key === "S");
+    const isSaveKey = modKey && (e.key === "s" || e.key === "S");
 
     if (isFormatKey || isSaveKey) {
       e.preventDefault();
@@ -182,8 +307,23 @@ export const SmartCodeEditor = forwardRef(({
       return;
     }
 
-    handleEditorKeyDown(e, value, onChange, language);
+    // 7. DELEGATE SMART TYPING & LINE OPERATIONS
+    handleEditorKeyDown(e, value, onChange, language, historyRef.current);
+    setCanUndo(historyRef.current.canUndo());
+    setCanRedo(historyRef.current.canRedo());
     onKeyDown?.(e);
+  };
+
+  const handleChange = (e) => {
+    const newVal = e.target.value;
+    const start = e.target.selectionStart;
+    const end = e.target.selectionEnd;
+
+    // Record typing into debounced history
+    historyRef.current.recordTyping(newVal, start, end, false);
+    onChange(newVal);
+    setCanUndo(historyRef.current.canUndo());
+    setCanRedo(historyRef.current.canRedo());
   };
 
   const handlePaste = (e) => {
@@ -197,12 +337,49 @@ export const SmartCodeEditor = forwardRef(({
 
     e.preventDefault();
     const { selectionStart, selectionEnd } = textarea;
+
+    // Save previous state to history
+    historyRef.current.recordTyping(value, selectionStart, selectionEnd, true);
+
     const newCode = value.substring(0, selectionStart) + clean + value.substring(selectionEnd);
     onChange(newCode);
 
+    const newPos = selectionStart + clean.length;
+    // Push pasted state to history
+    historyRef.current.recordTyping(newCode, newPos, newPos, true);
+
+    setCanUndo(historyRef.current.canUndo());
+    setCanRedo(historyRef.current.canRedo());
+
     setTimeout(() => {
-      textarea.selectionStart = textarea.selectionEnd = selectionStart + clean.length;
+      if (textareaRef.current) {
+        textareaRef.current.selectionStart = textareaRef.current.selectionEnd = newPos;
+      }
     }, 0);
+  };
+
+  // 🛡️ ANTI-CHEAT: Prohibit mouse right-clicking, middle-click paste, and drag & drop text
+  const handleContextMenu = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    showToastFeedback("Mouse right-click is disabled in the editor 🛡️", "warning");
+    triggerFlash("warning");
+  };
+
+  const handleAuxClick = (e) => {
+    if (e.button === 1) { // Middle click paste
+      e.preventDefault();
+      e.stopPropagation();
+      showToastFeedback("Mouse middle-click paste is disabled 🛡️", "warning");
+      triggerFlash("warning");
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    showToastFeedback("Drag & drop code insertion is disabled 🛡️", "warning");
+    triggerFlash("warning");
   };
 
   return (
@@ -211,9 +388,13 @@ export const SmartCodeEditor = forwardRef(({
         ref={textareaRef}
         className={`${className} ${flashClass}`}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={handleChange}
         onKeyDown={handleKeyDown}
         onPaste={handlePaste}
+        onContextMenu={handleContextMenu}
+        onAuxClick={handleAuxClick}
+        onDrop={handleDrop}
+        onDragOver={(e) => e.preventDefault()}
         spellCheck="false"
         disabled={disabled}
         style={{
@@ -252,6 +433,8 @@ export const SmartCodeEditor = forwardRef(({
             icon={
               toast.type === "success"
                 ? faWandMagicSparkles
+                : toast.type === "warning"
+                ? faShieldHalved
                 : toast.type === "error"
                 ? faTriangleExclamation
                 : faInfoCircle
@@ -261,6 +444,10 @@ export const SmartCodeEditor = forwardRef(({
           <span className="prettier-toast-text">{toast.message}</span>
         </div>
       )}
+      <KeyboardShortcutsModal
+        isOpen={isShortcutsOpen}
+        onClose={() => setIsShortcutsOpen(false)}
+      />
     </>
   );
 });

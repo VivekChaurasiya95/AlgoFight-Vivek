@@ -2,8 +2,10 @@ import { FastifyInstance } from "fastify";
 import { SubmissionController } from "../controllers/submission.controllers";
 import {
     PrismaSubmissionRepository,
-    PrismaProblemRepository
+    PrismaProblemRepository,
+    prisma
 } from "@algofight/database";
+import { createRedisClient } from "@algofight/queue";
 import {
     SubmissionInput,
     submissionSchema,
@@ -12,6 +14,7 @@ import {
 } from "../schema/submission.schema";
 import { requireAuth } from "../plugins/auth.plugin";
 
+const redis = createRedisClient();
 const submissionRepository = new PrismaSubmissionRepository();
 const problemRepository = new PrismaProblemRepository();
 const submissionController = new SubmissionController(
@@ -75,6 +78,85 @@ export async function submissionRoutes(app: FastifyInstance) {
             return submissionController.evaluatePractice(body, userId);
         },
     );
+
+    // 3a. Practice Checkpoint Get (Redis -> Fallback to PostgreSQL latest submission)
+    app.get(
+        "/practice/checkpoints/:problemId",
+        {
+            preHandler: [requireAuth],
+        },
+        async (request, reply) => {
+            const userId = request.user?.id;
+            const { problemId } = request.params as { problemId: string };
+            if (!userId || !problemId) {
+                return reply.status(400).send({ error: "Missing userId or problemId" });
+            }
+
+            const redisKey = `practice_checkpoint:${userId}:${problemId}`;
+
+            try {
+                const cached = await redis.get(redisKey);
+                if (cached) {
+                    return JSON.parse(cached);
+                }
+            } catch (_) {}
+
+            // Fallback to latest PostgreSQL submission for this user and problem
+            const latestSub = await prisma.submission.findFirst({
+                where: { userId, problemId },
+                orderBy: { createdAt: "desc" },
+                select: {
+                    code: true,
+                    language: true,
+                    updatedAt: true,
+                },
+            }).catch(() => null);
+
+            if (latestSub) {
+                return {
+                    problemId,
+                    code: latestSub.code,
+                    language: latestSub.language,
+                    revision: 1,
+                    updatedAt: new Date(latestSub.updatedAt).getTime(),
+                };
+            }
+
+            return { problemId, code: null };
+        }
+    );
+
+    // 3b. Practice Checkpoint Save (Redis hot storage with 7-day TTL)
+    app.post(
+        "/practice/checkpoints/:problemId",
+        {
+            preHandler: [requireAuth],
+        },
+        async (request, reply) => {
+            const userId = request.user?.id;
+            const { problemId } = request.params as { problemId: string };
+            const body = request.body as any;
+
+            if (!userId || !problemId || !body || typeof body.code !== "string") {
+                return reply.status(400).send({ error: "Invalid checkpoint payload" });
+            }
+
+            const redisKey = `practice_checkpoint:${userId}:${problemId}`;
+            const checkpoint = {
+                userId,
+                problemId,
+                code: body.code,
+                language: body.language || "javascript",
+                revision: body.revision || 1,
+                updatedAt: body.updatedAt || Date.now(),
+            };
+
+            await redis.set(redisKey, JSON.stringify(checkpoint), "EX", 7 * 86400);
+
+            return { success: true, revision: checkpoint.revision };
+        }
+    );
+
 
 
     // 4. Submissions List (Public Summary DTOs)

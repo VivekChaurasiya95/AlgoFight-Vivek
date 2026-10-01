@@ -8,7 +8,7 @@ import { useNotification } from "../../contexts/NotificationContext.jsx";
 import { useActiveEvent } from "../../contexts/ActiveEventContext";
 import { requestJson } from "../../services/api";
 import { useAntiCheat } from "../../hooks/useAntiCheat";
-import { saveLocalDraft, getLocalDraft, markDraftAcked, clearDraft } from "../../services/storage/indexedDbRecovery.js";
+import { saveLocalDraft, getLocalDraft, getAllLocalDrafts, saveAllLocalDrafts, reconcileCheckpoints, markDraftAcked, clearDraft } from "../../services/storage/indexedDbRecovery.js";
 import ProblemStatement from "../Common/problem/ProblemStatement.jsx";
 import DetailedAnalysisModal from "../Common/modals/DetailedAnalysisModal.jsx";
 import RankEmblem from "../Common/gamification/RankEmblem";
@@ -33,6 +33,9 @@ import {
   faSpinner,
   faCheck,
   faWandMagicSparkles,
+  faRotateLeft,
+  faRotateRight,
+  faKeyboard,
 } from "@fortawesome/free-solid-svg-icons";
 import {
   SUPPORTED_LANGUAGES,
@@ -263,9 +266,29 @@ export default function LiveBattle() {
   // Gamification states
   const [myRankBefore, setMyRankBefore] = useState("ROOKIE");
   const [activeProblemIndex, setActiveProblemIndex] = useState(0);
+  const activeProblemIndexRef = useRef(0);
+  useEffect(() => {
+    activeProblemIndexRef.current = activeProblemIndex;
+  }, [activeProblemIndex]);
+
+  const [codeByProblem, setCodeByProblem] = useState({});
+  const codeByProblemRef = useRef({});
+  useEffect(() => {
+    codeByProblemRef.current = codeByProblem;
+  }, [codeByProblem]);
+
   const [opponentName, setOpponentName] = useState("");
   const [code, setCode] = useState("");
+  const codeRef = useRef("");
+  useEffect(() => {
+    codeRef.current = code;
+  }, [code]);
+
   const [language, setLanguage] = useState("javascript");
+  const languageRef = useRef("javascript");
+  useEffect(() => {
+    languageRef.current = language;
+  }, [language]);
   const editorRef = useRef(null);
   const [timeLeft, setTimeLeft] = useState(() => {
     const targetId = initialMatch?.roomId || initialMatch?.roomCode || initialRoomCode || paramRoomCode;
@@ -518,38 +541,133 @@ export default function LiveBattle() {
     };
   }, [roomId, initialMatch, initialRoomCode, paramRoomCode]);
 
-  // Issue 1: Recover code draft from client-side IndexedDB or initialize with language starter
+  // 🛡️ AF-CHK: Load all local problem drafts on room initialization and request Redis checkpoints
   useEffect(() => {
-    if (!problem) return;
-    const starter = getStarterCodeForLanguage(problem, language);
     const targetId = roomId || initialMatch?.roomId || initialMatch?.roomCode || initialRoomCode || paramRoomCode;
-    const currentProblemId = problem?.id || activeProblemIndex;
+    if (!targetId || !user?.uid) return;
 
     let active = true;
-    if (targetId && user?.uid) {
-      getLocalDraft("battle", targetId, currentProblemId, user.uid).then((draft) => {
-        if (!active) return;
-        if (draft && draft.code && draft.code.trim().length > 0) {
-          setCode(draft.code);
-          if (draft.language) setLanguage(draft.language);
-          setSyncStatus(draft.syncStatus || "synced");
-        } else {
-          setCode(starter);
-        }
-      });
-    } else {
-      setCode(starter);
+    getAllLocalDrafts("battle", targetId, user.uid).then((allDrafts) => {
+      if (!active) return;
+      if (allDrafts && Object.keys(allDrafts).length > 0) {
+        setCodeByProblem((prev) => {
+          const next = { ...allDrafts, ...prev };
+          codeByProblemRef.current = next;
+          return next;
+        });
+      }
+    });
+
+    if (socketRef.current?.connected) {
+      socketRef.current.emit("get_checkpoints", { roomId: targetId });
     }
 
     return () => {
       active = false;
     };
-  }, [language, problem, activeProblemIndex, roomId, initialMatch, initialRoomCode, paramRoomCode, user?.uid]);
+  }, [roomId, initialMatch, initialRoomCode, paramRoomCode, user?.uid]);
 
-  // Issue 1: Pause-based (~2s inactivity) debounced checkpoint to local IndexedDB and Redis sync via WebSocket
+  // 🛡️ AF-CHK: Set editor buffer when problem changes or when drafts hydrate
+  useEffect(() => {
+    if (!problem) return;
+    const currentProbId = problem?.id || `p_${activeProblemIndex}`;
+    const saved = codeByProblemRef.current[currentProbId];
+    if (saved && saved.code) {
+      setCode(saved.code);
+      if (saved.language) setLanguage(saved.language);
+      setSyncStatus(saved.syncStatus || "synced");
+    } else {
+      const starter = getStarterCodeForLanguage(problem, languageRef.current);
+      setCode(starter);
+    }
+  }, [problem?.id, activeProblemIndex]);
+
+  // 🛡️ AF-CHK: Immediate Synchronous Problem Switching (No 2-second debounce loss)
+  const switchProblem = (nextIdx) => {
+    if (nextIdx === activeProblemIndexRef.current) return;
+
+    const currentProb = problems[activeProblemIndexRef.current];
+    const currentProbId = currentProb?.id || (currentProb ? `p_${activeProblemIndexRef.current}` : null);
+    const targetId = roomId || initialMatch?.roomId || initialMatch?.roomCode || initialRoomCode || paramRoomCode;
+
+    let nextMap = { ...codeByProblemRef.current };
+    if (currentProbId) {
+      const currentCode = codeRef.current;
+      const currentLang = languageRef.current;
+      const existing = nextMap[currentProbId];
+      const nextRev = (existing?.revision || existing?.localRevision || 0) + 1;
+      nextMap[currentProbId] = {
+        problemId: currentProbId,
+        code: currentCode,
+        language: currentLang,
+        revision: nextRev,
+        localRevision: nextRev,
+        updatedAt: Date.now(),
+        isDirty: false,
+      };
+      codeByProblemRef.current = nextMap;
+      setCodeByProblem(nextMap);
+
+      // 1. Immediately flush to IndexedDB
+      if (targetId && user?.uid) {
+        saveAllLocalDrafts({
+          activityType: "battle",
+          activityId: targetId,
+          userId: user.uid,
+          checkpoints: nextMap,
+        });
+      }
+
+      // 2. Immediately emit to Redis / WebSocket (zero debounce wait)
+      if (socketRef.current?.connected && targetId) {
+        socketRef.current.emit("checkpoint_sync", {
+          roomId: targetId,
+          checkpoints: nextMap,
+        });
+      }
+    }
+
+    // Load destination problem
+    const nextProb = problems[nextIdx];
+    const nextProbId = nextProb?.id || (nextProb ? `p_${nextIdx}` : null);
+    const destinationSaved = nextProbId ? nextMap[nextProbId] : null;
+
+    const nextLang = destinationSaved?.language || languageRef.current || "javascript";
+    const nextCode = destinationSaved?.code !== undefined
+      ? destinationSaved.code
+      : (nextProb ? getStarterCodeForLanguage(nextProb, nextLang) : "");
+
+    setLanguage(nextLang);
+    setCode(nextCode);
+    setActiveProblemIndex(nextIdx);
+  };
+
+  // 🛡️ AF-CHK: Handle code changes with in-memory update and 1.5s background debounce
   const handleCodeChange = (newCode) => {
     setCode(newCode);
     setSyncStatus("pending_sync");
+
+    const currentProb = problems[activeProblemIndexRef.current];
+    const currentProbId = currentProb?.id || (currentProb ? `p_${activeProblemIndexRef.current}` : null);
+    if (!currentProbId) return;
+
+    const now = Date.now();
+    const existing = codeByProblemRef.current[currentProbId];
+    const nextRev = (existing?.revision || existing?.localRevision || 0) + 1;
+
+    const updatedEntry = {
+      problemId: currentProbId,
+      code: newCode,
+      language: languageRef.current,
+      revision: nextRev,
+      localRevision: nextRev,
+      updatedAt: now,
+      isDirty: true,
+    };
+
+    const nextMap = { ...codeByProblemRef.current, [currentProbId]: updatedEntry };
+    codeByProblemRef.current = nextMap;
+    setCodeByProblem(nextMap);
 
     if (saveDebounceTimer.current) {
       clearTimeout(saveDebounceTimer.current);
@@ -557,26 +675,20 @@ export default function LiveBattle() {
 
     saveDebounceTimer.current = setTimeout(async () => {
       const targetId = roomId || initialMatch?.roomId || initialMatch?.roomCode || initialRoomCode || paramRoomCode;
-      const currentProblemId = problem?.id || activeProblemIndex;
       if (!targetId || !user?.uid) return;
 
       try {
-        const record = await saveLocalDraft({
+        await saveAllLocalDrafts({
           activityType: "battle",
           activityId: targetId,
-          problemId: currentProblemId,
           userId: user.uid,
-          code: newCode,
-          language,
+          checkpoints: codeByProblemRef.current,
         });
 
-        if (socketRef.current?.connected && record) {
+        if (socketRef.current?.connected) {
           socketRef.current.emit("checkpoint_sync", {
             roomId: targetId,
-            problemId: currentProblemId,
-            code: newCode,
-            language,
-            revision: record.localRevision,
+            checkpoints: codeByProblemRef.current,
           });
         } else {
           setSyncStatus("degraded");
@@ -584,8 +696,40 @@ export default function LiveBattle() {
       } catch (err) {
         console.warn("Autosave draft error:", err);
       }
-    }, 2000);
+    }, 1500);
   };
+
+  const handleLanguageChange = (newLang) => {
+    setLanguage(newLang);
+    const currentProb = problems[activeProblemIndexRef.current];
+    const currentProbId = currentProb?.id || (currentProb ? `p_${activeProblemIndexRef.current}` : null);
+    if (!currentProbId) return;
+
+    const existing = codeByProblemRef.current[currentProbId];
+    const currentProbStarter = currentProb ? getStarterCodeForLanguage(currentProb, languageRef.current) : "";
+    const isStarterOrEmpty = !codeRef.current || codeRef.current.trim() === "" || codeRef.current.trim() === currentProbStarter.trim();
+
+    let newCode = codeRef.current;
+    if (isStarterOrEmpty && currentProb) {
+      newCode = getStarterCodeForLanguage(currentProb, newLang);
+      setCode(newCode);
+    }
+
+    const nextRev = (existing?.revision || existing?.localRevision || 0) + 1;
+    const updatedEntry = {
+      problemId: currentProbId,
+      code: newCode,
+      language: newLang,
+      revision: nextRev,
+      localRevision: nextRev,
+      updatedAt: Date.now(),
+      isDirty: true,
+    };
+    const nextMap = { ...codeByProblemRef.current, [currentProbId]: updatedEntry };
+    codeByProblemRef.current = nextMap;
+    setCodeByProblem(nextMap);
+  };
+
 
   const [output, setOutput] = useState("");
   const [lastResult, setLastResult] = useState(null);
@@ -727,6 +871,56 @@ export default function LiveBattle() {
     };
   }, [roomId, initialMatch, initialRoomCode, paramRoomCode, problem?.id, activeProblemIndex, user?.uid, code, language]);
 
+  // 🛡️ AF-CHK: Reconcile server checkpoints with local in-memory & IndexedDB state
+  const applyServerCheckpoints = (serverCheckpoints) => {
+    if (!serverCheckpoints || typeof serverCheckpoints !== "object") return;
+    const targetId = roomId || initialMatch?.roomId || initialMatch?.roomCode || initialRoomCode || paramRoomCode;
+    const currentMap = { ...codeByProblemRef.current };
+    let hasChanges = false;
+
+    for (const [probId, sCp] of Object.entries(serverCheckpoints)) {
+      if (!sCp || !sCp.code) continue;
+      const localCp = currentMap[probId];
+      const winner = reconcileCheckpoints(localCp, sCp);
+      if (winner) {
+        currentMap[probId] = {
+          problemId: probId,
+          code: winner.code,
+          language: winner.language || "javascript",
+          revision: winner.revision || winner.localRevision || 1,
+          localRevision: winner.revision || winner.localRevision || 1,
+          updatedAt: winner.updatedAt || Date.now(),
+          isDirty: false,
+          syncStatus: "synced",
+        };
+        hasChanges = true;
+      }
+    }
+
+    if (hasChanges) {
+      codeByProblemRef.current = currentMap;
+      setCodeByProblem(currentMap);
+
+      if (targetId && user?.uid) {
+        saveAllLocalDrafts({
+          activityType: "battle",
+          activityId: targetId,
+          userId: user.uid,
+          checkpoints: currentMap,
+        });
+      }
+
+      const currProb = problems[activeProblemIndexRef.current];
+      const currProbId = currProb?.id || (currProb ? `p_${activeProblemIndexRef.current}` : null);
+      if (currProbId && currentMap[currProbId]) {
+        const activeWin = currentMap[currProbId];
+        setCode(activeWin.code);
+        if (activeWin.language) setLanguage(activeWin.language);
+      }
+      setSyncStatus("synced");
+    }
+  };
+
   useEffect(() => {
     let cancelled = false;
     let socket = null;
@@ -824,7 +1018,17 @@ export default function LiveBattle() {
 
       socket.on("battle_state_sync", (state) => {
         setLiveState(state);
+        if (state?.myCheckpoints && typeof state.myCheckpoints === "object") {
+          applyServerCheckpoints(state.myCheckpoints);
+        }
       });
+
+      socket.on("checkpoints_restored", (data) => {
+        if (data?.checkpoints && typeof data.checkpoints === "object") {
+          applyServerCheckpoints(data.checkpoints);
+        }
+      });
+
 
       socket.on("execution_progress", (data) => {
           if (data.stage === "PREPARE" || data.stage === "COMPILE") {
@@ -1185,6 +1389,7 @@ export default function LiveBattle() {
         socketRef.current.off("rating_updates");
         socketRef.current.off("matchmaking_timeout");
         socketRef.current.off("checkpoint_ack");
+        socketRef.current.off("checkpoints_restored");
         socketRef.current.off("player_kicked");
         socketRef.current.off("player_readmitted");
         socketRef.current.off("timer_restored");
@@ -1276,11 +1481,6 @@ export default function LiveBattle() {
 
   const onSubmitCode = () => {
     if (!roomId || !socketRef.current || !problem) return;
-    const targetId = roomId || initialMatch?.roomId || initialMatch?.roomCode || initialRoomCode || paramRoomCode;
-    const currentProblemId = problem?.id || activeProblemIndex;
-    if (targetId && user?.uid) {
-      clearDraft("battle", targetId, currentProblemId, user.uid);
-    }
     setRunning(true);
     setRunMode("submit");
     setExecutionTimeline(["PREPARE"]);
@@ -1567,7 +1767,7 @@ export default function LiveBattle() {
                    <button 
                      key={p.id}
                      className={`tab-btn ${activeProblemIndex === idx ? 'active' : ''}`}
-                     onClick={() => setActiveProblemIndex(idx)}
+                     onClick={() => switchProblem(idx)}
                    >
                      <span>Q{idx + 1}</span>
                      {liveState?.players?.find(pl => pl.username === username)?.solvedProblems?.find(sp => sp.problemId === p.id) && (
@@ -1603,7 +1803,7 @@ export default function LiveBattle() {
             <div style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
               <select 
                 value={language}
-                onChange={(e) => setLanguage(e.target.value)}
+                onChange={(e) => handleLanguageChange(e.target.value)}
                 className="livebattle-language-select"
                 disabled={status === "finished" || running}
               >
@@ -1677,6 +1877,9 @@ export default function LiveBattle() {
               language={language}
               disabled={status === "finished" || isSelfDisqualified}
               isBlurred={isBlurred}
+              problemId={currentProblem?.id}
+              onRun={onTestCode}
+              onSubmit={onSubmitCode}
               errorLocation={
                 (lastResult?.error?.line || lastResult?.structuredError?.line)
                   ? {
@@ -1699,6 +1902,38 @@ export default function LiveBattle() {
                   <FontAwesomeIcon icon={faWandMagicSparkles} />
                   <span>Prettier</span>
                   <span className="prettier-shortcut">Shift+Alt+F</span>
+                </button>
+                <button
+                  type="button"
+                  className="statusbar-editor-action-btn"
+                  onClick={() => editorRef.current?.undo?.()}
+                  title="Undo (Ctrl+Z / ⌘Z)"
+                  disabled={status === "finished" || isSelfDisqualified}
+                >
+                  <FontAwesomeIcon icon={faRotateLeft} />
+                  <span>Undo</span>
+                  <span className="editor-shortcut-hint">Ctrl+Z</span>
+                </button>
+                <button
+                  type="button"
+                  className="statusbar-editor-action-btn"
+                  onClick={() => editorRef.current?.redo?.()}
+                  title="Redo (Ctrl+Y / ⌘Shift+Z)"
+                  disabled={status === "finished" || isSelfDisqualified}
+                >
+                  <FontAwesomeIcon icon={faRotateRight} />
+                  <span>Redo</span>
+                  <span className="editor-shortcut-hint">Ctrl+Y</span>
+                </button>
+                <button
+                  type="button"
+                  className="statusbar-editor-action-btn shortcuts-btn"
+                  onClick={() => editorRef.current?.openShortcuts?.()}
+                  title="Keyboard Shortcuts Guide (F1)"
+                >
+                  <FontAwesomeIcon icon={faKeyboard} />
+                  <span>Shortcuts</span>
+                  <span className="editor-shortcut-hint">F1</span>
                 </button>
               </div>
               <div className="statusbar-right">
